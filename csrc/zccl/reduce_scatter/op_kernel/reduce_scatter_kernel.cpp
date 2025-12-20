@@ -18,7 +18,6 @@
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
 constexpr uint32_t UB_DMA_MAX_SIZE = 190 * 1024;
-constexpr uint32_t UB_ALIGN_SIZE = 32;
 constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
 constexpr uint32_t BIG_DATA_SIZE = 2 * 1024 * 1024;
 
@@ -78,7 +77,6 @@ public:
         const uint32_t aivNum = AscendC::GetBlockNum();
         this->aivIndex = AscendC::GetBlockIdx();
         uint32_t sizeOfType = sizeof(T);
-        uint32_t alignUbBlockSize = UB_ALIGN_SIZE / sizeOfType;
 
         isSmall = (elements >= BIG_DATA_SIZE / sizeOfType) ? false : true;
 
