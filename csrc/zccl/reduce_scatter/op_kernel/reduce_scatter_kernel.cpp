@@ -22,7 +22,7 @@ constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
 constexpr uint32_t BIG_DATA_SIZE = 2 * 1024 * 1024;
 
 
-enum class ReduceOp : uint32_t {
+enum ReduceOp{
     REDUCE_SUM = 0,
     REDUCE_PROD = 1,
     REDUCE_MAX = 2,
@@ -33,7 +33,7 @@ enum class ReduceOp : uint32_t {
 template <typename T>
 SHMEM_DEVICE void SetAtomicOp(uint32_t atomicOp)
 {
-    switch (static_cast<ReduceOp>(atomicOp)) {
+    switch ((enum ReduceOp)atomicOp) {
         case ReduceOp::REDUCE_SUM:
             AscendC::SetAtomicAdd<T>();
             break;
@@ -57,14 +57,14 @@ inline __aicore__ T CeilDiv(const T dividend, const T divisor)
 }
 
 
-template <typename T>
+template <typename T, bool isSmall>
 class ReduceScatterKernel
 {
 public:
     __aicore__ inline ReduceScatterKernel() {}
 
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, GM_ADDR gva,
-                                uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t elements,
+                                uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t curLength,
                                 uint32_t magic, uint64_t fftsAddr, uint32_t atomicOp = 0)
     {
         this->rank = rank;
@@ -76,27 +76,26 @@ public:
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         this->aivIndex = AscendC::GetBlockIdx();
-        uint32_t sizeOfType = sizeof(T);
 
-        isSmall = (elements >= BIG_DATA_SIZE / sizeOfType) ? false : true;
-
-        if (isSmall) {
+        if constexpr (isSmall) {
             this->coreGroupNum = aivNum;
+            this->elePerRank = totalLength / rankSize;
+            this->lenPerRank = totalLength / rankSize;
         } else {
             this->coreGroupNum = aivNum / 2;
+            this->elePerRank = totalLength / rankSize;
+            this->lenPerRank = curLength / rankSize;
         }
 
         // core_target_rank = [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3] core_rank_idx = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
         this->corePerRank = this->coreGroupNum / rankSize;
         this->coreTargetRank = this->aivIndex / this->corePerRank;
         this->coreRankIdx = this->aivIndex % this->corePerRank;
-        this->elePerRank = elements / rankSize;
-        this->lenPerRank = totalLength / rankSize;
 
         // len: length of single process loop
         uint32_t lenPerRankAlignToCore = CeilDiv(this->lenPerRank, this->corePerRank) * this->corePerRank;
         formerLength = lenPerRankAlignToCore / this->corePerRank;
-        tailLength = formerLength - 1;
+        tailLength = lenPerRank / this->corePerRank;
         formerNum = this->lenPerRank % this->corePerRank;
         tailNum = this->corePerRank - formerNum;
 
@@ -115,48 +114,30 @@ public:
         gvaSyncOffset = this->aivIndex * SYNC_FLAG_INTERVAL;
         xGm.SetGlobalBuffer((__gm__ T *)x + xOffset, this->lenPerCore);
         yGm.SetGlobalBuffer((__gm__ T *)y + yOffset, this->lenPerCore);
-        gvaGm.SetGlobalBuffer((__gm__ T *)((__gm__ int32_t *)gva + gvaDataOffset), GVA_BUFF_MAX_SIZE / sizeOfType);
+        gvaGm.SetGlobalBuffer((__gm__ T *)((__gm__ int32_t *)gva + gvaDataOffset), GVA_BUFF_MAX_SIZE / sizeof(T));
         gvaSyncGm.SetGlobalBuffer((__gm__ int32_t *)gva, gvaDataOffset);
     }
 
     __aicore__ inline void Process()
     {
         shmemx_set_ffts_config(fftsAddr);
-        if (isSmall) {
+        if constexpr (isSmall) {
             CopySmallData();
         } else {
-            const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(T);
-            uint32_t maxCountPerLoop = static_cast<uint32_t>(maxGvaNum);
-            uint32_t elements = totalLength / sizeof(T);
-            uint32_t times = (elements + maxCountPerLoop - 1) / maxCountPerLoop;
-            uint32_t leftNum = elements;
-
-            uint32_t curInputOffset;
-            uint32_t curOutputOffset;
-            for (uint32_t i = 0; i < times; i++) {
-                AscendC::PipeBarrier<PIPE_ALL>();
-                uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
-                uint32_t curOffset = curLen / rankSize;
-
-                shmemx_barrier_all_vec();
-                CopyBigData(curInputOffset, curOutputOffset, curLen, (magic + i) * 1024);
-                leftNum -= curLen;
-                curInputOffset += curOffset;
-                curOutputOffset += curOffset;
-                AscendC::PipeBarrier<PIPE_ALL>();
-                shmemx_barrier_all_vec();
-            }
+            CopyBigData();
         }
     }
 
 private:
-    __aicore__ inline void CopySmallData() {
+    __aicore__ inline void CopySmallData()
+    {
 #ifdef __DAV_C220_VEC__
         const uint32_t ubSize = UB_DMA_MAX_SIZE;
         uint32_t gvaCopyInOffset;
         uint32_t gvaCopyOutOffset;
 
-        __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
+        const __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
+        __gm__ int32_t *coreGvaSyncGmAddr = (__gm__ int32_t *)gvaSyncGmAddr + gvaSyncOffset;
 
         AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, 64, ubSize);
 
@@ -177,16 +158,11 @@ private:
         shmem_quiet();
         shmemi_barrier_core_soft();
 
-        shmemx_signal_op(gvaSyncGmAddr + gvaSyncOffset, magic, SHMEM_SIGNAL_SET, rank);
-        __gm__ int32_t * waitAddr = (__gm__ int32_t *)shmem_ptr(gvaSyncGmAddr, coreTargetRank);
+        shmemx_signal_op(coreGvaSyncGmAddr, magic, SHMEM_SIGNAL_SET, rank);
+        __gm__ int32_t * waitAddr = (__gm__ int32_t *)shmem_ptr((__gm__ int32_t *)gvaSyncGmAddr, coreTargetRank);
         shmem_signal_wait_until(waitAddr + gvaSyncOffset, SHMEM_CMP_EQ, magic);
 
         // [ReduceScatter Step 2] symmetric mem -> local output & reduce.
-        if (rank == coreTargetRank) {
-            atomicOp = 255;
-        } else {
-            shmem_signal_wait_until(gvaSyncGmAddr + gvaSyncOffset, SHMEM_CMP_EQ, magic + 1);
-        }
         
         SetAtomicOp<T>(atomicOp);
         AscendC::PipeBarrier<PIPE_ALL>();
@@ -195,11 +171,10 @@ private:
 
         AscendC::SetAtomicNone();
         AscendC::PipeBarrier<PIPE_ALL>();
-        shmemx_signal_op(gvaSyncGmAddr + gvaSyncOffset, magic + 1, SHMEM_SIGNAL_SET, rank);
 #endif
     }
 
-    __aicore__ inline void CopyBigData(uint32_t inputOffset, uint32_t outputOffset, uint32_t curLen, int64_t magic)
+    __aicore__ inline void CopyBigData()
     {
 #ifdef __DAV_C220_VEC__
 
@@ -207,7 +182,8 @@ private:
         uint32_t gvaCopyInOffset;
         uint32_t gvaCopyOutOffset;
 
-        __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
+        const __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
+        __gm__ int32_t *coreGvaSyncGmAddr = (__gm__ int32_t *)gvaSyncGmAddr + gvaSyncOffset;
 
         if (coreRankIdx < formerNum) {
             gvaCopyInOffset = coreTargetRank * elePerRank + coreRankIdx * formerLength;
@@ -238,7 +214,7 @@ private:
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_S>(EVENT_ID0);
                 times += 1;
                 flag = times + magic;
-                shmemx_signal_op(gvaSyncGmAddr + gvaSyncOffset, flag, SHMEM_SIGNAL_SET, rank);
+                shmemx_signal_op(coreGvaSyncGmAddr, flag, SHMEM_SIGNAL_SET, rank);
 
                 AscendC::SetFlag<AscendC::HardEvent::S_MTE2>(EVENT_ID0);
                 AscendC::WaitFlag<AscendC::HardEvent::S_MTE2>(EVENT_ID0);
@@ -258,17 +234,11 @@ private:
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_S>(EVENT_ID0);
             times += 1;
             flag = times + magic;
-            shmemx_signal_op(gvaSyncGmAddr + gvaSyncOffset, flag, SHMEM_SIGNAL_SET, rank);
+            shmemx_signal_op(coreGvaSyncGmAddr, flag, SHMEM_SIGNAL_SET, rank);
             return;
         }
 
-        if (rank == coreTargetRank) {
-            atomicOp = 255;
-        } else {
-            shmem_signal_wait_until(gvaSyncGmAddr + gvaSyncOffset, SHMEM_CMP_EQ, magic);
-        }
         CpGvaToOutput(gvaCopyOutOffset);
-        shmemx_signal_op(gvaSyncGmAddr + gvaSyncOffset, magic, SHMEM_SIGNAL_SET, rank);
 #endif
     }
 
@@ -371,28 +341,50 @@ private:
     uint32_t formerLength;
     uint32_t tailLength;
     int64_t aivIndex;
-    bool isSmall;
 };
 
 
-template<typename T>
-extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR output,
-                                                         int elements, uint32_t reduceOp)
+extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
+                                                         uint64_t fftsAddr, uint32_t dataType, int totalLength,
+                                                         uint32_t reduceOp)
 {
-    uint64_t fftsAddr = shmemx_get_ffts_config();
-    // magic is used to sync.
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     uint32_t magic = 1;
-    const int64_t aivNum = GetBlockNum();
-    void *ptr = shmem_malloc(aivNum * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE / sizeof(T));
-    ReduceScatterKernel<T> op;
+    const int64_t aivNum = AscendC::GetBlockNum();
     uint32_t blockLength;
     uint32_t tileNum;
     uint32_t tileLength;
     uint32_t rank = shmem_my_pe();
     uint32_t rankSize = shmem_n_pes();
-    uint32_t totalLength = elements;
-    op.Init(input, output, (uint8_t *)ptr, blockLength, tileNum, tileLength, rank, rankSize, totalLength, magic, fftsAddr, reduceOp);
-    op.Process();
+    bool smallFlag = (totalLength >= BIG_DATA_SIZE / sizeof(float)) ? false : true;
+    if (smallFlag) {
+        AscendC::printf("run small kernel");
+        ReduceScatterKernel<float, true> op;
+        op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, reduceOp);
+        op.Process();
+    } else {
+        ReduceScatterKernel<float, false> op;
+        const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(float);
+        uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
+        uint32_t times = (totalLength + maxCountPerLoop - 1) / maxCountPerLoop;
+        uint32_t leftNum = totalLength;
+        uint32_t curInputOffset;
+        uint32_t curOutputOffset;
+        for (uint32_t i = 0; i < times; i++) {
+            uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
+            uint32_t curOffset = curLen / rankSize;
+            op.Init(input + curInputOffset * sizeof(float), output + curOutputOffset * sizeof(float), gva, rank, rankSize,
+                    totalLength, curLen, (magic + i) * 1024, fftsAddr, reduceOp);
+            AscendC::PipeBarrier<PIPE_ALL>();
+            shmemx_barrier_all_vec();
+            op.Process();
+            leftNum -= curLen;
+            curInputOffset += curOffset;
+            curOutputOffset += curOffset;
+            AscendC::PipeBarrier<PIPE_ALL>();
+            shmemx_barrier_all_vec();
+        }
+    }
 }
 
 #endif // REDUCE_SCATTER_KERNEL_H
