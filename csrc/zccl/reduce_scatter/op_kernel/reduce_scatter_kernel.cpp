@@ -160,7 +160,8 @@ private:
 
         shmemx_signal_op(coreGvaSyncGmAddr, magic, SHMEM_SIGNAL_SET, rank);
         __gm__ int32_t * waitAddr = (__gm__ int32_t *)shmem_ptr((__gm__ int32_t *)gvaSyncGmAddr, coreTargetRank);
-        shmem_signal_wait_until(waitAddr + gvaSyncOffset, SHMEM_CMP_EQ, magic);
+        int32_t waitOffset = (rank * corePerRank + coreRankIdx) * SYNC_FLAG_INTERVAL;
+        shmem_signal_wait_until(waitAddr + waitOffset, SHMEM_CMP_EQ, magic);
 
         // [ReduceScatter Step 2] symmetric mem -> local output & reduce.
         
@@ -186,11 +187,11 @@ private:
         __gm__ int32_t *coreGvaSyncGmAddr = (__gm__ int32_t *)gvaSyncGmAddr + gvaSyncOffset;
 
         if (coreRankIdx < formerNum) {
-            gvaCopyInOffset = coreTargetRank * elePerRank + coreRankIdx * formerLength;
+            gvaCopyInOffset = coreTargetRank * lenPerRank + coreRankIdx * formerLength;
             gvaCopyOutOffset = rank * lenPerRank + coreRankIdx * formerLength;
         } else {
             gvaCopyInOffset =
-                coreTargetRank * elePerRank + formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
+                coreTargetRank * lenPerRank + formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
             gvaCopyOutOffset = rank * lenPerRank + formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
         }
 
@@ -207,7 +208,7 @@ private:
             int64_t flag = 0;
             // todo ub align
             while (leftCopySize >= ubSize) {
-                shmem_mte_put_mem_nbi(gvaGm[times * copyNum],
+                shmem_mte_put_mem_nbi(gvaGm[gvaCopyInOffset + times * copyNum],
                                       xGm[times * copyNum],
                                       tmpBuff, copyNum, rank, EVENT_ID0);
                 AscendC::SetFlag<AscendC::HardEvent::MTE3_S>(EVENT_ID0);
@@ -227,7 +228,7 @@ private:
             if (leftCopySize <= 0) {
                 return;
             }
-            shmem_mte_put_mem_nbi(gvaGm[times * copyNum],
+            shmem_mte_put_mem_nbi(gvaGm[gvaCopyInOffset + times * copyNum],
                                   xGm[times * copyNum],
                                   tmpBuff, leftCopySize / sizeof(T), rank, EVENT_ID0);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_S>(EVENT_ID0);

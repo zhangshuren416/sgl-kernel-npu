@@ -112,7 +112,9 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
 
         // sync Buffer + data Buffer
         int aiv_num = BLOCK_NUM;
-        void *ptr = shmem_malloc(aiv_num * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE / sizeof(T));
+        size_t gvaSize = aiv_num * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE;
+        void *ptr = shmem_malloc(gvaSize);
+        aclrtMemset(ptr, gvaSize, 0, gvaSize);
 
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
