@@ -7,6 +7,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "acl/acl.h"
 #include "defines.h"
 #include "reduce_scatter_tilling.h"
 #include "tiling/platform/platform_ascendc.h"
@@ -19,30 +20,47 @@ namespace npu_kernel {
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
 constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
-constexpr uint32_t BIG_DATA_SIZE = 2 * 1024 * 1024;
+constexpr uint32_t BIG_DATA_THRESHOLD = 2 * 1024 * 1024;
+constexpr uint32_t BLOCK_NUM_SMALL_DATA = 8;
+constexpr uint32_t BLOCK_NUM_LARGE_DATA = 16;
 
-HOST_API void zccl_reduce_scatter(const at::Tensor &tensor_a, at::Tensor &tensor_b)
+
+enum class OpDataType : uint32_t{
+    INT=0,
+    FLOAT=1,
+    FLOAT16=2,
+    BFLOAT16=3
+}
+
+HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
+    size_t inpNumel, uint32_t dataType, uint32_t reduceOp, int teamId, aclrtStream stream)
 {
     /* define the block dim */
-    uint32_t blockDim = 8;
+    uint32_t blockDim = 0;
 
-    /* memory size */
-    uint32_t totalLength = 1;
-    for (uint32_t size : tensor_a.sizes()) {
-        totalLength *= size;
-    }
-    if (totalLength < BIG_DATA_SIZE) {
-        blockDim = 8;
+    // get team info
+    uint32_t rank = shmem_team_my_pe(teamId);
+    uint32_t rankSize = shmem_team_n_pes(teamId);
+
+    if (inpNumel * sizeof(dataType) < BIG_DATA_THRESHOLD) {
+        blockDim = BLOCK_NUM_SMALL_DATA;
     } else {
-        blockDim = 16;
+        blockDim = BLOCK_NUM_LARGE_DATA;
     }
 
-    /* launch the kernel function via torch */
-    void *ptr = shmem_malloc(blockDim * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE / sizeof(float));
+    // Prepare FFTS address
     uint64_t fftsAddr = shmemx_get_ffts_config();
-    uint32_t dataType = 0;
-    uint32_t reduceOp = 0;
-    EXEC_KERNEL_CMD(ShmemReduceScatter, blockDim, tensor_a, tensor_b, ptr, fftsAddr, dataType, totalLength, reduceOp);
+    // allocate gva buffer
+    size_t gvaSize = blockDim * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE;
+    void *ptr = shmem_malloc(gvaSize);
+    aclrtMemset(ptr, gvaSize, 0, gvaSize);
+    // set output empty
+    size_t outputSize = inpNumel / rankSize;
+    aclrtMemset(out, outputSize, 0, outputSize);
+
+    /* launch the kernel function via ACLRT_LAUNCH_KERNEL */
+    ACLRT_LAUNCH_KERNEL(ShmemReduceScatter)(blockDim, stream, inp, out, (uint8_t *)ptr,
+                                            fftsAddr, dataType, inpNumel, teamId, reduceOp);
     shmem_free(ptr);
 }
 

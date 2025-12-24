@@ -347,7 +347,7 @@ private:
 
 extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
                                                          uint64_t fftsAddr, uint32_t dataType, int totalLength,
-                                                         uint32_t reduceOp)
+                                                         int teamId, uint32_t reduceOp)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     uint32_t magic = 1;
@@ -355,11 +355,10 @@ extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR 
     uint32_t blockLength;
     uint32_t tileNum;
     uint32_t tileLength;
-    uint32_t rank = shmem_my_pe();
-    uint32_t rankSize = shmem_n_pes();
+    uint32_t rank = shmem_team_my_pe(teamId);
+    uint32_t rankSize = shmem_team_n_pes(teamId);
     bool smallFlag = (totalLength >= BIG_DATA_SIZE / sizeof(float)) ? false : true;
     if (smallFlag) {
-        AscendC::printf("run small kernel");
         ReduceScatterKernel<float, true> op;
         op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, reduceOp);
         op.Process();

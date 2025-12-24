@@ -82,6 +82,7 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
     uint32_t BLOCK_NUM = 8;
     uint32_t reduceOp = 0;
     uint32_t dataType = 0;
+    int teamId = 0;
 
     for (int i = 0; i < test_cases.size(); i++) {
         if (rank_id == 0) {
@@ -119,7 +120,7 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
             ACLRT_LAUNCH_KERNEL(ShmemReduceScatter)(BLOCK_NUM, stream, (uint8_t *)input_ptr,
-                                   (uint8_t *)output_ptr, (uint8_t *)ptr, fftsAddr, dataType, trans_size, reduceOp);
+                (uint8_t *)output_ptr, (uint8_t *)ptr, fftsAddr, dataType, trans_size, teamId, reduceOp);
         }
         status = aclrtSynchronizeStream(stream);
 
