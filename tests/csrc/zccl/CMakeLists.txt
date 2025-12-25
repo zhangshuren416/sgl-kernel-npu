@@ -25,17 +25,20 @@ target_include_directories(ascendc_reduce_scatter PRIVATE
     ${SHMEM_HOME_PATH}/memfabric_hybrid/include/smem/host
     ${CMAKE_CURRENT_SOURCE_DIR}/utils
     ${ASCEND_INCLUDE_DIR}
+    ${ASCEND_INCLUDE_DIR}/aclnn/opdev
     ${ZCCL_INCLUDE_DIR}
 )
 
 target_link_directories(ascendc_reduce_scatter PRIVATE
     ${SHMEM_HOME_PATH}/shmem/lib/
     ${SHMEM_HOME_PATH}/memfabric_hybrid/lib
-    # ${ASCEND_HOME_PATH}/lib64
+    ${ASCEND_HOME_PATH}/lib64
     ${ZCCL_LIB_DIR}
 )
 
 target_link_libraries(ascendc_reduce_scatter PRIVATE
+    ascendcl
+    nnopbase
     zccl
     shmem
     mf_smem
