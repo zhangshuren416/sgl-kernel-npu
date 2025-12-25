@@ -33,7 +33,9 @@ using fp16_t = op::fp16_t;
 
 #include "acl/acl.h"
 #include "shmem_api.h"
-#include "aclrtlaunch_ShmemReduceScatter.h"
+#include "zccl.h"
+
+using namespace sglang::zccl;
 
 int g_npus = 8;
 const char *ipport;
@@ -81,7 +83,7 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
 
     uint32_t BLOCK_NUM = 8;
     uint32_t reduceOp = 0;
-    uint32_t dataType = 0;
+    ZCCLDataType dataType = ZCCLDataType::ZCCL_DATA_TYPE_FP32;
     int teamId = 0;
 
     for (int i = 0; i < test_cases.size(); i++) {
@@ -111,16 +113,10 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
         aclrtMalloc(&output_ptr, outSingleSize, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMemset(output_ptr, outSingleSize, 0, outSingleSize);
 
-        // sync Buffer + data Buffer
-        int aiv_num = BLOCK_NUM;
-        size_t gvaSize = aiv_num * SYNC_FLAG_INTERVAL * sizeof(int32_t) + GVA_BUFF_MAX_SIZE;
-        void *ptr = shmem_malloc(gvaSize);
-        aclrtMemset(ptr, gvaSize, 0, gvaSize);
-
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
-            ACLRT_LAUNCH_KERNEL(ShmemReduceScatter)(BLOCK_NUM, stream, (uint8_t *)input_ptr,
-                (uint8_t *)output_ptr, (uint8_t *)ptr, fftsAddr, dataType, trans_size, teamId, reduceOp);
+            zcclReduceScatter((uint8_t *)input_ptr, (uint8_t *)output_ptr, trans_size, 
+                dataType, teamId, stream);
         }
         status = aclrtSynchronizeStream(stream);
 
@@ -157,7 +153,6 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
         status = aclrtFreeHost(output_host);
         status = aclrtFreeHost(golden_host);
 
-        shmem_free(ptr);
         aclrtFree(input_ptr);
         aclrtFree(output_ptr);
 

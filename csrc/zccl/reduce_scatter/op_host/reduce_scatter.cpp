@@ -27,7 +27,7 @@ constexpr uint32_t BLOCK_NUM_LARGE_DATA = 16;
 
 
 extern "C" HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
-    size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, int32_t reduceOp)
+    size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, uint32_t reduceOp)
 {
     /* define the block dim */
     uint32_t blockDim = 0;

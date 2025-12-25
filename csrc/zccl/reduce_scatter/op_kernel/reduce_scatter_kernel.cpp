@@ -17,6 +17,8 @@
 #include "shmem_api.h"
 #include "zccl.h"
 
+using namespace sglang::zccl;
+
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
 constexpr uint32_t UB_DMA_MAX_SIZE = 190 * 1024;
@@ -31,6 +33,28 @@ enum ReduceOp{
     REDUCE_MIN = 3,
     REDUCE_RESERVED = 255
 };
+
+__aicore__ inline size_t getSizeFromTypeEnum(ZCCLDataType dtype)
+{
+    switch (dtype) {
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT8:
+            return sizeof(int8_t);
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT16:
+            return sizeof(int16_t);
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT32:
+            return sizeof(int32_t);
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT64:
+            return sizeof(int64_t);
+        case ZCCLDataType::ZCCL_DATA_TYPE_FP16:
+            return sizeof(int16_t);
+        case ZCCLDataType::ZCCL_DATA_TYPE_FP32:
+            return sizeof(float);
+        case ZCCLDataType::ZCCL_DATA_TYPE_BFP16:
+            return sizeof(int16_t);
+        default:
+            break;
+    }
+}
 
 template <typename T>
 SHMEM_DEVICE void SetAtomicOp(uint32_t atomicOp)
@@ -59,7 +83,7 @@ inline __aicore__ T CeilDiv(const T dividend, const T divisor)
 }
 
 
-template <typename T, bool isSmall>
+template <typename T>
 class ReduceScatterKernel
 {
 public:
@@ -67,7 +91,7 @@ public:
 
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, GM_ADDR gva,
                                 uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t curLength,
-                                uint32_t magic, uint64_t fftsAddr, uint32_t atomicOp = 0)
+                                uint32_t magic, uint64_t fftsAddr, bool isSmall, uint32_t atomicOp = 0)
     {
         this->rank = rank;
         this->rankSize = rankSize;
@@ -75,11 +99,12 @@ public:
         this->atomicOp = atomicOp;
         this->totalLength = totalLength;
         this->fftsAddr = fftsAddr;
+        this->smallFlag = isSmall;
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         this->aivIndex = AscendC::GetBlockIdx();
 
-        if constexpr (isSmall) {
+        if (this->smallFlag) {
             this->coreGroupNum = aivNum;
             this->elePerRank = totalLength / rankSize;
             this->lenPerRank = totalLength / rankSize;
@@ -123,10 +148,35 @@ public:
     __aicore__ inline void Process()
     {
         shmemx_set_ffts_config(fftsAddr);
-        if constexpr (isSmall) {
+        if (smallFlag) {
             CopySmallData();
         } else {
             CopyBigData();
+        }
+    }
+
+    __aicore__ inline void RunBigDataOp(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
+        uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t magic, uint64_t fftsAddr, uint32_t reduceOp)
+    {
+        const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(float);
+        uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
+        uint32_t times = (totalLength + maxCountPerLoop - 1) / maxCountPerLoop;
+        uint32_t leftNum = totalLength;
+        uint32_t curInputOffset;
+        uint32_t curOutputOffset;
+        for (uint32_t i = 0; i < times; i++) {
+            uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
+            uint32_t curOffset = curLen / rankSize;
+            Init(input + curInputOffset * sizeof(float), output + curOutputOffset * sizeof(float), gva, rank, rankSize,
+                    totalLength, curLen, (magic + i) * 1024, fftsAddr, true, reduceOp);
+            AscendC::PipeBarrier<PIPE_ALL>();
+            shmemx_barrier_all_vec();
+            Process();
+            leftNum -= curLen;
+            curInputOffset += curOffset;
+            curOutputOffset += curOffset;
+            AscendC::PipeBarrier<PIPE_ALL>();
+            shmemx_barrier_all_vec();
         }
     }
 
@@ -344,11 +394,12 @@ private:
     uint32_t formerLength;
     uint32_t tailLength;
     int64_t aivIndex;
+    bool smallFlag;
 };
 
 
 extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
-                                                         uint64_t fftsAddr, uint32_t dataType, int totalLength,
+                                                         uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength,
                                                          int teamId, uint32_t reduceOp)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
@@ -363,46 +414,48 @@ extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR 
     size_t typeSize = getSizeFromTypeEnum(zcclDataType);
     bool smallFlag = (totalLength >= BIG_DATA_SIZE / typeSize) ? false : true;
     switch (zcclDataType) {
-        case ZCCLDataType::ZCCL_DATA_TYPE_INT8:
-            ReduceScatterKernel<int8_t, smallFlag> op;
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT8: {
+            ReduceScatterKernel<int8_t> op;
+            if (smallFlag) {
+                op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, smallFlag, reduceOp);
+                op.Process();
+            } else {
+                op.RunBigDataOp(input, output, gva, rank, rankSize, totalLength, magic, fftsAddr, reduceOp);
+            }
             break;
-        case ZCCLDataType::ZCCL_DATA_TYPE_INT16:
-            ReduceScatterKernel<int16_t, smallFlag> op;
+        }
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT16: {
+            ReduceScatterKernel<int16_t> op;
+            if (smallFlag) {
+                op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, smallFlag, reduceOp);
+                op.Process();
+            } else {
+                op.RunBigDataOp(input, output, gva, rank, rankSize, totalLength, magic, fftsAddr, reduceOp);
+            }
             break;
-        case ZCCLDataType::ZCCL_DATA_TYPE_INT32:
-            ReduceScatterKernel<int32_t, smallFlag> op;
+        }
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT32: {
+            ReduceScatterKernel<int32_t> op;
+            if (smallFlag) {
+                op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, smallFlag, reduceOp);
+                op.Process();
+            } else {
+                op.RunBigDataOp(input, output, gva, rank, rankSize, totalLength, magic, fftsAddr, reduceOp);
+            }
             break;
-        case ZCCLDataType::ZCCL_DATA_TYPE_FP32:
-            ReduceScatterKernel<float, smallFlag> op;
+        }
+        case ZCCLDataType::ZCCL_DATA_TYPE_FP32: {
+            ReduceScatterKernel<float> op;
+            if (smallFlag) {
+                op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, smallFlag, reduceOp);
+                op.Process();
+            } else {
+                op.RunBigDataOp(input, output, gva, rank, rankSize, totalLength, magic, fftsAddr, reduceOp);
+            }
             break;
+        }
         default:
             return;
-    }
-    
-    if (smallFlag) {
-        op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, reduceOp);
-        op.Process();
-    } else {
-        const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(float);
-        uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
-        uint32_t times = (totalLength + maxCountPerLoop - 1) / maxCountPerLoop;
-        uint32_t leftNum = totalLength;
-        uint32_t curInputOffset;
-        uint32_t curOutputOffset;
-        for (uint32_t i = 0; i < times; i++) {
-            uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
-            uint32_t curOffset = curLen / rankSize;
-            op.Init(input + curInputOffset * sizeof(float), output + curOutputOffset * sizeof(float), gva, rank, rankSize,
-                    totalLength, curLen, (magic + i) * 1024, fftsAddr, reduceOp);
-            AscendC::PipeBarrier<PIPE_ALL>();
-            shmemx_barrier_all_vec();
-            op.Process();
-            leftNum -= curLen;
-            curInputOffset += curOffset;
-            curOutputOffset += curOffset;
-            AscendC::PipeBarrier<PIPE_ALL>();
-            shmemx_barrier_all_vec();
-        }
     }
 }
 
