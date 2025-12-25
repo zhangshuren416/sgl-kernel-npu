@@ -15,7 +15,7 @@
 #include <cstdint>
 
 namespace sglang {
-namespace npu_kernel {
+namespace zccl {
 
 struct ReduceScatterTilingData {
     uint32_t formerNum;
@@ -24,7 +24,7 @@ struct ReduceScatterTilingData {
     uint64_t tailLength;
 };
 
-}  // namespace npu_kernel
+}  // namespace zccl
 }  // namespace sglang
 
 #endif  // REDUCE_SCATTER_TILING_H

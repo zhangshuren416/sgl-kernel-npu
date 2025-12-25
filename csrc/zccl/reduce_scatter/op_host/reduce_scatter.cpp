@@ -14,9 +14,10 @@
 #include "aclrtlaunch_ShmemReduceScatter.h"
 #include "torch_helper.h"
 #include "shmem_api.h"
+#include "../../include/zccl.h"
 
 namespace sglang {
-namespace npu_kernel {
+namespace zccl {
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
 constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
@@ -25,15 +26,8 @@ constexpr uint32_t BLOCK_NUM_SMALL_DATA = 8;
 constexpr uint32_t BLOCK_NUM_LARGE_DATA = 16;
 
 
-enum class OpDataType : uint32_t{
-    INT=0,
-    FLOAT=1,
-    FLOAT16=2,
-    BFLOAT16=3
-}
-
-HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
-    size_t inpNumel, uint32_t dataType, uint32_t reduceOp, int teamId, aclrtStream stream)
+extern "C" HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
+    size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, int32_t reduceOp)
 {
     /* define the block dim */
     uint32_t blockDim = 0;
@@ -42,11 +36,13 @@ HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
     uint32_t rank = shmem_team_my_pe(teamId);
     uint32_t rankSize = shmem_team_n_pes(teamId);
 
-    if (inpNumel * sizeof(dataType) < BIG_DATA_THRESHOLD) {
+    size_t typeSize = getSizeFromTypeEnum(dataType);
+    if (inpNumel * typeSize < BIG_DATA_THRESHOLD) {
         blockDim = BLOCK_NUM_SMALL_DATA;
     } else {
         blockDim = BLOCK_NUM_LARGE_DATA;
     }
+    uint32_t dataTypeNum = static_cast<uint32_t>(dataType);
 
     // Prepare FFTS address
     uint64_t fftsAddr = shmemx_get_ffts_config();
@@ -60,11 +56,9 @@ HOST_API void zcclReduceScatter(uint8_t *inp, uint8_t *out,
 
     /* launch the kernel function via ACLRT_LAUNCH_KERNEL */
     ACLRT_LAUNCH_KERNEL(ShmemReduceScatter)(blockDim, stream, inp, out, (uint8_t *)ptr,
-                                            fftsAddr, dataType, inpNumel, teamId, reduceOp);
+                                            fftsAddr, dataTypeNum, inpNumel, teamId, reduceOp);
     shmem_free(ptr);
 }
 
 }
 }
-
-

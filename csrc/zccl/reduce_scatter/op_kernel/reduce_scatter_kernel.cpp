@@ -11,9 +11,11 @@
 #ifndef REDUCE_SCATTER_KERNEL_H
 #define REDUCE_SCATTER_KERNEL_H
 
+#include <cstdint>
+
 #include "kernel_operator.h"
 #include "shmem_api.h"
-#include <cstdint>
+#include "zccl.h"
 
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
@@ -357,13 +359,30 @@ extern "C" __global__ __aicore__ void ShmemReduceScatter(GM_ADDR input, GM_ADDR 
     uint32_t tileLength;
     uint32_t rank = shmem_team_my_pe(teamId);
     uint32_t rankSize = shmem_team_n_pes(teamId);
-    bool smallFlag = (totalLength >= BIG_DATA_SIZE / sizeof(float)) ? false : true;
+    ZCCLDataType zcclDataType = static_cast<ZCCLDataType>(dataType);
+    size_t typeSize = getSizeFromTypeEnum(zcclDataType);
+    bool smallFlag = (totalLength >= BIG_DATA_SIZE / typeSize) ? false : true;
+    switch (zcclDataType) {
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT8:
+            ReduceScatterKernel<int8_t, smallFlag> op;
+            break;
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT16:
+            ReduceScatterKernel<int16_t, smallFlag> op;
+            break;
+        case ZCCLDataType::ZCCL_DATA_TYPE_INT32:
+            ReduceScatterKernel<int32_t, smallFlag> op;
+            break;
+        case ZCCLDataType::ZCCL_DATA_TYPE_FP32:
+            ReduceScatterKernel<float, smallFlag> op;
+            break;
+        default:
+            return;
+    }
+    
     if (smallFlag) {
-        ReduceScatterKernel<float, true> op;
         op.Init(input, output, gva, rank, rankSize, totalLength, totalLength, magic, fftsAddr, reduceOp);
         op.Process();
     } else {
-        ReduceScatterKernel<float, false> op;
         const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(float);
         uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
         uint32_t times = (totalLength + maxCountPerLoop - 1) / maxCountPerLoop;
