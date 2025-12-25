@@ -115,7 +115,7 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size)
 
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
-            zcclReduceScatter((uint8_t *)input_ptr, (uint8_t *)output_ptr, trans_size, 
+            ZcclReduceScatter((uint8_t *)input_ptr, (uint8_t *)output_ptr, trans_size, 
                 dataType, teamId, stream);
         }
         status = aclrtSynchronizeStream(stream);

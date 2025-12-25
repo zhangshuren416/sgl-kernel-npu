@@ -158,17 +158,17 @@ public:
     __aicore__ inline void RunBigDataOp(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
         uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t magic, uint64_t fftsAddr, uint32_t reduceOp)
     {
-        const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(float);
+        const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(T);
         uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
         uint32_t times = (totalLength + maxCountPerLoop - 1) / maxCountPerLoop;
         uint32_t leftNum = totalLength;
-        uint32_t curInputOffset;
-        uint32_t curOutputOffset;
+        uint32_t curInputOffset = 0;
+        uint32_t curOutputOffset = 0;
         for (uint32_t i = 0; i < times; i++) {
             uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
             uint32_t curOffset = curLen / rankSize;
-            Init(input + curInputOffset * sizeof(float), output + curOutputOffset * sizeof(float), gva, rank, rankSize,
-                    totalLength, curLen, (magic + i) * 1024, fftsAddr, true, reduceOp);
+            Init(input + curInputOffset * sizeof(T), output + curOutputOffset * sizeof(T), gva, rank, rankSize,
+                    totalLength, curLen, (magic + i) * 1024, fftsAddr, false, reduceOp);
             AscendC::PipeBarrier<PIPE_ALL>();
             shmemx_barrier_all_vec();
             Process();
