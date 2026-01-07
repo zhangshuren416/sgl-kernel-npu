@@ -33,9 +33,8 @@ using fp16_t = op::fp16_t;
 
 #include "acl/acl.h"
 #include "shmem_api.h"
-#include "zccl.h"
+#include "zbccl.h"
 
-using namespace sglang::zccl;
 
 int g_npus = 8;
 const char *ipport;
@@ -45,7 +44,7 @@ const char *data_type;
 bool zero_buff = false;
 
 template<class T>
-int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size, ZCCLDataType dataType, bool zero_buff)
+int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size, zbccl_datatype_t dataType, bool zero_buff)
 {
     // 初始化ACL和SHMEM
     int32_t device_id = rank_id % g_npus + f_npu;
@@ -74,7 +73,7 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size,
         test_cases.push_back(data_len);
     }
 
-    uint32_t reduceOp = 0;
+    zbccl_reduce_op_t reduceOp = zbccl_reduce_op_t::REDUCE_SUM;
     int teamId = 0;
     std::string cwd = getEnvVar("PWD");
 
@@ -109,11 +108,9 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size,
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
             if (zero_buff) {
-                ZcclReduceScatterZeroBuff((uint8_t *)input_ptr, (uint8_t *)output_ptr, trans_size,
-                    dataType, teamId, stream);
+                continue;
             } else {
-                ZcclReduceScatter((uint8_t *)input_ptr, (uint8_t *)output_ptr, trans_size, 
-                    dataType, teamId, stream);
+                zbccl_reduce_scatter(input_ptr, output_ptr, trans_size, dataType, reduceOp, teamId, stream);
             }
         }
         status = aclrtSynchronizeStream(stream);
@@ -185,14 +182,14 @@ int main(int argc, char *argv[])
     uint64_t local_mem_size = 1024UL * 1024UL * 1024;
     int32_t ret = shmem_set_conf_store_tls(false, nullptr, 0);
     std::cout << "init shmem tls result:" << ret << std::endl;
-    ZCCLDataType dataType = ZCCLDataType::ZCCL_DATA_TYPE_FP32;
+    zbccl_datatype_t dataType = zbccl_datatype_t::ZCCL_DATA_TYPE_FP32;
     if (std::string(data_type) == "int") {
-        dataType = ZCCLDataType::ZCCL_DATA_TYPE_INT32;
+        dataType = zbccl_datatype_t::ZCCL_DATA_TYPE_INT32;
         status = test_shmem_reduce_scatter<int>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
     } else if (std::string(data_type) == "float") {
         status = test_shmem_reduce_scatter<float>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
     } else if (std::string(data_type) == "float16_t") {
-        dataType = ZCCLDataType::ZCCL_DATA_TYPE_FP16;
+        dataType = zbccl_datatype_t::ZCCL_DATA_TYPE_FP16;
         status = test_shmem_reduce_scatter<fp16_t>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
     }
     

@@ -27,6 +27,30 @@ enum ZResultErrorCode : ZResult {
     Z_NEW_OBJ_FAILED = -3,
 };
 
+enum ZCCLDataType {
+    ZCCL_DATA_TYPE_INT8 = 0,
+    ZCCL_DATA_TYPE_INT16 = 1,
+    ZCCL_DATA_TYPE_INT32 = 2,
+    ZCCL_DATA_TYPE_FP16 = 3,
+    ZCCL_DATA_TYPE_FP32 = 4,
+    ZCCL_DATA_TYPE_INT64 = 5,
+    ZCCL_DATA_TYPE_UINT64 = 6,
+    ZCCL_DATA_TYPE_UINT8 = 7,
+    ZCCL_DATA_TYPE_UINT16 = 8,
+    ZCCL_DATA_TYPE_UINT32 = 9,
+    ZCCL_DATA_TYPE_FP64 = 10,
+    ZCCL_DATA_TYPE_BFP16 = 11,
+    ZCCL_DATA_TYPE_RESERVED
+};
+
+enum ReduceOp {
+    REDUCE_SUM = 0,
+    REDUCE_PROD = 1,
+    REDUCE_MAX = 2,
+    REDUCE_MIN = 3,
+    REDUCE_RESERVED = 255
+};
+
 #define ZBCCL_API __attribute__((visibility("default")))
 }  // namespace zbccl
 

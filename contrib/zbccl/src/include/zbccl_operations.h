@@ -53,7 +53,7 @@ int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, z
  * @return 0 if successful
  */
 int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
-                             zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream);
+                             zbccl_reduce_op_t op, int team_id, aclrtStream stream);
 
 /**
  * @brief Do all gather operation

@@ -38,7 +38,7 @@ target_link_directories(ascendc_reduce_scatter PRIVATE
 target_link_libraries(ascendc_reduce_scatter PRIVATE
     ascendcl
     nnopbase
-    zccl
+    zbccl_op
     shmem
     mf_smem
     mf_hybm_core
