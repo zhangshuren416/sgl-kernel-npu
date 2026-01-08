@@ -16,6 +16,20 @@
 
 namespace zbccl {
 namespace sma {
+
+static const char* kPytorchNPUAllocConf = "PYTORCH_NPU_ALLOC_CONF";
+static const char* kMaxSplitSizeMB = "max_split_size_mb";
+static const char* kGarbageCollectionThreshold = "garbage_collection_threshold";
+// static const char* kExpandableSegments = "expandable_segments";
+static const char* kBaseAddrAlignedKB = "base_addr_aligned_kb";
+static const char* kPageSize = "page_size";
+static const char* kSegmentSizeMB = "segment_size_mb";
+
+static constexpr size_t kAlignRoundLarge = 16384;            // round up large allocs to 16 KB
+static constexpr size_t kSmallBuffer = 2097152;              // "small" allocations are packed in 2 MiB blocks
+static constexpr size_t kLargeBuffer = 20971520;             // "large" allocations may be packed in 20 MiB blocks
+constexpr size_t kMB = 1024 * 1024;                          // 1 MB
+
 class SecondaryMemoryAllocator : public ZReferable
 {
 public:

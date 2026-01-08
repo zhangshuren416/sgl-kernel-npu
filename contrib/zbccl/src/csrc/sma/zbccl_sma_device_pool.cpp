@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_sma_device_block_pool.h"
+#include "zbccl_sma_device_pool.h"
 
 namespace zbccl {
 namespace sma {

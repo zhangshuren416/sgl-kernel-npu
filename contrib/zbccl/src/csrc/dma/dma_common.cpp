@@ -9,16 +9,23 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMON_INCLUDES_H
-#define ZBCCL_COMMON_INCLUDES_H
+#include "dma_common.h"
+#include <sstream>
+#include <string>
 
-#include <iostream>
+bool OptionsManager::IsHcclZeroCopyEnable = false;
+bool OptionsManager::CheckForceUncached = false;
 
-#include "third_party/ska/flat_hash_map.h"
-#include "zbccl.h"
-#include "zbccl_defines.h"
-#include "zbccl_functions.h"
-#include "zbccl_ref.h"
-#include "zbccl_version.h"
+std::string formatErrorCode(int32_t errorCode)
+{
+    // if (c10_npu::option::OptionsManager::IsCompactErrorOutput()) {
+    //     return "";
+    // }
+    std::ostringstream oss;
+    // int deviceIndex = -1;
+    // c10_npu::GetDevice(&deviceIndex);
+    // auto rank_id = c10_npu::option::OptionsManager::GetRankId();
+    oss << "\n[ERROR] CODE" << static_cast<int>(errorCode);
 
-#endif  // ZBCCL_COMMON_INCLUDES_H
+    return oss.str();
+}

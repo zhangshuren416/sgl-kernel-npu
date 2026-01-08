@@ -9,15 +9,18 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_SMA_DEVICE_H
-#define ZBCCL_SMA_DEVICE_H
 
-#include "zbccl_sma.h"
+#include "zbccl_version.h"
 
-namespace zbccl {
-namespace sma {
-namespace device {}
-}  // namespace sma
-}  // namespace zbccl
 
-#endif  // ZBCCL_SMA_DEVICE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+const char *zbccl_version() {
+    return LIB_VERSION_FULL;
+}
+
+#ifdef __cplusplus
+}
+#endif
