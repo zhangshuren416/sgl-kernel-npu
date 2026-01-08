@@ -17,6 +17,7 @@
 #include "shmem_api.h"
 #include "zbccl_defines.h"
 #include "zbccl_functions.h"
+#include "zbccl_op_reduce_scatter_tiling.h"
 
 namespace zbccl {
 namespace reducescatter {
@@ -24,7 +25,6 @@ namespace reducescatter {
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
 constexpr uint32_t UB_DMA_MAX_SIZE = 190 * 1024;
 constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
-constexpr uint32_t BIG_DATA_SIZE = 2 * 1024 * 1024;
 
 template <typename T>
 __aicore__ inline void SetAtomicOp(uint32_t atomicOp)
@@ -57,9 +57,9 @@ class ReduceScatterKernel
 public:
     __aicore__ inline ReduceScatterKernel() {}
 
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, GM_ADDR gva,
-                                uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t curLength,
-                                uint32_t magic, uint64_t fftsAddr, bool isSmall, uint32_t atomicOp = 0)
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, GM_ADDR gva, uint32_t rank, uint32_t rankSize,
+                                uint32_t totalLength, bool lastLoop, uint32_t magic, uint64_t fftsAddr,
+                                uint32_t atomicOp, __gm__ ReduceScatterTilingData* tilingData)
     {
         this->rank = rank;
         this->rankSize = rankSize;
@@ -67,32 +67,41 @@ public:
         this->atomicOp = atomicOp;
         this->totalLength = totalLength;
         this->fftsAddr = fftsAddr;
-        this->smallFlag = isSmall;
+        this->smallFlag = tilingData->smallFlag;
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         this->aivIndex = AscendC::GetBlockIdx();
+        
+        uint32_t formerLength;
+        uint32_t tailLength;
+        uint32_t formerNum;
 
         if (this->smallFlag) {
             this->coreGroupNum = aivNum;
-            this->elePerRank = totalLength / rankSize;
-            this->lenPerRank = totalLength / rankSize;
+            this->elePerRank = tilingData->lenPerRank;
+            this->lenPerRank = tilingData->curLenPerRank;
+            formerLength = tilingData->coreFormerLength;
+            formerNum = tilingData->coreFormerNum;
+            tailLength = tilingData->coreTailLength;
         } else {
             this->coreGroupNum = aivNum / 2;
-            this->elePerRank = totalLength / rankSize;
-            this->lenPerRank = curLength / rankSize;
+            if (lastLoop) {
+                this->lenPerRank = tilingData->lastLenPerRank;
+                formerLength = tilingData->lastLoopCoreFormerLength;
+                formerNum = tilingData->lastLoopCoreFormerNum;
+                tailLength = tilingData->lastLoopCoreTailLength;
+            } else {
+                this->lenPerRank = tilingData->maxLenPerRank;
+                formerLength = tilingData->coreFormerLength;
+                formerNum = tilingData->coreFormerNum;
+                tailLength = tilingData->coreTailLength;
+            }
+            this->elePerRank = tilingData->lenPerRank;
         }
 
-        // core_target_rank = [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3] core_rank_idx = [0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3]
-        this->corePerRank = this->coreGroupNum / rankSize;
+        this->corePerRank = tilingData->corePerRank;
         this->coreTargetRank = this->aivIndex / this->corePerRank;
         this->coreRankIdx = this->aivIndex % this->corePerRank;
-
-        // len: length of single process loop
-        uint32_t lenPerRankAlignToCore = CeilDiv(this->lenPerRank, this->corePerRank) * this->corePerRank;
-        formerLength = lenPerRankAlignToCore / this->corePerRank;
-        tailLength = lenPerRank / this->corePerRank;
-        formerNum = this->lenPerRank % this->corePerRank;
-        tailNum = this->corePerRank - formerNum;
 
         if (this->coreRankIdx < formerNum) {
             this->lenPerCore = formerLength;
@@ -105,11 +114,11 @@ public:
             yOffset = formerNum * formerLength + (this->coreRankIdx - formerNum) * tailLength;
         }
 
-        gvaDataOffset = aivNum * SYNC_FLAG_INTERVAL;
+        gvaDataOffset = tilingData->gvaDataOffset;
         gvaSyncOffset = this->aivIndex * SYNC_FLAG_INTERVAL;
         xGm.SetGlobalBuffer((__gm__ T *)x + xOffset, this->lenPerCore);
         yGm.SetGlobalBuffer((__gm__ T *)y + yOffset, this->lenPerCore);
-        gvaGm.SetGlobalBuffer((__gm__ T *)((__gm__ int32_t *)gva + gvaDataOffset), GVA_BUFF_MAX_SIZE / sizeof(T));
+        gvaGm.SetGlobalBuffer((__gm__ T *)((__gm__ int32_t *)gva + gvaDataOffset), tilingData->gvaDataLength);
         gvaSyncGm.SetGlobalBuffer((__gm__ int32_t *)gva, gvaDataOffset);
     }
 
@@ -123,8 +132,9 @@ public:
         }
     }
 
-    __aicore__ inline void RunBigDataOp(GM_ADDR input, GM_ADDR output, GM_ADDR gva,
-        uint32_t rank, uint32_t rankSize, uint32_t totalLength, uint32_t magic, uint64_t fftsAddr, uint32_t reduceOp)
+    __aicore__ inline void RunBigDataOp(GM_ADDR input, GM_ADDR output, GM_ADDR gva, uint32_t rank, uint32_t rankSize,
+                                        uint32_t totalLength, uint32_t magic, uint64_t fftsAddr, uint32_t reduceOp,
+                                        __gm__ ReduceScatterTilingData* tilingData)
     {
         const int64_t maxGvaNum = GVA_BUFF_MAX_SIZE / sizeof(T);
         uint32_t maxCountPerLoop = (uint32_t)maxGvaNum;
@@ -132,11 +142,15 @@ public:
         uint32_t leftNum = totalLength;
         uint32_t curInputOffset = 0;
         uint32_t curOutputOffset = 0;
+        bool lastLoop = false;
         for (uint32_t i = 0; i < times; i++) {
             uint32_t curLen = leftNum > maxCountPerLoop ? maxCountPerLoop : leftNum;
             uint32_t curOffset = curLen / rankSize;
+            if (i == times - 1) {
+                lastLoop = true;
+            }
             Init(input + curInputOffset * sizeof(T), output + curOutputOffset * sizeof(T), gva, rank, rankSize,
-                    totalLength, curLen, (magic + i) * 1024, fftsAddr, false, reduceOp);
+                    totalLength, lastLoop, (magic + i) * 1024, fftsAddr, reduceOp, tilingData);
             AscendC::PipeBarrier<PIPE_ALL>();
             shmemx_barrier_all_vec();
             Process();

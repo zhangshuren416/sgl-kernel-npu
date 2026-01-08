@@ -12,15 +12,15 @@
 
 #include "aclrtlaunch_ShmemReduceScatter.h"
 #include "zbccl_op_reduce_scatter.h"
+#include "zbccl_op_reduce_scatter_tiling.h"
 
 namespace zbccl {
 
-constexpr int64_t SYNC_FLAG_INTERVAL = 16;
-constexpr int64_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
-constexpr uint32_t BIG_DATA_THRESHOLD = 2 * 1024 * 1024;
 constexpr uint32_t BLOCK_NUM_SMALL_DATA = 8;
 constexpr uint32_t BLOCK_NUM_LARGE_DATA = 16;
-
+constexpr uint32_t BIG_DATA_THRESHOLD = 2 * 1024 * 1024;
+constexpr uint32_t GVA_BUFF_MAX_SIZE = 100 * 1024 * 1024;
+constexpr uint32_t SYNC_FLAG_INTERVAL = 16;
 
 ZBCCL_API int ZcclReduceScatter(uint8_t *inp, uint8_t *out,
     size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, uint32_t reduceOp)
@@ -40,6 +40,14 @@ ZBCCL_API int ZcclReduceScatter(uint8_t *inp, uint8_t *out,
     }
     uint32_t dataTypeNum = static_cast<uint32_t>(dataType);
 
+    size_t tilingSize = sizeof(ReduceScatterTilingData);
+    void* tilingPtr = nullptr;
+    void* tilingDevicePtr = nullptr;
+    CHECK_ACL(aclrtMallocHost(&tilingPtr, tilingSize));
+    CHECK_ACL(aclrtMalloc(&tilingDevicePtr, tilingSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    get_tiling(reinterpret_cast<ReduceScatterTilingData *>(tilingPtr), inpNumel, dataType, rankSize, blockDim);
+    CHECK_ACL(aclrtMemcpy(tilingDevicePtr, tilingSize, tilingPtr, tilingSize, ACL_MEMCPY_HOST_TO_DEVICE));
+
     // Prepare FFTS address
     uint64_t fftsAddr = shmemx_get_ffts_config();
     // allocate gva buffer
@@ -52,7 +60,7 @@ ZBCCL_API int ZcclReduceScatter(uint8_t *inp, uint8_t *out,
 
     /* launch the kernel function via ACLRT_LAUNCH_KERNEL */
     ACLRT_LAUNCH_KERNEL(ShmemReduceScatter)(blockDim, stream, inp, out, (uint8_t *)ptr,
-                                            fftsAddr, dataTypeNum, inpNumel, teamId, reduceOp);
+                                            fftsAddr, dataTypeNum, inpNumel, teamId, reduceOp, tilingDevicePtr);
     shmem_free(ptr);
     return 0;
 }

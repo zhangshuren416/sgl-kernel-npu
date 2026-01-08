@@ -9,7 +9,6 @@
 // limitations under the License.
 #include "acl/acl.h"
 #include "defines.h"
-#include "reduce_scatter_tilling.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "aclrtlaunch_ShmemReduceScatter.h"
 #include "aclrtlaunch_ShmemZeroBuffReduceScatter.h"

@@ -12,6 +12,7 @@
 FILE(GLOB OP_SRCS
     ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op.cpp
     ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op_reduce_scatter.cpp
+    ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op_reduce_scatter_tiling.cpp
 )
 
 # set the so name
@@ -27,6 +28,7 @@ ascendc_include_directories(zbccl_kernel PRIVATE
     ${SHMEM_HOME_PATH}/memfabric_hybrid/include/smem/device
     ${ASCEND_INCLUDE_DIR}
     ${ZBCCL_SRC_DIR}/csrc/common
+    ${ZBCCL_SRC_DIR}/csrc/ccl
 )
 
 # create shared library libzccl.so

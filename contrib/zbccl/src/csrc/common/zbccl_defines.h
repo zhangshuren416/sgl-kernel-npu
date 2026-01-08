@@ -12,10 +12,12 @@
 #ifndef ZBCCL_DEFINES_H
 #define ZBCCL_DEFINES_H
 
+#include <iostream>
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
 #include <string>
+#include "acl/acl.h"
 
 namespace zbccl {
 using ZResult = int32_t;
@@ -52,6 +54,15 @@ enum ReduceOp {
 };
 
 #define ZBCCL_API __attribute__((visibility("default")))
+
+// Macro function for unwinding acl errors.
+#define CHECK_ACL(status)                                                                    \
+    do {                                                                                     \
+        aclError error = status;                                                             \
+        if (error != ACL_ERROR_NONE) {                                                       \
+            std::cerr << __FILE__ << ":" << __LINE__ << " aclError:" << error << std::endl;  \
+        }                                                                                    \
+    } while (0)
 }  // namespace zbccl
 
 #endif

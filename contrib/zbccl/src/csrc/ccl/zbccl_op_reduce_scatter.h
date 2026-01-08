@@ -12,12 +12,10 @@
 #ifndef ZBCCL_OP_REDUCE_SCATTER_H
 #define ZBCCL_OP_REDUCE_SCATTER_H
 
-#include "acl/acl.h"
 #include "zbccl_defines.h"
 #include "zbccl_functions.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "shmem_api.h"
-// #include "../../include/zbccl.h"
 
 namespace zbccl {
 
