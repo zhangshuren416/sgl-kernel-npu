@@ -159,7 +159,7 @@ private:
         const __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
         __gm__ int32_t *coreGvaSyncGmAddr = (__gm__ int32_t *)gvaSyncGmAddr + gvaSyncOffset;
 
-        AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, 64, ubSize);
+        AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, 64, ubSize / sizeof(T));
 
         // data move parameters
         if (coreRankIdx < formerNum) {
@@ -220,7 +220,7 @@ private:
         // TODO copy local rank data to output addr directly
 
         if (aivIndex < coreGroupNum) {
-            AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, (1024 + 32), ubSize);
+            AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, (1024 + 32), ubSize / sizeof(T));
             uint32_t copyNum = ubSize / sizeof(T);
             uint32_t leftCopySize = lenPerCore * sizeof(T);
 

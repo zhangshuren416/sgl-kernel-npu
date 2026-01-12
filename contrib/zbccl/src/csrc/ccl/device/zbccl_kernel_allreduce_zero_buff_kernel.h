@@ -23,7 +23,7 @@ namespace allreduce {
 
 
 constexpr int64_t SYNC_FLAG_INTERVAL = 16;
-constexpr uint32_t UB_DMA_MAX_SIZE = 192 * 1024;
+constexpr uint32_t UB_DMA_MAX_SIZE = 190 * 1024;
 
 
 template <typename T>
@@ -107,9 +107,7 @@ public:
     __aicore__ inline void Process()
     {
 #ifdef __DAV_C220_VEC__
-        // AsdopsBuffer<ArchType::ASCEND_V220> buf;
-        // AscendC::LocalTensor<T> tmpBuff = buf.GetBuffer<BufferType::ASCEND_UB, T>(64);
-        AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, 64, UB_DMA_MAX_SIZE);
+        AscendC::LocalTensor<T> tmpBuff(AscendC::TPosition::VECIN, 64, UB_DMA_MAX_SIZE / sizeof(T));
 
         const __gm__ int32_t *gvaSyncGmAddr = gvaSyncGm.GetPhyAddr();
         __gm__ int32_t *coreGvaSyncGmAddr = (__gm__ int32_t *)gvaSyncGmAddr + gvaSyncOffset;
