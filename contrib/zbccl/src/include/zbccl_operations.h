@@ -33,12 +33,12 @@ int32_t zbccl_init();
  * @param count             [in] size of buffer
  * @param data_type         [in] data type
  * @param op                [in] operation type of reduce
- * @param comm              [in] zbccl communication handle
+ * @param team_id           [in] zbccl team_id
  * @param stream            [in] stream
  * @return 0 if successful
  */
 int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                         zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream);
+                         zbccl_reduce_op_t op, int team_id, aclrtStream stream);
 
 /**
  * @brief Do reduce scatter operation
@@ -48,7 +48,7 @@ int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, z
  * @param recv_count       [in] size of buffer
  * @param data_type        [in] data type
  * @param op               [in] operation type of reduce
- * @param comm             [in] zbccl communication handle
+ * @param team_id          [in] zbccl team_id
  * @param stream           [in] stream
  * @return 0 if successful
  */

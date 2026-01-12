@@ -6,3 +6,4 @@ set(ZCCL_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 # add_subdirectory(all_gather)
 add_subdirectory(reduce_scatter)
+add_subdirectory(allreduce)

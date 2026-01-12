@@ -12,6 +12,7 @@
 FILE(GLOB OP_SRCS
     ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op.cpp
     ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op_reduce_scatter.cpp
+    ${ZBCCL_SRC_DIR}/csrc/ccl/zbccl_op_allreduce_zero_buff.cpp
 )
 
 # set the so name
@@ -20,6 +21,7 @@ set(OP_PLUGIN_NAME zbccl_op)
 # kernel side files without workspace
 ascendc_library(zbccl_kernel STATIC
     ${ZBCCL_SRC_DIR}/csrc/ccl/device/zbccl_kernel_reduce_scatter.cpp
+    ${ZBCCL_SRC_DIR}/csrc/ccl/device/zbccl_kernel_allreduce_zero_buff_kernel.cpp
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE

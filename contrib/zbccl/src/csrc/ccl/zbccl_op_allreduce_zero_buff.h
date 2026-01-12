@@ -9,11 +9,20 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMM_OP_H
-#define ZBCCL_COMM_OP_H
+#ifndef ZBCCL_OP_ALL_REDUCE_H
+#define ZBCCL_OP_ALL_REDUCE_H
 
-#include "zbccl_op_reduce_scatter.h"
-#include "zbccl_op_allreduce_zero_buff.h"
-#include "zbccl_operations.h"
+#include "acl/acl.h"
+#include "zbccl_defines.h"
+#include "zbccl_functions.h"
+#include "tiling/platform/platform_ascendc.h"
+#include "shmem_api.h"
 
-#endif  // ZBCCL_COMM_OP_H
+namespace zbccl {
+
+ZBCCL_API int ZcclAllReduceZeroBuff(uint8_t *inp, uint8_t *out,
+    size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, uint32_t reduceOp);
+
+}
+
+#endif  // ZBCCL_OP_ALL_REDUCE_H
