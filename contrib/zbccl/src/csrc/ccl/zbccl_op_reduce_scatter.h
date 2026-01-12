@@ -17,13 +17,14 @@
 #include "zbccl_functions.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "shmem_api.h"
-// #include "../../include/zbccl.h"
 
 namespace zbccl {
 
 ZBCCL_API int ZcclReduceScatter(uint8_t *inp, uint8_t *out,
     size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, uint32_t reduceOp);
 
+ZBCCL_API int ZcclReduceScatterZeroBuff(uint8_t *inp, uint8_t *out,
+    size_t inpNumel, ZCCLDataType dataType, int teamId, aclrtStream stream, uint32_t reduceOp);
 }
 
 #endif  // ZBCCL_OP_REDUCE_SCATTER_H

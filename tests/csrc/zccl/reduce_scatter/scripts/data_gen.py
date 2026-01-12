@@ -10,7 +10,7 @@
 import os
 import numpy as np
 
-# from ml_dtypes import bfloat16
+from ml_dtypes import bfloat16
 
 
 def gen_random_data(size, dtype):
@@ -50,10 +50,11 @@ def gen_golden_data():
         "int": np.int32,
         "int32_t": np.int32,
         "float": np.float32,
-        "float16_t": np.float16
+        "float16": np.float16,
+        "bfloat16": bfloat16,
     }
 
-    data_type = type_map.get(args.test_type, 'float16_t')
+    data_type = type_map.get(args.test_type, np.float16)
     rank_size = args.rank_size
 
     case_num = int(os.getenv("CASE_NUM", "1"))

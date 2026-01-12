@@ -50,7 +50,7 @@ def gen_golden_data():
         "bfloat16": bfloat16
     }
 
-    data_type = type_map.get(args.test_type, 'float16')
+    data_type = type_map.get(args.test_type, np.float16)
     rank_size = args.rank_size
 
     case_num = int(os.getenv("CASE_NUM", "1"))

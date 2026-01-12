@@ -25,11 +25,11 @@
 #include <errno.h>
 
 #include "fp16_t.h"
-// #include "bfloat16.h"
+#include "bfloat16.h"
 #include "utils.h"
 
-using fp16_t = op::fp16_t;
-// using bfloat16 = op::bfloat16;
+using float16 = op::fp16_t;
+using bfloat16 = op::bfloat16;
 
 #include "acl/acl.h"
 #include "shmem_api.h"
@@ -108,7 +108,8 @@ int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size,
         // ReduceScatter
         for (int zz = 0; zz < PERF_TIMES; zz++) {
             if (zero_buff) {
-                continue;
+                // tmp debug
+                zbccl_reduce_scatter(input_ptr, output_ptr, trans_size, dataType, reduceOp, teamId, stream);
             } else {
                 zbccl_reduce_scatter(input_ptr, output_ptr, trans_size, dataType, reduceOp, teamId, stream);
             }
@@ -188,9 +189,12 @@ int main(int argc, char *argv[])
         status = test_shmem_reduce_scatter<int>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
     } else if (std::string(data_type) == "float") {
         status = test_shmem_reduce_scatter<float>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
-    } else if (std::string(data_type) == "float16_t") {
+    } else if (std::string(data_type) == "float16") {
         dataType = zbccl_datatype_t::ZCCL_DATA_TYPE_FP16;
-        status = test_shmem_reduce_scatter<fp16_t>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
+        status = test_shmem_reduce_scatter<float16>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
+    } else if (std::string(data_type) == "bfloat16") {
+        dataType = zbccl_datatype_t::ZCCL_DATA_TYPE_BFP16;
+        status = test_shmem_reduce_scatter<bfloat16>(rank_id, n_ranks, local_mem_size, dataType, zero_buff);
     }
     
     if (status) {

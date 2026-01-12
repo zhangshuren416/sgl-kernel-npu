@@ -24,6 +24,7 @@ target_include_directories(ascendc_reduce_scatter PRIVATE
     ${SHMEM_HOME_PATH}/memfabric_hybrid/include/smem/host
     ${ZCCL_TEST_ROOT}/utils
     ${ASCEND_INCLUDE_DIR}
+    ${ASCEND_INCLUDE_DIR}/aclnn
     ${ASCEND_INCLUDE_DIR}/aclnn/opdev
     ${ZCCL_INCLUDE_DIR}
 )

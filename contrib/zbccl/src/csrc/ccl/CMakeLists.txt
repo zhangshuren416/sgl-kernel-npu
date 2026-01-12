@@ -22,6 +22,7 @@ set(OP_PLUGIN_NAME zbccl_op)
 ascendc_library(zbccl_kernel STATIC
     ${ZBCCL_SRC_DIR}/csrc/ccl/device/zbccl_kernel_reduce_scatter.cpp
     ${ZBCCL_SRC_DIR}/csrc/ccl/device/zbccl_kernel_allreduce_zero_buff_kernel.cpp
+    ${ZBCCL_SRC_DIR}/csrc/ccl/device/zbccl_kernel_reduce_scatter_zero_buff_kernel.cpp
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE
