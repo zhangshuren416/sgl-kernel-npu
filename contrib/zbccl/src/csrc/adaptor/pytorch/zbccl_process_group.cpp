@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "process_group_zbccl.h"
+#include "zbccl_process_group.h"
 
 namespace zbccl {
 namespace backend {
