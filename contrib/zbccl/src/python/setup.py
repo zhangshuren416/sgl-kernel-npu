@@ -106,7 +106,7 @@ py_adap_include_dirs = [
     f"{torch_install_dir}/../torch_npu/include/",
     f"{_find_python_include()}/"
 ]
-py_adapt_sources = [f"{adator_pytorch_root}/process_group_zbccl.cpp"]
+py_adapt_sources = [f"{adator_pytorch_root}/zbccl_process_group.cpp"]
 py_adapt_library_dirs = [sysconfig.get_config_var("LIBDIR"), f"{torch_install_dir}/lib/"]
 py_adapt_libraries = ["c10", "torch_cpu", "torch_python", "torch"]
 
