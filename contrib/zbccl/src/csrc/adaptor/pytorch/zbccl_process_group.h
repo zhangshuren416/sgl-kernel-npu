@@ -9,8 +9,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef PROCESS_GROUP_ZBCCL_H
-#define PROCESS_GROUP_ZBCCL_H
+#ifndef ZBCCL_PROCESS_GROUP_H
+#define ZBCCL_PROCESS_GROUP_H
 
 #include <torch/custom_class.h>
 #include <torch/csrc/python_headers.h>
@@ -41,12 +41,14 @@ namespace backend {
 
 const std::string ZBCCL_BACKEND_NAME = "zbccl";
 
-class ProcessGroupZBCCL : public c10d::Backend {
+class ProcessGroupZBCCL : public c10d::Backend
+{
 public:
-    class WorkZBCCL : public c10d::Work, public std::enable_shared_from_this<WorkZBCCL> {
+    class WorkZBCCL : public c10d::Work, public std::enable_shared_from_this<WorkZBCCL>
+    {
     public:
         // Constructor takes a list of NPU devices to adapt framework, But LCCL support one device only!!!
-        explicit WorkZBCCL(const std::vector<at::Device>& devices, c10d::OpType opType);
+        explicit WorkZBCCL(const std::vector<at::Device> &devices, c10d::OpType opType);
 
         ~WorkZBCCL() override;
         // Checks if request has completed. In this specific case of LCCL, it checks
@@ -134,33 +136,27 @@ public:
 
     void abc();
 
-    c10::intrusive_ptr<c10d::Work> allreduce(
-        std::vector<at::Tensor>& tensors,
-        const c10d::AllreduceOptions& opts = c10d::AllreduceOptions()) override;
+    c10::intrusive_ptr<c10d::Work> allreduce(std::vector<at::Tensor> &tensors,
+                                             const c10d::AllreduceOptions &opts = c10d::AllreduceOptions()) override;
 
-    c10::intrusive_ptr<c10d::Work> allgather(
-        std::vector<std::vector<at::Tensor>>& outputTensors,
-        std::vector<at::Tensor>& inputTensors,
-        const c10d::AllgatherOptions& opts = c10d::AllgatherOptions()) override;
+    c10::intrusive_ptr<c10d::Work> allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
+                                             std::vector<at::Tensor> &inputTensors,
+                                             const c10d::AllgatherOptions &opts = c10d::AllgatherOptions()) override;
 
-    c10::intrusive_ptr<c10d::Work> broadcast(
-        std::vector<at::Tensor>& tensors,
-        const c10d::BroadcastOptions& opts = c10d::BroadcastOptions()) override;
+    c10::intrusive_ptr<c10d::Work> broadcast(std::vector<at::Tensor> &tensors,
+                                             const c10d::BroadcastOptions &opts = c10d::BroadcastOptions()) override;
 
-    c10::intrusive_ptr<c10d::Work> reduce_scatter(
-        std::vector<at::Tensor>& outputTensors,
-        std::vector<std::vector<at::Tensor>>& inputTensors,
-        const c10d::ReduceScatterOptions& opts = c10d::ReduceScatterOptions()) override;
+    c10::intrusive_ptr<c10d::Work>
+    reduce_scatter(std::vector<at::Tensor> &outputTensors, std::vector<std::vector<at::Tensor>> &inputTensors,
+                   const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
 
     static const int64_t kProcessGroupZBCCLOpTimeoutMillis;
 
-    static c10::intrusive_ptr<c10d::Backend> createBackend(
-        const c10::intrusive_ptr<::c10d::Store>& store,
-        int rank,
-        int size,
-        const std::chrono::duration<float>& timeout);
+    static c10::intrusive_ptr<c10d::Backend> createBackend(const c10::intrusive_ptr<::c10d::Store> &store, int rank,
+                                                           int size, const std::chrono::duration<float> &timeout);
 
-    static void ProcessGroupZBCCLConstructor() __attribute__((constructor)) {
+    static void ProcessGroupZBCCLConstructor() __attribute__((constructor))
+    {
         py::object module = py::module::import("torch.distributed");
         py::object register_backend = module.attr("Backend").attr("register_backend");
         register_backend("zbccl", py::cpp_function(ProcessGroupZBCCL::createBackend));
@@ -176,4 +172,4 @@ private:
 }  // namespace backend
 }  // namespace zbccl
 
-#endif  // PROCESS_GROUP_ZBCCL_H
+#endif  // ZBCCL_PROCESS_GROUP_H

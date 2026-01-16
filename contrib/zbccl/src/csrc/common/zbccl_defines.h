@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstring>
 #include <string>
+#include <sstream>
 
 namespace zbccl {
 using ZResult = int32_t;
@@ -29,21 +30,20 @@ enum ZResultErrorCode : ZResult {
 
 #define ZBCCL_API __attribute__((visibility("default")))
 
-#define ZBCCL_LOG_ERROR(ARGS)                                           \
-  do {                                                                  \
-    std::ostringstream oss;                                             \
-    oss << "[ERROR][ZBCCL_ " << __FILE__ << ":" << __LINE__ << "] " << ARGS    \
-        << std::endl;                                                   \
-  } while (0)
+#define ZBCCL_LOG_ERROR(ARGS)                                                                 \
+    do {                                                                                      \
+        std::ostringstream oss;                                                               \
+        oss << "[ERROR][ZBCCL_ " << __FILE__ << ":" << __LINE__ << "] " << ARGS << std::endl; \
+    } while (0)
 
-#define ZBCCL_CHECK(condition, ...)                                     \
-    do {                                                                \
-        if (!(condition)) {                                             \
-            std::ostringstream oss;                                     \
-            oss << "[ERROR][ZBCCL_" << __FILE__ << ":" << __LINE__ << "] "          \
-                << "Check failed: " #condition ". " << __VA_ARGS__;     \
-            throw std::runtime_error(oss.str());                        \
-        }                                                               \
+#define ZBCCL_CHECK(condition, ...)                                        \
+    do {                                                                   \
+        if (!(condition)) {                                                \
+            std::ostringstream oss;                                        \
+            oss << "[ERROR][ZBCCL_" << __FILE__ << ":" << __LINE__ << "] " \
+                << "Check failed: " #condition ". " << __VA_ARGS__;        \
+            throw std::runtime_error(oss.str());                           \
+        }                                                                  \
     } while (0)
 
 }  // namespace zbccl

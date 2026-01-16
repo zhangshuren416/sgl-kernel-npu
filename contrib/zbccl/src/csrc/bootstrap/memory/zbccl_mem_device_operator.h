@@ -9,17 +9,15 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMON_INCLUDES_H
-#define ZBCCL_COMMON_INCLUDES_H
+#ifndef ZBCCL_MEM_DEVICE_OPERATOR_H
+#define ZBCCL_MEM_DEVICE_OPERATOR_H
 
-#include <iostream>
-#include <mutex>
+namespace zbccl {
+namespace underapi {
+#if define(BOOTSTRAP_MEMFABRIC)
+#elif define(BOOSTRAP_ACLSHMEM)
+#endif
+}
+}
 
-#include "flat_hash_map.h"
-#include "zbccl.h"
-#include "zbccl_defines.h"
-#include "zbccl_functions.h"
-#include "zbccl_ref.h"
-#include "zbccl_version.h"
-
-#endif  // ZBCCL_COMMON_INCLUDES_H
+#endif  // ZBCCL_MEM_DEVICE_OPERATOR_H

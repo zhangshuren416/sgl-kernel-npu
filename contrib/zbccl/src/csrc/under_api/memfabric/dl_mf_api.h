@@ -9,17 +9,18 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMON_INCLUDES_H
-#define ZBCCL_COMMON_INCLUDES_H
+#ifndef SGL_KERNEL_NPU_BAO_DL_MF_API_H
+#define SGL_KERNEL_NPU_BAO_DL_MF_API_H
 
-#include <iostream>
-#include <mutex>
+#include "zbccl_common_includes.h"
 
-#include "flat_hash_map.h"
-#include "zbccl.h"
-#include "zbccl_defines.h"
-#include "zbccl_functions.h"
-#include "zbccl_ref.h"
-#include "zbccl_version.h"
+namespace zbccl {
+namespace underapi {
+class MFSHMApiLoader
+{
+public:
+};
+}  // namespace underapi
+}  // namespace zbccl
 
-#endif  // ZBCCL_COMMON_INCLUDES_H
+#endif  // SGL_KERNEL_NPU_BAO_DL_MF_API_H
