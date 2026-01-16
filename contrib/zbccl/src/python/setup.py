@@ -128,8 +128,8 @@ setup(
     name="zbccl",
     version="0.0.1",
     ext_modules=[
-        setuptools.Extension(
-            "zbccl.lib.libzbccl",
+        cpp_extension.CppExtension(
+            name="zbccl.lib.libzbccl",
             sources=alloc_sources,
             include_dirs=alloc_include_dirs,
             library_dirs=alloc_library_dirs,
@@ -139,8 +139,7 @@ setup(
                 *common_macros,
             ],
             extra_compile_args=extra_compile_args,
-            py_limited_api=True,
-            language="c++"
+            cxx_std=17
         ),
         cpp_extension.CppExtension(
             name="zbccl.process_group", # TORCH_EXTENSION_NAME

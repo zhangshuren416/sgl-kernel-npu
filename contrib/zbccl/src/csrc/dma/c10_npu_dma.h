@@ -163,7 +163,8 @@ struct TraceEntry {
                   // trace events
         OOM, // the allocator threw an OutOfMemoryError (addr_ is the amount of
             // free bytes reported by cuda)
-        WORKSPACE_SNAPSHOT
+        WORKSPACE_SNAPSHOT,
+        EMPTY_CACHE
     };
     TraceEntry(Action action, int device, int64_t addr, size_t size,
                aclrtStream stream,
