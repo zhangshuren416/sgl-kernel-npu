@@ -21,7 +21,6 @@ from torch.utils import cpp_extension
 import torch
 import torch_npu
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -70,12 +69,17 @@ alloc_include_dirs = [
     str((torch_dir / "include").resolve()),
     str((torch_dir / "include/torch/csrc/api/include").resolve()),
     str((shmem_home / "shmem/include").resolve()),
+    str((repo_root / "contrib/zbccl/third_party/ska").resolve()),
+    str((repo_root / "contrib/zbccl/third_party/mstx").resolve()),
     str((repo_root / "contrib/zbccl").resolve()),
     str((repo_root / "contrib/zbccl/src/include").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/ccl").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/common").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/dma").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/sma").resolve())
+    str((repo_root / "contrib/zbccl/src/csrc/sma").resolve()),
+    str((repo_root / "contrib/zbccl/src/csrc/under_api/memfabric").resolve()),
+    str((repo_root / "contrib/zbccl/src/csrc/bootstrap/memory/memfabric").resolve()),
+    str((repo_root / "contrib/zbccl/src/csrc/bootstrap/memory/aclshmem").resolve())
 ]
 
 alloc_library_dirs = [
@@ -86,10 +90,12 @@ alloc_library_dirs = [
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
 alloc_sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
-    glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
-    glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
-    glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
-    glob.glob(str(csrc_dir / "*.cpp"))
+                glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "under_api" / "memfabric" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "*.cpp"))
 
 alloc_libraries = ["torch", "torch_npu", "shmem"]
 
@@ -117,11 +123,11 @@ logger.warning(f"{alloc_sources=} {py_adapt_sources=}")
 logger.warning(f"{alloc_library_dirs=} {py_adapt_library_dirs=}")
 logger.warning(f"{alloc_libraries=} {py_adapt_libraries=}")
 
-
 extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wunused-value", "-Wcast-align",
                       "-Wcast-qual", "-Winvalid-pch", "-Wwrite-strings", "-Wsign-compare", "-Wextra",
                       "-O3", "-fvisibility-inlines-hidden", "-fstack-protector-strong",
-                      "-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now", "-fPIE", "-fPIC", "-ftrapv"]  # "-fvisibility=hidden"
+                      "-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now", "-fPIE", "-fPIC",
+                      "-ftrapv"]  # "-fvisibility=hidden"
 common_macros = []
 
 setup(
@@ -142,7 +148,7 @@ setup(
             cxx_std=17
         ),
         cpp_extension.CppExtension(
-            name="zbccl.process_group", # TORCH_EXTENSION_NAME
+            name="zbccl.process_group",  # TORCH_EXTENSION_NAME
             sources=py_adapt_sources,
             include_dirs=py_adap_include_dirs,
             libraries=py_adapt_libraries,

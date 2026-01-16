@@ -8,12 +8,13 @@ endif ()
 # get torch path, torch npu path, pybind11 path via python script
 execute_process(
         COMMAND ${PYTHON_EXECUTABLE} "-c"
-        "import torch; import torch_npu; import os; import pybind11;
+        "import torch; import torch_npu; import os; import pybind11; import sysconfig;
 torch_dir = os.path.realpath(os.path.dirname(torch.__file__));
 torch_npu_dir = os.path.realpath(os.path.dirname(torch_npu.__file__));
 pybind11_dir = os.path.realpath(os.path.dirname(pybind11.__file__));
 abi_enabled=torch.compiled_with_cxx11_abi();
-print(torch_dir, torch_npu_dir, pybind11_dir, abi_enabled, end='');
+python_path=os.path.realpath(sysconfig.get_path('include'));
+print(torch_dir, torch_npu_dir, pybind11_dir, abi_enabled, python_path, end='');
 quit(0)
         "
         RESULT_VARIABLE EXEC_RESULT
@@ -58,10 +59,19 @@ execute_process(
         OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# extract PYTHON_PATH and set it
+execute_process(
+        COMMAND sh -c "echo \"${OUTPUT_ENV_DEFINES}\" | awk '{print $5}'"
+        OUTPUT_VARIABLE CPYTHON_DIR
+        RESULT_VARIABLE EXEC_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
 message(STATUS "SOC_VERSION=${SOC_VERSION}")
 message(STATUS "TORCH_DIR=${TORCH_DIR}")
 message(STATUS "TORCH_NPU_DIR=${TORCH_NPU_DIR}")
 message(STATUS "PYBIND11_DIR=${PYBIND11_DIR}")
+message(STATUS "CPYTHON_DIR=${CPYTHON_DIR}")
 
 # set _GLIBCXX_USE_CXX11_ABI
 if (${TORCH_API_ENABLED} STREQUAL "True")

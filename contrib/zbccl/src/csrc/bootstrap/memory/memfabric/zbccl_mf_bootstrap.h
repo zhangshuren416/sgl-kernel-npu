@@ -9,17 +9,27 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMON_INCLUDES_H
-#define ZBCCL_COMMON_INCLUDES_H
+#ifndef ZBCCL_MF_BOOTSTRAP_H
+#define ZBCCL_MF_BOOTSTRAP_H
 
-#include <iostream>
-#include <mutex>
+#include "../zbccl_mem_bootstrap.h"
 
-#include "flat_hash_map.h"
-#include "zbccl.h"
-#include "zbccl_defines.h"
-#include "zbccl_functions.h"
-#include "zbccl_ref.h"
-#include "zbccl_version.h"
+namespace zbccl {
+namespace underapi {
+class MemFabricBoostrap : public MemBootstrap
+{
+public:
+    MemFabricBoostrap(const MemBootstrapOptions &options) : MemBootstrap(options) {}
+    ~MemFabricBoostrap() override {
+        UnInitialize();
+    }
 
-#endif  // ZBCCL_COMMON_INCLUDES_H
+    ZResult Initialize() noexcept override;
+    void UnInitialize() noexcept override;
+
+    void *GetMyGVA() noexcept override;
+};
+}  // namespace underapi
+}  // namespace zbccl
+
+#endif  // ZBCCL_MF_BOOTSTRAP_H
