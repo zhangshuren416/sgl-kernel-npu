@@ -327,6 +327,8 @@ private:
 
 } // namespace c10_npu
 
+void finalize();
+
 
 extern "C" {
 EXPORT_API void *my_malloc(size_t size, int device, aclrtStream stream);

@@ -3978,6 +3978,15 @@ MemPool *MemPoolContext::getActiveMemPool()
 } // namespace c10_npu
 
 
+void finalize() {
+    // uninit shmem handle(need be done in collective)
+    // for (const auto i : c10::irange(0, shm_ptr_meta.size())) {
+    //   shmem_free(shm_ptr_meta[i]);
+    // }
+    auto status = shmem_finalize();
+}
+
+
 extern "C" {
 EXPORT_API void *my_malloc(size_t size, int device, aclrtStream stream) {
     void *ptr = nullptr;
@@ -4025,6 +4034,13 @@ EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, ui
     }
 
     void *shmem_base_ptr = shmem_malloc(local_mem_size);
+
+    static bool registered = false;
+    if (!registered) {
+        std::atexit(finalize);
+        registered = true;
+    }
+
     int device = 0;
     c10_npu::GetDevice(&device);
 
