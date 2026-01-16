@@ -1169,6 +1169,7 @@ public:
     // shm-vmm heap class for shmem
     std::shared_ptr<zbccl::sma::heap::MemoryHeap> mem_heap_pool_{nullptr};
     bool mem_heap_inited = false;
+    void *shmem_base_addr = nullptr;
 
 private:
     // lock around all operations
@@ -4051,6 +4052,13 @@ EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, ui
     c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited = true;
     c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
             std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr + meta_size, local_mem_size - meta_size);
+    c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
+}
+
+EXPORT_API void* get_shmem_base_addr() {
+    int device = 0;
+    c10_npu::GetDevice(&device);
+    return c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr;
 }
 
 }

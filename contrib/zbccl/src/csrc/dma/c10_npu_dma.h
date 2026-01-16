@@ -348,4 +348,6 @@ EXPORT_API void my_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool
 EXPORT_API void my_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 
 EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port);
+
+EXPORT_API void *get_shmem_base_addr();
 }
