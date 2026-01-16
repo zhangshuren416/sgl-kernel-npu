@@ -3457,11 +3457,11 @@ public:
         return device_allocator[block->device]->shareIpcHandle(block);
     }
 
-    void recordStream(const c10::DataPtr &ptr, c10_npu::NPUStream stream) override
+    void recordStream(void *ptr, c10_npu::NPUStream stream) override
     {
         // Empty tensor's storage().data() might be a null ptr. As there is no
         // blocks associated with those tensors, it is fine to do nothing here.
-        if (!ptr.get()) {
+        if (!ptr) {
             return;
         }
 
@@ -3470,19 +3470,19 @@ public:
         // we have implemented reference counting based sharing mechanism to
         // guarantee tensors won't be accidentally freed by one process while
         // they are still being used in another
-        if (ptr.get_deleter() != &local_raw_delete) {
-            return;
-        }
+        // if (ptr.get_deleter() != &local_raw_delete) {
+        //     return;
+        // }
 
-        Block *block = get_allocated_block(ptr.get());
+        Block *block = get_allocated_block(ptr);
         // block must not be null reaching here
         TORCH_INTERNAL_ASSERT(block != nullptr, "No allocated block can be found", PTA_ERROR_MOCK(ErrCode::NOT_FOUND));
         device_allocator[block->device]->recordStream(block, stream);
     }
 
-    void eraseStream(const c10::DataPtr &ptr, c10_npu::NPUStream stream)
+    void eraseStream(void *ptr, c10_npu::NPUStream stream)
     {
-        if (!ptr.get()) {
+        if (!ptr) {
             return;
         }
 
@@ -3491,14 +3491,14 @@ public:
         // we have implemented reference counting based sharing mechanism to
         // guarantee tensors won't be accidentally freed by one process while
         // they are still being used in another
-        if (ptr.get_deleter() != &local_raw_delete) {
-            // TORCH_NPU_WARN_ONCE("Tensor not is not allocated by DirectMemoryAllocator, skip eraseStream.");
-            return;
-        }
+        // if (ptr.get_deleter() != &local_raw_delete) {
+        //     // TORCH_NPU_WARN_ONCE("Tensor not is not allocated by DirectMemoryAllocator, skip eraseStream.");
+        //     return;
+        // }
 
-        Block *block = get_allocated_block(ptr.get());
+        Block *block = get_allocated_block(ptr);
         if (!block) {
-            AT_ERROR("invalid device pointer: ", ptr.get());
+            AT_ERROR("invalid device pointer: ", ptr);
         }
 
         if (block->stream != c10_npu::getCurrentNPUStream(block->device).stream(false)) {
@@ -4003,6 +4003,10 @@ EXPORT_API void my_free(void *ptr, size_t size, int device, aclrtStream stream) 
 
 EXPORT_API void my_init(int device_count) {
     c10_npu::dma::caching_allocator.init(device_count);
+}
+
+EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream) {
+    c10_npu::dma::caching_allocator.recordStream(ptr, stream);
 }
 
 EXPORT_API void my_empty_cache(bool check_error) {

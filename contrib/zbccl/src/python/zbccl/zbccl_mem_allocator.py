@@ -19,12 +19,14 @@ def switch_to_allocator():
 
     init_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_init"), ctypes.c_void_p).value
     empty_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_empty_cache"), ctypes.c_void_p).value
+    record_stream_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_record_stream"), ctypes.c_void_p).value
     # begin_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_begin_allocate_to_pool"), ctypes.c_void_p).value
     # end_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_end_allocate_to_pool"), ctypes.c_void_p).value
     # release_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_release_pool"), ctypes.c_void_p).value
 
     new_alloc.allocator().set_init_fn(init_fn)
     new_alloc.allocator().set_reset_fn(empty_fn)
+    new_alloc.allocator().set_record_stream_fn(record_stream_fn)
     # new_alloc.allocator().set_begin_allocate_to_pool_fn(begin_allocate_to_pool_fn)
     # new_alloc.allocator().set_end_allocate_to_pool_fn(end_allocate_to_pool_fn)
     # new_alloc.allocator().set_release_pool_fn(release_pool_fn)

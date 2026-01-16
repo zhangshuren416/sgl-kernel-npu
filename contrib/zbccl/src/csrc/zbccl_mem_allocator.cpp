@@ -57,6 +57,13 @@ void zbccl_pluggable_empty_cache(bool check_error) {
     return;
 }
 
+void zbccl_record_stream(void *ptr, c10_npu::NPUStream stream) {
+#ifdef USE_C10NPU_DMA
+    my_record_stream(ptr, stream);
+#endif
+    return;
+}
+
 #ifdef __cplusplus
 }
 #endif

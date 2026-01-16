@@ -223,8 +223,8 @@ public:
     virtual void emptyVirtAddrCache(bool check_error) = 0;
     virtual void cacheInfo(int dev_id, size_t* cachedAndFree, size_t* largestBlock) = 0;
     virtual void* getBaseAllocation(void* ptr, size_t* size) = 0;
-    virtual void recordStream(const c10::DataPtr& ptr, c10_npu::NPUStream stream) = 0;
-    virtual void eraseStream(const c10::DataPtr& ptr, c10_npu::NPUStream stream) = 0;
+    virtual void recordStream(void *ptr, c10_npu::NPUStream stream) = 0;
+    virtual void eraseStream(void *ptr, c10_npu::NPUStream stream) = 0;
     virtual DeviceStats getDeviceStats(int device) = 0;
     virtual void resetAccumulatedStats(int device) = 0;
     virtual void resetPeakStats(int device) = 0;
@@ -338,6 +338,8 @@ EXPORT_API void my_init(int device_count);
 EXPORT_API void my_empty_cache(bool check_error);
 
 EXPORT_API void my_free(void *ptr, size_t size, int device, aclrtStream stream);
+
+EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream);
 
 EXPORT_API void my_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
 
