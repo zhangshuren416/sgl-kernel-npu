@@ -60,6 +60,7 @@ python_include_dir = Path(_find_python_include()).resolve()
 torch_dir = Path(os.path.dirname(torch.__file__)).resolve()
 torch_npu_dir = Path(os.path.dirname(torch_npu.__file__)).resolve()
 repo_root = Path(__file__).resolve().parents[4]  # sgl-kernel-npu/
+zbccl_root = repo_root / "contrib/zbccl/"
 
 # allocator compile inputs
 alloc_include_dirs = [
@@ -101,9 +102,11 @@ alloc_libraries = ["torch", "torch_npu", "shmem"]
 
 # pytorch adaptor process group compile inputs
 torch_install_dir = torch_dir.resolve()
-adator_pytorch_root = repo_root / "contrib/zbccl/src/csrc/adaptor/pytorch"
+adator_pytorch_root = zbccl_root / "src/csrc/adaptor/pytorch_npu/"
 py_adap_include_dirs = [
     f"{adator_pytorch_root}/",
+    f"{zbccl_root}/src/include/",
+    f"{ascend_home}/include/",
     f"{torch_install_dir}/",
     f"{torch_install_dir}/include/torch/csrc/distributed/",
     f"{torch_install_dir}/include/torch/csrc/utils/",
@@ -112,7 +115,10 @@ py_adap_include_dirs = [
     f"{torch_install_dir}/../torch_npu/include/",
     f"{_find_python_include()}/"
 ]
-py_adapt_sources = [f"{adator_pytorch_root}/zbccl_process_group.cpp"]
+py_adapt_sources = [
+    f"{adator_pytorch_root}/zbccl_adaptor_py_npu_pg.cpp",
+    f"{adator_pytorch_root}/zbccl_adaptor_py_npu_util.cpp",
+]
 py_adapt_library_dirs = [sysconfig.get_config_var("LIBDIR"), f"{torch_install_dir}/lib/"]
 py_adapt_libraries = ["c10", "torch_cpu", "torch_python", "torch"]
 

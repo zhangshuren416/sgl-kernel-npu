@@ -37,7 +37,8 @@
 #include "torch_npu/csrc/npu/Event.h"
 
 namespace zbccl {
-namespace backend {
+namespace adaptor {
+namespace pytorch_npu {
 
 const std::string ZBCCL_BACKEND_NAME = "zbccl";
 
@@ -48,7 +49,7 @@ public:
     {
     public:
         // Constructor takes a list of NPU devices to adapt framework, But LCCL support one device only!!!
-        explicit WorkZBCCL(const std::vector<at::Device> &devices, c10d::OpType opType);
+        explicit WorkZBCCL(const std::vector<at::Device> &devices, int rank, c10d::OpType opType);
 
         ~WorkZBCCL() override;
         // Checks if request has completed. In this specific case of LCCL, it checks
@@ -80,10 +81,10 @@ public:
         // std::vector<at_npu::lccl::LcclComm> lcclComms_;
 
         // multiple runtime devices. These start npu events are needed by desync debugging if enabled.
-        std::shared_ptr<std::vector<c10_npu::NPUEvent>> lcclStartEvents_;
+        std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclStartEvents_;
 
         // The end npu events of LCCL operator tracking this work item on multiple npu devices.
-        std::shared_ptr<std::vector<c10_npu::NPUEvent>> lcclEndEvents_;
+        std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclEndEvents_;
 
         // Clone of blockingWait_ from ProcessGroupZBCCL.
         bool blockingWait_ = false;
@@ -134,14 +135,15 @@ public:
         return ZBCCL_BACKEND_NAME;
     }
 
-    void abc();
-
     c10::intrusive_ptr<c10d::Work> allreduce(std::vector<at::Tensor> &tensors,
-                                             const c10d::AllreduceOptions &opts = c10d::AllreduceOptions()) override;
+        const c10d::AllreduceOptions &opts = c10d::AllreduceOptions()) override;
+
+    c10::intrusive_ptr<c10d::Work> _allgather_base(at::Tensor &output, at::Tensor &input,
+        const c10d::AllgatherOptions &opt = c10d::AllgatherOptions());
 
     c10::intrusive_ptr<c10d::Work> allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
-                                             std::vector<at::Tensor> &inputTensors,
-                                             const c10d::AllgatherOptions &opts = c10d::AllgatherOptions()) override;
+        std::vector<at::Tensor> &inputTensors,
+        const c10d::AllgatherOptions &opts = c10d::AllgatherOptions()) override;
 
     c10::intrusive_ptr<c10d::Work> broadcast(std::vector<at::Tensor> &tensors,
                                              const c10d::BroadcastOptions &opts = c10d::BroadcastOptions()) override;
@@ -150,12 +152,12 @@ public:
     reduce_scatter(std::vector<at::Tensor> &outputTensors, std::vector<std::vector<at::Tensor>> &inputTensors,
                    const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
 
-    static const int64_t kProcessGroupZBCCLOpTimeoutMillis;
+    static const int64_t kProcessGroupZBcclOpTimeoutMillis;
 
     static c10::intrusive_ptr<c10d::Backend> createBackend(const c10::intrusive_ptr<::c10d::Store> &store, int rank,
                                                            int size, const std::chrono::duration<float> &timeout);
 
-    static void ProcessGroupZBCCLConstructor() __attribute__((constructor))
+    static void ProcessGroupZBcclConstructor() __attribute__((constructor))
     {
         py::object module = py::module::import("torch.distributed");
         py::object register_backend = module.attr("Backend").attr("register_backend");
@@ -163,13 +165,37 @@ public:
     }
 
 protected:
+    bool blockingWait_ = false;
+    std::chrono::milliseconds opTimeout_;
     c10::intrusive_ptr<c10d::Store> store_;
+    std::unordered_map<std::string, std::vector<c10_npu::NPUStream>> zbcclStreams_;
+    std::unordered_map<std::string, std::vector<c10_npu::NPUEvent>> zbcclEvents_;
+    std::mutex mutext_;
 
 private:
     uint32_t teamId_;
+
+private:
+    template <typename Fn>
+    c10::intrusive_ptr<c10d::Work> collective(
+        std::vector<at::Tensor>& input,
+        std::vector<at::Tensor>& output,
+        Fn fn,
+        c10d::OpType opType);
+
+    template <typename Fn, typename PreProcess, typename PostProcess>
+    c10::intrusive_ptr<c10d::Work> collective(
+        std::vector<at::Tensor>& input,
+        std::vector<at::Tensor>& output,
+        Fn fn,
+        PreProcess pre,
+        PostProcess post,
+        c10d::OpType opType);
+
 };
 
-}  // namespace backend
+}  // namespace pytorch_npu
+}  // namespace adaptor
 }  // namespace zbccl
 
 #endif  // ZBCCL_PROCESS_GROUP_H
