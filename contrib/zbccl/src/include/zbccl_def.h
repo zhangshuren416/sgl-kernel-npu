@@ -20,9 +20,15 @@
 extern "C" {
 #endif
 
+#define ZBCCL_MAX_RANKS 1024
+
 typedef void *zbccl_comm_t;
 
 typedef void *aclrtStream;
+
+typedef enum {
+    ZBCCL_ASCEND_NPU = 0,
+} zbccl_backend_t;
 
 typedef enum {
     ZBCCL_DATA_TYPE_INT8 = 0,    /**< int8 */
