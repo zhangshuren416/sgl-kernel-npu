@@ -25,12 +25,28 @@ typedef void *zbccl_comm_t;
 typedef void *aclrtStream;
 
 typedef enum {
-
-} zbccl_datatype_t;
+    ZBCCL_DATA_TYPE_INT8 = 0,    /**< int8 */
+    ZBCCL_DATA_TYPE_INT16 = 1,   /**< int16 */
+    ZBCCL_DATA_TYPE_INT32 = 2,   /**< int32 */
+    ZBCCL_DATA_TYPE_FP16 = 3,    /**< fp16 */
+    ZBCCL_DATA_TYPE_FP32 = 4,    /**< fp32 */
+    ZBCCL_DATA_TYPE_INT64 = 5,   /**< int64 */
+    ZBCCL_DATA_TYPE_UINT64 = 6,  /**< uint64 */
+    ZBCCL_DATA_TYPE_UINT8 = 7,   /**< uint8 */
+    ZBCCL_DATA_TYPE_UINT16 = 8,  /**< uint16 */
+    ZBCCL_DATA_TYPE_UINT32 = 9,  /**< uint32 */
+    ZBCCL_DATA_TYPE_FP64 = 10,   /**< fp64 */
+    ZBCCL_DATA_TYPE_BFP16 = 11,  /**< bfp16 */
+    ZBCCL_DATA_TYPE_RESERVED     /**< reserved */
+} zbccl_datatype_t; // reference to HcclDataType
 
 typedef enum {
-
-} zbccl_reduce_op_t;
+    ZBCCL_REDUCE_SUM = 0,    /**< sum */
+    ZBCCL_REDUCE_PROD = 1,   /**< prod */
+    ZBCCL_REDUCE_MAX = 2,    /**< max */
+    ZBCCL_REDUCE_MIN = 3,    /**< min */
+    ZBCCL_REDUCE_RESERVED    /**< reserved */
+} zbccl_reduce_op_t; // reference to HcclReduceOp
 
 typedef struct {
     void *address;
