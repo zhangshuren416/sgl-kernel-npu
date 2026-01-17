@@ -64,6 +64,13 @@ void zbccl_record_stream(void *ptr, c10_npu::NPUStream stream) {
     return;
 }
 
+void zbccl_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+#ifdef USE_C10NPU_DMA
+    my_erase_stream(ptr, stream);
+#endif
+    return;
+}
+
 void *zbccl_get_shmem_base_addr() {
 #ifdef USE_C10NPU_DMA
     get_shmem_base_addr();

@@ -342,6 +342,8 @@ EXPORT_API void my_free(void *ptr, size_t size, int device, aclrtStream stream);
 
 EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream);
 
+EXPORT_API void my_erase_stream(void *ptr, c10_npu::NPUStream stream);
+
 EXPORT_API void my_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
 
 EXPORT_API void my_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id);

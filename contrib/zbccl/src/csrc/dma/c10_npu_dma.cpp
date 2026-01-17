@@ -4015,6 +4015,10 @@ EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream) {
     c10_npu::dma::caching_allocator.recordStream(ptr, stream);
 }
 
+EXPORT_API void my_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+    c10_npu::dma::caching_allocator.eraseStream(ptr, stream);
+}
+
 EXPORT_API void my_empty_cache(bool check_error) {
     c10_npu::dma::caching_allocator.emptyCache(check_error);
 }
