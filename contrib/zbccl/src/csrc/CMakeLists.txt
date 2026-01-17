@@ -24,6 +24,7 @@ include_directories(
         ${ZBCCL_SRC_DIR}/include
         ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch
         ${ZBCCL_SRC_DIR}/csrc/ccl
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu
         ${ZBCCL_SRC_DIR}/csrc/common
         ${ZBCCL_SRC_DIR}/csrc/dma
         ${ZBCCL_SRC_DIR}/csrc/sma
@@ -36,6 +37,7 @@ include_directories(
 file(GLOB_RECURSE ZBCCL_SRC
         ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/under_api/memfabric/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp

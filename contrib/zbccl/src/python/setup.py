@@ -75,6 +75,7 @@ alloc_include_dirs = [
     str((repo_root / "contrib/zbccl").resolve()),
     str((repo_root / "contrib/zbccl/src/include").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/ccl").resolve()),
+    str((repo_root / "contrib/zbccl/src/csrc/ccl/npu").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/common").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/dma").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/sma").resolve()),
@@ -91,6 +92,7 @@ alloc_library_dirs = [
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
 alloc_sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "ccl" / "npu" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "under_api" / "memfabric" / "*.cpp")) + \
