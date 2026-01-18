@@ -31,33 +31,51 @@ typedef enum {
 } zbccl_backend_t;
 
 typedef enum {
-    ZBCCL_DATA_TYPE_INT8 = 0,    /**< int8 */
-    ZBCCL_DATA_TYPE_INT16 = 1,   /**< int16 */
-    ZBCCL_DATA_TYPE_INT32 = 2,   /**< int32 */
-    ZBCCL_DATA_TYPE_FP16 = 3,    /**< fp16 */
-    ZBCCL_DATA_TYPE_FP32 = 4,    /**< fp32 */
-    ZBCCL_DATA_TYPE_INT64 = 5,   /**< int64 */
-    ZBCCL_DATA_TYPE_UINT64 = 6,  /**< uint64 */
-    ZBCCL_DATA_TYPE_UINT8 = 7,   /**< uint8 */
-    ZBCCL_DATA_TYPE_UINT16 = 8,  /**< uint16 */
-    ZBCCL_DATA_TYPE_UINT32 = 9,  /**< uint32 */
-    ZBCCL_DATA_TYPE_FP64 = 10,   /**< fp64 */
-    ZBCCL_DATA_TYPE_BFP16 = 11,  /**< bfp16 */
-    ZBCCL_DATA_TYPE_RESERVED     /**< reserved */
-} zbccl_datatype_t; // reference to HcclDataType
+    ZBCCL_DATA_TYPE_INT8 = 0,   /**< int8 */
+    ZBCCL_DATA_TYPE_INT16 = 1,  /**< int16 */
+    ZBCCL_DATA_TYPE_INT32 = 2,  /**< int32 */
+    ZBCCL_DATA_TYPE_FP16 = 3,   /**< fp16 */
+    ZBCCL_DATA_TYPE_FP32 = 4,   /**< fp32 */
+    ZBCCL_DATA_TYPE_INT64 = 5,  /**< int64 */
+    ZBCCL_DATA_TYPE_UINT64 = 6, /**< uint64 */
+    ZBCCL_DATA_TYPE_UINT8 = 7,  /**< uint8 */
+    ZBCCL_DATA_TYPE_UINT16 = 8, /**< uint16 */
+    ZBCCL_DATA_TYPE_UINT32 = 9, /**< uint32 */
+    ZBCCL_DATA_TYPE_FP64 = 10,  /**< fp64 */
+    ZBCCL_DATA_TYPE_BFP16 = 11, /**< bfp16 */
+    ZBCCL_DATA_TYPE_RESERVED    /**< reserved */
+} zbccl_datatype_t;             // reference to HcclDataType
 
 typedef enum {
-    ZBCCL_REDUCE_SUM = 0,    /**< sum */
-    ZBCCL_REDUCE_PROD = 1,   /**< prod */
-    ZBCCL_REDUCE_MAX = 2,    /**< max */
-    ZBCCL_REDUCE_MIN = 3,    /**< min */
-    ZBCCL_REDUCE_RESERVED    /**< reserved */
-} zbccl_reduce_op_t; // reference to HcclReduceOp
+    ZBCCL_REDUCE_SUM = 0,  /**< sum */
+    ZBCCL_REDUCE_PROD = 1, /**< prod */
+    ZBCCL_REDUCE_MAX = 2,  /**< max */
+    ZBCCL_REDUCE_MIN = 3,  /**< min */
+    ZBCCL_REDUCE_RESERVED  /**< reserved */
+} zbccl_reduce_op_t;       // reference to HcclReduceOp
+
+typedef enum {
+    BOOT_BY_MEMFABRIC = 0,
+    BOOT_BY_ACLSHMEM,
+
+    BOOT_BY_BUTT
+} zbccl_bootstrap_type_t;
+
+typedef struct {
+    uint32_t flags;                /* optional flags*/
+    zbccl_bootstrap_type_t btType; /* bootstrap type */
+} zbccl_bootstrap_options_t;
+
+typedef struct {
+} zbccl_bootstrap_output_t;
 
 typedef struct {
     void *address;
     size_t size;
 } zbccl_allocator_options;
+
+typedef struct {
+} zbccl_ccl_options;
 
 #ifdef __cplusplus
 }

@@ -16,7 +16,7 @@
 #include "zbccl_mem_bootstrap.h"
 
 namespace zbccl {
-namespace underapi {
+namespace bootstrap {
 class MemFabricBoostrap : public MemBootstrap
 {
 public:
@@ -38,7 +38,7 @@ private:
     smem_shm_t shmHandle_ = nullptr;
     void *shmGva = nullptr;
 };
-}  // namespace underapi
+}  // namespace bootstrap
 }  // namespace zbccl
 
 #endif  // ZBCCL_MF_BOOTSTRAP_H

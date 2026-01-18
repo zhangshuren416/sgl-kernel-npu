@@ -15,7 +15,7 @@
 #include "zbccl_common_includes.h"
 
 namespace zbccl {
-namespace underapi {
+namespace bootstrap {
 enum MemBoostrapType {
     MBT_MEMFABRIC = 0,
     MBT_ACLSHMEM,
@@ -74,7 +74,7 @@ protected:
 
     MemBootstrapOptions options_;
 };
-}  // namespace underapi
+}  // namespace bootstrap
 }  // namespace zbccl
 
 #endif  // ZBCCL_MEM_BOOTSTRAP_H

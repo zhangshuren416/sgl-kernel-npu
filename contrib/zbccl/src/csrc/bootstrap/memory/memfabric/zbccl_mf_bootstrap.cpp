@@ -13,20 +13,22 @@
 #include "dl_mf_api.h"
 
 namespace zbccl {
-namespace underapi {
+namespace bootstrap {
 ZResult MemFabricBoostrap::Initialize() noexcept
 {
     // TODO
     return Z_OK;
 }
 
-void MemFabricBoostrap::UnInitialize() noexcept {
+void MemFabricBoostrap::UnInitialize() noexcept
+{
     // TODO
 }
 
-void *MemFabricBoostrap::GetMyGVA() noexcept {
+void *MemFabricBoostrap::GetMyGVA() noexcept
+{
     // TODO
     return nullptr;
 }
-}  // namespace underapi
+}  // namespace bootstrap
 }  // namespace zbccl

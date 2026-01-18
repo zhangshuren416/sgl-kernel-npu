@@ -13,11 +13,11 @@
 #define ZBCCL_MEM_DEVICE_OPERATOR_H
 
 namespace zbccl {
-namespace underapi {
+namespace bootstrap {
 #if define(BOOTSTRAP_MEMFABRIC)
 #elif define(BOOSTRAP_ACLSHMEM)
 #endif
-}
-}
+}  // namespace bootstrap
+}  // namespace zbccl
 
 #endif  // ZBCCL_MEM_DEVICE_OPERATOR_H

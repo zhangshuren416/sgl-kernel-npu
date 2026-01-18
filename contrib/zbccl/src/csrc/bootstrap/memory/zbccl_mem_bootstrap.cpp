@@ -13,8 +13,8 @@
 #include "zbccl_mf_bootstrap.h"
 
 namespace zbccl {
-namespace underapi {
-MemBootstrapPtr MemBootstrap::Create(const zbccl::underapi::MemBootstrapOptions &options)
+namespace bootstrap {
+MemBootstrapPtr MemBootstrap::Create(const MemBootstrapOptions &options)
 {
     if (options.boostrapType == MemBoostrapType::MBT_MEMFABRIC) {
         auto bootstrap = ZMakeRef<MemFabricBoostrap>(options);
@@ -36,5 +36,5 @@ ZResult MemBootstrap::VerifyOptions()
     // TODO
     return Z_OK;
 }
-}  // namespace underapi
+}  // namespace bootstrap
 }  // namespace zbccl

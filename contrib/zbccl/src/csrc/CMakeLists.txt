@@ -36,6 +36,7 @@ include_directories(
 
 file(GLOB_RECURSE ZBCCL_SRC
         ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/common/*.cpp

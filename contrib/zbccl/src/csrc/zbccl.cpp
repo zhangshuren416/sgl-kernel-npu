@@ -11,14 +11,71 @@
  */
 
 #include "zbccl_version.h"
+#include "zbccl_common_includes.h"
+#include "zbccl_bootstrap.h"
 
+using namespace zbccl;
+using namespace zbccl::bootstrap;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-const char *zbccl_version() {
+const char *zbccl_version()
+{
     return LIB_VERSION_FULL;
+}
+
+int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_bootstrap_output_t *output)
+{
+    ZBCCL_VALIDATE_RETURN(options != nullptr, "invalid param, bootstrap options should not be null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(output != nullptr, "invalid param, bootstrap output should not be null", Z_INVALID_PARAM);
+
+    auto bootstrap = Bootstrap::Create(*options);
+    if (bootstrap == nullptr) {
+        return Z_ERROR;
+    }
+
+    auto out = bootstrap->GetOutput();
+
+    memcpy(output, &out, sizeof(zbccl_bootstrap_options_t));
+
+    return Z_OK;
+}
+
+void zbccl_unboostrap(uint32_t flags) {
+    Bootstrap::Destroy();
+}
+
+int32_t zbccl_set_logger(void (*func)(int, const char *))
+{
+    ZBCCL_VALIDATE_RETURN(func != nullptr, "invalid param, logger function should not be null", Z_INVALID_PARAM);
+
+    OutLogger::Instance().SetExternalLogFunction(func);
+
+    return Z_OK;
+}
+
+int32_t zbccl_set_logger_level(int level)
+{
+    if (!OutLogger::ValidateLevel(level)) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("invalid param, level " << level << " is not supported");
+        return Z_INVALID_PARAM;
+    }
+
+    OutLogger::Instance().SetLogLevel(LogLevel(level));
+
+    return Z_OK;
+}
+
+const char *zbccl_get_last_error_msg()
+{
+    return ZBLastError::GetAndClear(false);
+}
+
+const char *zbccl_get_and_clear_last_error_msg()
+{
+    return ZBLastError::GetAndClear(true);
 }
 
 #ifdef __cplusplus
