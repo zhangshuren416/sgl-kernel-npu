@@ -19,7 +19,7 @@
 #include <set>
 #include <sstream>
 
-#include "zbccl_defines.h"
+#include "zbccl_common_includes.h"
 
 namespace zbccl {
 namespace sma {

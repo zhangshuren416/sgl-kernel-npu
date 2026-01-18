@@ -36,6 +36,8 @@ class ZBCCLComm : public ZReferable
 {
 public:
     static ZBCCLCommPtr Create(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
+    static ZResult Destroy(ZBCCLCommPtr &comm);
+    static void DestroyAll();
 
 public:
     ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup);
@@ -87,8 +89,9 @@ protected:
     ZBCCLCommPtr worldGroup_;   /* world group */
 
 private:
-    static ZBCCLCommPtr gWorldZBCCLComm; /* the world comm, i.e. the first one */
-    static std::mutex gMutex;            /* mutex for world comm */
+    static ZBCCLCommPtr gWorldZBCCLComm;                           /* the world comm, i.e. the first one */
+    static std::mutex gMutex;                                      /* mutex for world comm */
+    static std::map<uintptr_t, ZBCCLCommPtr> gZBCCLCommLookupMap_; /* all comm object except the world comm */
 };
 
 inline bool ZBCCLComm::IsWorldGroup() const

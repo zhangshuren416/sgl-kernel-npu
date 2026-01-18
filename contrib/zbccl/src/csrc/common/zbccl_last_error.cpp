@@ -1,6 +1,6 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
- * ZBCCL is licensed under Mulan PSL v2.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * MemFabric_Hybrid is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -9,20 +9,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMON_INCLUDES_H
-#define ZBCCL_COMMON_INCLUDES_H
 
-#include <iostream>
-#include <map>
-#include <mutex>
-
-#include "flat_hash_map.h"
-#include "zbccl.h"
-#include "zbccl_defines.h"
-#include "zbccl_functions.h"
 #include "zbccl_last_error.h"
-#include "zbccl_logger.h"
-#include "zbccl_ref.h"
-#include "zbccl_version.h"
 
-#endif  // ZBCCL_COMMON_INCLUDES_H
+namespace zbccl {
+thread_local bool ZBLastError::have_ = false;
+thread_local std::string ZBLastError::msg_;
+}  // namespace zbccl

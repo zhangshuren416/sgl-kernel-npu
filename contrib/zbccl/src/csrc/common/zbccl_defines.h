@@ -33,13 +33,15 @@ enum ZResultErrorCode : ZResult {
 
 #define PATH_MAX_LIMIT 4096L
 
-#define ZBCCL_API __attribute__((visibility("default")))
+#ifndef LIKELY
+#define LIKELY(x) (__builtin_expect(!!(x), 1) != 0)
+#endif
 
-#define ZBCCL_LOG_ERROR(ARGS)                                                                 \
-    do {                                                                                      \
-        std::ostringstream oss;                                                               \
-        oss << "[ERROR][ZBCCL_ " << __FILE__ << ":" << __LINE__ << "] " << ARGS << std::endl; \
-    } while (0)
+#ifndef UNLIKELY
+#define UNLIKELY(x) (__builtin_expect(!!(x), 0) != 0)
+#endif
+
+#define ZBCCL_API __attribute__((visibility("default")))
 
 #define ZBCCL_CHECK(condition, ...)                                        \
     do {                                                                   \

@@ -34,25 +34,83 @@ ZBCCLCommPtr ZBCCLComm::Create(zbccl_backend_t backendType, const ZBCommOptions 
     if (backendType == ZBCCL_ASCEND_NPU) {
         auto comm = ZMakeRef<ZBCCLCommDefault>(options, isWorldGroup, gWorldZBCCLComm);
         if (comm == nullptr) {
-            ZBCCL_LOG_ERROR("Create zbccl communicator failed, probably out of memory");
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed, probably out of memory");
             return nullptr;
         }
 
-        if (isWorldGroup && gWorldZBCCLComm == nullptr) { /* if world group and not created */
+        if (isWorldGroup && gWorldZBCCLComm == nullptr) {
+            /*
+             * if world group and not created, then
+             * 1 created new one (created previously)
+             * 2 set to global one
+             * 3 increase reference and return
+             */
+            gWorldZBCCLComm = comm.Get();
             comm->IncreaseRef();
             return comm.Get();
-        } else if (isWorldGroup && gWorldZBCCLComm != nullptr) { /* world group already creatged */
-            ZBCCL_LOG_ERROR("Create zbccl communicator failed as world group already created");
+        } else if (isWorldGroup && gWorldZBCCLComm != nullptr) {
+            /*
+             * if world group already created and return nullptr,
+             * return nullptr directly as its already created
+             */
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed as world group already created");
             return nullptr;
-        } else if (!isWorldGroup && gWorldZBCCLComm == nullptr) { /* world group not created */
-            ZBCCL_LOG_ERROR("Create zbccl communicator failed as world group not created");
+        } else if (!isWorldGroup && gWorldZBCCLComm == nullptr) {
+            /*
+             * if not world group and world group not created,
+             * here we need to create world group firstly,
+             * return nullptr
+             */
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed as world group not created");
             return nullptr;
         } else {
-            comm->IncreaseRef();
+            /*
+             * if not world group and world group created
+             */
+            gZBCCLCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
             return comm.Get();
         }
     }
     return nullptr;
+}
+
+ZResult ZBCCLComm::Destroy(zbccl::ccl::ZBCCLCommPtr &comm)
+{
+    ZBCCL_VALIDATE_RETURN(comm == nullptr, "invalid param, ZBCCLComm is null", Z_INVALID_PARAM);
+
+    std::lock_guard<std::mutex> guard(gMutex);
+    /* if it is the world one */
+    if (comm->isWorldGroup_) {
+        if (gZBCCLCommLookupMap_.size() != 0) {
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Destroy other small ZBCCLComm firstly, then destroy the world one");
+            return Z_ERROR;
+        }
+
+        if (gWorldZBCCLComm != nullptr) {
+            ZBCCL_LOG_INFO("Destroying the world ZBCCLComm");
+            gWorldZBCCLComm->DecreaseRef();
+            gWorldZBCCLComm = nullptr;
+        }
+        return Z_OK;
+    }
+
+    /* erase from lookup map directly */
+    gZBCCLCommLookupMap_.erase(reinterpret_cast<uintptr_t>(comm.Get()));
+
+    return Z_OK;
+}
+
+void ZBCCLComm::DestroyAll()
+{
+    std::lock_guard<std::mutex> guard(gMutex);
+    /* clear all other world comm*/
+    gZBCCLCommLookupMap_.clear();
+
+    /* clear world one */
+    if (gWorldZBCCLComm != nullptr) {
+        gWorldZBCCLComm->DecreaseRef();
+        gWorldZBCCLComm = nullptr;
+    }
 }
 }  // namespace ccl
 }  // namespace zbccl
