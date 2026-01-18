@@ -12,7 +12,8 @@
 #ifndef ZBCCL_MF_BOOTSTRAP_H
 #define ZBCCL_MF_BOOTSTRAP_H
 
-#include "../zbccl_mem_bootstrap.h"
+#include "smem_shm_def.h"
+#include "zbccl_mem_bootstrap.h"
 
 namespace zbccl {
 namespace underapi {
@@ -20,7 +21,8 @@ class MemFabricBoostrap : public MemBootstrap
 {
 public:
     MemFabricBoostrap(const MemBootstrapOptions &options) : MemBootstrap(options) {}
-    ~MemFabricBoostrap() override {
+    ~MemFabricBoostrap() override
+    {
         UnInitialize();
     }
 
@@ -28,6 +30,13 @@ public:
     void UnInitialize() noexcept override;
 
     void *GetMyGVA() noexcept override;
+
+private:
+    /* one bootstrap maps to one shm handle */
+    smem_shm_config_t shmConfig_;
+    uint32_t shmId_ = 1;
+    smem_shm_t shmHandle_ = nullptr;
+    void *shmGva = nullptr;
 };
 }  // namespace underapi
 }  // namespace zbccl

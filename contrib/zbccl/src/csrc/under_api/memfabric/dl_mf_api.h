@@ -51,6 +51,151 @@ public:
     DlMfApi() = delete;
     ~DlMfApi() = delete;
 
+    ZResult SmemInit(uint32_t flags);
+    ZResult SmemSetExternLogger(void (*func)(int level, const char *msg));
+    ZResult SmemSetLoggerLevel(int level);
+    void SmemUnInit(void);
+    const char *SmemGetLastErrMsg(void);
+    const char *SmemGetAndClearLastErrMsg(void);
+
+    /**
+     * @brief Initialize smem_shm_config_t, i.e. set to default value
+     *
+     * @param config           [in] config to be initialized
+     * @return 0 if successful
+     */
+    ZResult SmemShmConfigInit(smem_shm_config_t *config);
+
+    /**
+     * @brief Initialize shm library with global config store
+     * all processes need to call this function before creating a shm object,
+     * all processes will connect to a global config store with specified ipPort,
+     * this function will finish when all processes connected or timeout;
+     * the global config store will be used to exchange information about shm object and team
+     *
+     * @param configStoreIpPort[in] ipPort of config store, e.g. tcp://ip:port or tcp://[ip]:port
+     * @param worldSize        [in] size of processes
+     * @param rankId           [in] local rank id in world size
+     * @param deviceId         [in] device npu id
+     * @param config           [in] config, see @smem_shm_config_t
+     * @return 0 if successfully, negative value if failed, use @ref smem_get_last_error_msg to get last err msg
+     */
+    ZResult SmemShmInit(const char *configStoreIpPort, uint32_t worldSize, uint32_t rankId, uint16_t deviceId,
+                        smem_shm_config_t *config);
+
+    /**
+     * @brief Un-initialize shm library with destroy all things
+     *
+     * @param flags            [in] optional flags, set to 0
+     */
+    void SmemShmUnInit(uint32_t flags);
+
+    /**
+     * @brief Query supported data operation type
+     * @return the set of smem_shm_data_op_type
+     */
+    uint32_t SmemShmQuerySupportDataOperation(void);
+
+    /**
+     * @brief Create shm object peer by peer
+     *
+     * @param id               [in] id of the shm object
+     * @param rankSize         [in] rank count
+     * @param rankId           [in] my rank id
+     * @param symmetricSize    [in] local memory contributed to the shm object, all ranks must the same size
+     * @param dataOpType       [in] data operation engine type, i.e. MTE, SDMA, RDMA etc
+     * @param flags            [in] optional flags
+     * @param gva              [out] global virtual address created, it can be passed to kernel to data operations
+     * @return shm object created if successful, null if failed, use @ref smem_get_last_error_msg to get last error
+     * message
+     */
+    smem_shm_t SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
+                             smem_shm_data_op_type dataOpType, uint32_t flags, void **gva);
+
+    /**
+     * @brief Destroy shm object
+     *
+     * @param handle           [in] the shm object to be destroyed
+     * @param flags            [in] optional flags
+     * @return 0 if successful
+     */
+    ZResult SmemShmDestroy(smem_shm_t handle, uint32_t flags);
+
+    /**
+     * @brief Set user extra context of shm object
+     *
+     * @param handle           [in] the shm object to be set
+     * @param context          [in] extra context ptr
+     * @param size             [in] extra context size (max is 64K)
+     * @return 0 if successful
+     */
+    ZResult SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size);
+
+    /**
+     * @brief Get local rank of a shm object
+     *
+     * @param handle           [in] the shm object
+     * @return local rank in the input object, return UINT32_MAX if error
+     */
+    uint32_t SmemShmGetGlobalRank(smem_shm_t handle);
+
+    /**
+     * @brief Get rank size of a shm object
+     *
+     * @param handle           [in] the shm object
+     * @return rank size in the input object, return UINT32_MAX if error
+     */
+    uint32_t SmemShmGetGlobalRankSize(smem_shm_t handle);
+
+    /**
+     * @brief Do barrier on a shm object, using control network
+     *
+     * @param handle           [in] the shm object
+     * @return 0 if successful, other is error
+     */
+    ZResult SmemShmControlBarrier(smem_shm_t handle);
+
+    /**
+     * @brief Do all gather on a shm object, using control network
+     *
+     * @param handle           [in] the shm object
+     * @param sendBuf          [in] input data buf
+     * @param sendSize         [in] input data buf size
+     * @param recvBuf          [in] output data buf
+     * @param recvSize         [in] output data buf size
+     * @return 0 if successful
+     */
+    ZResult SmemShmControlAllGather(smem_shm_t handle, const char *sendBuf, uint32_t sendSize, char *recvBuf,
+                                    uint32_t recvSize);
+
+    /**
+     * @brief Query if remote rank can ranch
+     *
+     * @param handle           [in] shm object
+     * @param remoteRank       [in] remote rank
+     * @param reachInfo        [out] reach info, the set of smem_shm_data_op_type
+     * @return 0 if successful
+     */
+    ZResult SmemShmTopologyCanReach(smem_shm_t handle, uint32_t remoteRank, uint32_t *reachInfo);
+
+    /**
+     * @brief Register function of exit
+     *
+     * @param exit             [in] global exit option, every rank will apply this function
+     *                              to complete global exit
+     * @param handle           [in] shm object
+     * @return 0 if successful
+     */
+    ZResult SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int));
+
+    /**
+     * @brief Wait for all ranks exit
+     *
+     * @param handle           [in] shm object
+     * @param status           [in] int
+     */
+    void SmemShmGlobalExit(smem_shm_t handle, int status);
+
 private:
     static std::mutex gMutex;
     static bool gLoaded;
@@ -80,6 +225,109 @@ private:
     static mfSmemShmRegisterExitFunc gMfSmemShmRegisterExit;
     static mfSmemShmGlobalExitFunc gMfSmemShmGlobalExit;
 };
+
+inline ZResult DlMfApi::SmemInit(uint32_t flags)
+{
+    return gMfSmemInit(flags);
+}
+
+inline ZResult DlMfApi::SmemSetExternLogger(void (*func)(int level, const char *msg))
+{
+    return gMfSmemSetExternLogger(func);
+}
+
+inline ZResult DlMfApi::SmemSetLoggerLevel(int level)
+{
+    return gMfSmemSetLogLevel(level);
+}
+
+inline void DlMfApi::SmemUnInit(void)
+{
+    gMfSmemUnInit();
+}
+
+inline const char *DlMfApi::SmemGetLastErrMsg(void)
+{
+    return gMfSmemGetLastErrMsg();
+}
+
+inline const char *DlMfApi::SmemGetAndClearLastErrMsg(void)
+{
+    return gMfSmemGetAndClearErrMsg();
+}
+
+inline ZResult DlMfApi::SmemShmConfigInit(smem_shm_config_t *config)
+{
+    return gMfSmemShmConfigInit(config);
+}
+
+inline ZResult DlMfApi::SmemShmInit(const char *configStoreIpPort, uint32_t worldSize, uint32_t rankId,
+                                    uint16_t deviceId, smem_shm_config_t *config)
+{
+    return gMfSmemShmInit(configStoreIpPort, worldSize, rankId, deviceId, config);
+}
+
+inline void DlMfApi::SmemShmUnInit(uint32_t flags)
+{
+    gMfSmemShmUnInit(flags);
+}
+
+inline uint32_t DlMfApi::SmemShmQuerySupportDataOperation(void)
+{
+    return gMfSmemShmQuerySupportDataOperation();
+}
+
+inline smem_shm_t DlMfApi::SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
+                                         smem_shm_data_op_type dataOpType, uint32_t flags, void **gva)
+{
+    return gMfSmemCreate(id, rankSize, rankId, symmetricSize, dataOpType, flags, gva);
+}
+
+inline ZResult DlMfApi::SmemShmDestroy(smem_shm_t handle, uint32_t flags)
+{
+    return gMfSmemShmDestroy(handle, flags);
+}
+
+inline ZResult DlMfApi::SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size)
+{
+    return gMmfSmemShmSetExtraContext(handle, context, size);
+}
+
+inline uint32_t DlMfApi::SmemShmGetGlobalRank(smem_shm_t handle)
+{
+    return gMfSmemShmGetGlobalRank(handle);
+}
+
+inline uint32_t DlMfApi::SmemShmGetGlobalRankSize(smem_shm_t handle)
+{
+    return gMfSmemShmGetGlobalRankSize(handle);
+}
+
+inline ZResult DlMfApi::SmemShmControlBarrier(smem_shm_t handle)
+{
+    return gMfSmemShmControlBarrier(handle);
+}
+
+inline ZResult DlMfApi::SmemShmControlAllGather(smem_shm_t handle, const char *sendBuf, uint32_t sendSize,
+                                                char *recvBuf, uint32_t recvSize)
+{
+    return gMfSmemShmControlAllGather(handle, sendBuf, sendSize, recvBuf, recvSize);
+}
+
+inline ZResult DlMfApi::SmemShmTopologyCanReach(smem_shm_t handle, uint32_t remoteRank, uint32_t *reachInfo)
+{
+    return gMfSmemShmTopologyCanReach(handle, remoteRank, reachInfo);
+}
+
+inline ZResult DlMfApi::SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int))
+{
+    return gMfSmemShmRegisterExit(handle, exit);
+}
+
+inline void DlMfApi::SmemShmGlobalExit(smem_shm_t handle, int status)
+{
+    gMfSmemShmGlobalExit(handle, status);
+}
 }  // namespace underapi
 }  // namespace zbccl
 

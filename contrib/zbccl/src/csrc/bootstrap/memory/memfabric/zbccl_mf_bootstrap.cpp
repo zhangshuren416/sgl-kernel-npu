@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_mf_bootstrap.h"
+#include "dl_mf_api.h"
 
 namespace zbccl {
 namespace underapi {
