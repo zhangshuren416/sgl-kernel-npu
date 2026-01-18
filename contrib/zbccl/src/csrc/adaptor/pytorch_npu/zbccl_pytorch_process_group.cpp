@@ -9,8 +9,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_adaptor_py_npu_pg.h"
-#include "zbccl_adaptor_py_npu_util.h"
+#include "zbccl_pytorch_process_group.h"
+#include "zbccl_pytorch_util.h"
 #include "zbccl_operations.h"
 #include "torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.h"
 #include "torch_npu/csrc/framework/FormatHelper.h"

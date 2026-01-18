@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_adaptor_py_npu_util.h"
+#include "zbccl_pytorch_util.h"
 
 namespace zbccl {
 namespace adaptor {
