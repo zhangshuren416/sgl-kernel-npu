@@ -35,18 +35,36 @@ struct MemBootstrapOptions {
     uint32_t flags = 0;                           /* optional flags */
     uint32_t dataOperationType = 0;               /* data operation type MTE etc */
     std::string ipPort;                           /* SHM exchange ip port*/
+
+    friend std::ostream &operator<<(std::ostream &os, const MemBootstrapOptions &options)
+    {
+        os << "MemBootstrapOptions [boostrapType: " << options.boostrapType << ", deviceId: " << options.deviceId
+           << ", rankCount: " << options.rankCount << ", rankId: " << options.rankId
+           << ", totalMemSize: " << options.totalMemSize << ", flags: " << options.flags
+           << ", dataOperationType: " << options.dataOperationType << ", ipPort: " << options.ipPort << "]";
+
+        return os;
+    }
 };
 
 struct MemBootstrapOutput {
     void *gvaDevice = nullptr;
     void *myGvaDevice = nullptr;
     uint64_t memorySizeDevice = 0;
+
+    friend std::ostream &operator<<(std::ostream &os, const MemBootstrapOutput &output)
+    {
+        os << "MemBootstrapOutput [deviceGva: " << output.gvaDevice << ", myDeviceGva: " << output.myGvaDevice
+           << ", memorySizeDevice: " << output.memorySizeDevice << "]";
+
+        return os;
+    }
 };
 
 class MemBootstrap : public ZReferable
 {
 public:
-    MemBootstrapPtr Create(const MemBootstrapOptions &options);
+    static MemBootstrapPtr Create(const MemBootstrapOptions &options);
 
 public:
     ~MemBootstrap() override = default;

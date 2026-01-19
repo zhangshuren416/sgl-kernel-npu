@@ -33,10 +33,24 @@ public:
         UnInitialize();
     }
 
+    /**
+     * @brief Initialize bootstrap according to options
+     *
+     * @return 0 if successful, error if failed
+     */
     ZResult Initialize() noexcept;
+
+    /**
+     * @brief Un-initialize bootstrap
+     */
     void UnInitialize() noexcept;
 
-    const zbccl_bootstrap_output_t &GetOutput() const;
+    /**
+     * @brief Get output if initialized
+     *
+     * @return output
+     */
+    const zbccl_bootstrap_output_t &GetOutput();
 
 private:
     ZResult VerifyOptions() noexcept;
@@ -44,20 +58,26 @@ private:
     void DestroyMemoryBootstrap() noexcept;
 
 private:
-    MemBootstrapPtr memBootstrap_{nullptr};
-    zbccl_bootstrap_options_t options_;
-    zbccl_bootstrap_output_t output_;
+    MemBootstrapPtr memBootstrap_{nullptr}; /* inner memory bootstrap */
+    zbccl_bootstrap_options_t options_;     /* options from API */
+    zbccl_bootstrap_output_t output_;       /* output for API */
 
     std::mutex mutex_;
     bool inited_{false};
 
 private:
-    static std::mutex gMutex;
-    static BootstrapPtr gBootstrap;
+    static std::mutex gMutex;       /* lock for singleton boostrap */
+    static BootstrapPtr gBootstrap; /* singleton bootstrap */
 };
 
-inline const zbccl_bootstrap_output_t &Bootstrap::GetOutput() const
+inline const zbccl_bootstrap_output_t &Bootstrap::GetOutput()
 {
+    std::lock_guard<std::mutex> guard(std::mutex);
+    /* reset to if not initialized */
+    if (!inited_) {
+        bzero(&output_, sizeof(zbccl_bootstrap_output_t));
+    }
+
     return output_;
 }
 }  // namespace bootstrap

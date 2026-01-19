@@ -14,7 +14,7 @@
 
 namespace zbccl {
 namespace bootstrap {
-constexpr uint64_t MEMORY_SIZE_CAP = 274877906944; /* 256GB */
+
 MemBootstrapPtr MemBootstrap::Create(const MemBootstrapOptions &options)
 {
     if (options.boostrapType == MemBoostrapType::MBT_MEMFABRIC) {
@@ -37,10 +37,13 @@ ZResult MemBootstrap::VerifyOptions()
     ZBCCL_VALIDATE_RETURN(options_.rankCount > 0, "invalid options, rankCount should > 0", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(options_.rankId < options_.rankCount, "invalid options, rankId should < rankCount",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(options_.deviceId < 32, "invalid options, deviceId should be less than 32", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(options_.deviceId < DEVICE_COUNT_MAX_LIMIT,
+                          "invalid options, deviceId should be less than 32", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(options_.totalMemSize < MEMORY_SIZE_CAP, "invalid options, memory size is too large",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(!options_.ipPort.empty(), "invalid options, ipPort is empty", Z_INVALID_PARAM);
+
+    ZBCCL_LOG_INFO("verified options, " << options_);
 
     return Z_OK;
 }

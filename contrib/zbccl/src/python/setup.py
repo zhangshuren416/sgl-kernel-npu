@@ -74,6 +74,7 @@ alloc_include_dirs = [
     str((repo_root / "contrib/zbccl/third_party/mstx").resolve()),
     str((repo_root / "contrib/zbccl").resolve()),
     str((repo_root / "contrib/zbccl/src/include").resolve()),
+    str((repo_root / "contrib/zbccl/src/csrc").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/ccl").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/ccl/npu").resolve()),
     str((repo_root / "contrib/zbccl/src/csrc/common").resolve()),

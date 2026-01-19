@@ -26,6 +26,7 @@ include_directories(
         ${ZBCCL_BASE_DIR}/third_party/mstx
         ${ZBCCL_SRC_DIR}/include
         ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch
+        ${ZBCCL_SRC_DIR}/csrc/
         ${ZBCCL_SRC_DIR}/csrc/ccl
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu
         ${ZBCCL_SRC_DIR}/csrc/common

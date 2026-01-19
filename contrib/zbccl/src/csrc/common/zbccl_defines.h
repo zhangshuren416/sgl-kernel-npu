@@ -38,7 +38,10 @@ enum ZResultErrorCode : ZResult {
     Z_INIT_BOOTSTRAP_FAILED = -13,
 };
 
-#define PATH_MAX_LIMIT 4096L
+constexpr uint32_t PATH_MAX_LIMIT = 4096;
+constexpr uint32_t RANK_COUNT_MAX_LIMIT = 1024;
+constexpr uint32_t DEVICE_COUNT_MAX_LIMIT = 32;
+constexpr uint64_t MEMORY_SIZE_CAP = 274877906944; /* 256GB */
 
 #ifndef LIKELY
 #define LIKELY(x) (__builtin_expect(!!(x), 1) != 0)
@@ -48,7 +51,7 @@ enum ZResultErrorCode : ZResult {
 #define UNLIKELY(x) (__builtin_expect(!!(x), 0) != 0)
 #endif
 
-#define ZBCCL_LIKELY(expr)   LIKELY(expr)
+#define ZBCCL_LIKELY(expr) LIKELY(expr)
 #define ZBCCL_UNLIKELY(expr) UNLIKELY(expr)
 
 #define ZBCCL_API __attribute__((visibility("default")))

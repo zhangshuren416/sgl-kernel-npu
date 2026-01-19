@@ -36,14 +36,15 @@ int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_bootstrap_outp
         return Z_ERROR;
     }
 
-    auto out = bootstrap->GetOutput();
+    auto &out = bootstrap->GetOutput();
 
-    memcpy(output, &out, sizeof(zbccl_bootstrap_options_t));
+    memcpy(output, &out, sizeof(zbccl_bootstrap_output_t));
 
     return Z_OK;
 }
 
-void zbccl_unboostrap(uint32_t flags) {
+void zbccl_unboostrap(uint32_t flags)
+{
     Bootstrap::Destroy();
 }
 
