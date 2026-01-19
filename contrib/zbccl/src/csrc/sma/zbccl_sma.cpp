@@ -147,6 +147,64 @@ ZResult SecondaryMemoryAllocator::EmptyCache(bool check_error) {
     return Z_OK;
 }
 
+ZResult SecondaryMemoryAllocator::RecordStream(void *ptr, c10_npu::NPUStream stream) {
+    // Empty tensor's storage().data() might be a null ptr. As there is no
+    // blocks associated with those tensors, it is fine to do nothing here.
+    if (!ptr) {
+        return Z_ERROR;
+    }
+
+    // If a tensor is not allocated by this instance, simply skip
+    // This usually happens when NPU tensors are shared across processes,
+    // we have implemented reference counting based sharing mechanism to
+    // guarantee tensors won't be accidentally freed by one process while
+    // they are still being used in another
+    // if (ptr.get_deleter() != &local_raw_delete) {
+    //     return;
+    // }
+
+    device::DeviceBlock *block = get_allocated_block(ptr);
+    // block must not be null reaching here
+    ZBCCL_ASSERT_S(block != nullptr, "No allocated block can be found");
+    device_allocator_[block->deviceId_]->recordStream(block, stream);
+
+    return Z_OK;
+}
+
+ZResult SecondaryMemoryAllocator::EraseStream(void *ptr, c10_npu::NPUStream stream)
+{
+    if (!ptr) {
+        return Z_ERROR;
+    }
+
+    // If a tensor is not allocated by this instance, simply skip
+    // This usually happens when NPU tensors are shared across processes,
+    // we have implemented reference counting based sharing mechanism to
+    // guarantee tensors won't be accidentally freed by one process while
+    // they are still being used in another
+    // if (ptr.get_deleter() != &local_raw_delete) {
+    //     // TORCH_NPU_WARN_ONCE("Tensor not is not allocated by DirectMemoryAllocator, skip eraseStream.");
+    //     return;
+    // }
+
+    device::DeviceBlock *block = get_allocated_block(ptr);
+    if (!block) {
+        ZBCCL_LOG_ERROR("invalid device pointer: " << ptr);
+    }
+
+    if (block->stream_ != c10_npu::getCurrentNPUStream(block->deviceId_).stream(false)) {
+        // If the Stream applying for tensor block different from
+        // the stream of submiting event wait task in HCCL synchronize()
+        // method, the recordSteam can not be erased.
+        // New tensor creation may use the block before HCCL op is complete.
+        return Z_ERROR;
+    }
+
+    device_allocator_[block->deviceId_]->eraseStream(block, stream);
+
+    return Z_OK;
+}
+
 }  // namespace sma
 }  // namespace zbccl
 
@@ -172,25 +230,42 @@ ZBCCL_API void sma_empty_cache(bool check_error) {
     zbccl::sma::SecondaryMemoryAllocator::GetInstance()->EmptyCache(check_error);
 }
 
+ZBCCL_API void sma_record_stream(void *ptr, c10_npu::NPUStream stream) {
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->RecordStream(ptr, stream);
+}
+
+ZBCCL_API void sma_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->EraseStream(ptr, stream);
+}
+
+ZBCCL_API void* sma_get_base_addr(int device) {
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+    return zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->shmem_base_addr_;
+}
+
 ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
-    std::cout << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
+    std::cout << "sma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
     if (shmem_init_status() != 2) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.")
+        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
         shmem_init_attr_t *attributes;
         status = shmem_set_attr(my_rank, n_ranks, local_mem_size, ip_port, &attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.")
+        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.");
         status = shmem_init_attr(attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.")
+        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
     }
 
-    void *shmem_base_ptr = shmem_malloc(local_mem_size);
+    void *shmem_base_addr_ = shmem_malloc(local_mem_size);
     int device = 0;
     c10_npu::GetDevice(&device);
 
     zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
     zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
-            std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr + meta_size, local_mem_size - meta_size);
+            std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size, local_mem_size - meta_size);
 }
 
 }

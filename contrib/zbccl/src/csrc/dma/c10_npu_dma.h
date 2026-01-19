@@ -332,25 +332,25 @@ void finalize();
 
 
 extern "C" {
-EXPORT_API void *my_malloc(size_t size, int device, aclrtStream stream);
+EXPORT_API void *dma_malloc(size_t size, int device, aclrtStream stream);
 
-EXPORT_API void my_init(int device_count);
+EXPORT_API void dma_init(int device_count);
 
-EXPORT_API void my_empty_cache(bool check_error);
+EXPORT_API void dma_empty_cache(bool check_error);
 
-EXPORT_API void my_free(void *ptr, size_t size, int device, aclrtStream stream);
+EXPORT_API void dma_free(void *ptr, size_t size, int device, aclrtStream stream);
 
-EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream);
+EXPORT_API void dma_record_stream(void *ptr, c10_npu::NPUStream stream);
 
-EXPORT_API void my_erase_stream(void *ptr, c10_npu::NPUStream stream);
+EXPORT_API void dma_erase_stream(void *ptr, c10_npu::NPUStream stream);
 
-EXPORT_API void my_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
+EXPORT_API void dma_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
 
-EXPORT_API void my_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id);
+EXPORT_API void dma_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id);
 
-EXPORT_API void my_release_pool(int device, c10_npu::MempoolId_t mempool_id);
+EXPORT_API void dma_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 
-EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port);
+EXPORT_API void *dma_get_base_addr(int device = -1);
 
-EXPORT_API void *get_shmem_base_addr();
+EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port);
 }

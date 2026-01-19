@@ -74,6 +74,7 @@ public:
     // TODO: move this(shm-vmm heap class for shmem) into private
     std::shared_ptr<heap::MemoryHeap> mem_heap_pool_{nullptr};
     bool mem_heap_inited_ = false;
+    void *shmem_base_addr_ = nullptr;
 
 private:
     // lock around all operations

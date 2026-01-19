@@ -19,11 +19,11 @@ def switch_to_allocator():
 
     init_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_init"), ctypes.c_void_p).value
     empty_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_empty_cache"), ctypes.c_void_p).value
-    record_stream_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_record_stream"), ctypes.c_void_p).value
-    erase_stream_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_erase_stream"), ctypes.c_void_p).value
-    # begin_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_begin_allocate_to_pool"), ctypes.c_void_p).value
-    # end_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_end_allocate_to_pool"), ctypes.c_void_p).value
-    # release_pool_fn = ctypes.cast(getattr(zbccl_allocator, "my_release_pool"), ctypes.c_void_p).value
+    record_stream_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_record_stream"), ctypes.c_void_p).value
+    erase_stream_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_erase_stream"), ctypes.c_void_p).value
+    # begin_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_begin_allocate_to_pool"), ctypes.c_void_p).value
+    # end_allocate_to_pool_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_end_allocate_to_pool"), ctypes.c_void_p).value
+    # release_pool_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_release_pool"), ctypes.c_void_p).value
 
     new_alloc.allocator().set_init_fn(init_fn)
     new_alloc.allocator().set_reset_fn(empty_fn)
@@ -37,16 +37,16 @@ def switch_to_allocator():
 def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port):
     zbccl_allocator = ctypes.CDLL(allocator_module_path)
     # 设置函数原型
-    zbccl_allocator.init_shmem.argtypes = [
+    zbccl_allocator.zbccl_inner_init_shmem.argtypes = [
         ctypes.c_int,      # my_rank
         ctypes.c_int,      # n_ranks
         ctypes.c_uint64,   # local_mem_size
         ctypes.c_uint64,   # meta_size
         ctypes.c_char_p    # ip_port
     ]
-    zbccl_allocator.init_shmem.restype = None
+    zbccl_allocator.zbccl_inner_init_shmem.restype = None
 
-    zbccl_allocator.init_shmem(
+    zbccl_allocator.zbccl_inner_init_shmem(
         ctypes.c_int(my_rank),                    # my_rank
         ctypes.c_int(n_ranks),                    # n_ranks
         ctypes.c_uint64(local_mem_size),          # local_mem_size

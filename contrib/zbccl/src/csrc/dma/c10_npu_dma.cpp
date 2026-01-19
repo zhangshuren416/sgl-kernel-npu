@@ -3995,7 +3995,7 @@ void finalize() {
 
 
 extern "C" {
-EXPORT_API void *my_malloc(size_t size, int device, aclrtStream stream) {
+EXPORT_API void *dma_malloc(size_t size, int device, aclrtStream stream) {
     void *ptr = nullptr;
     if (size == 0) {
       return ptr;
@@ -4004,48 +4004,49 @@ EXPORT_API void *my_malloc(size_t size, int device, aclrtStream stream) {
     return ptr;
 }
 
-EXPORT_API void my_free(void *ptr, size_t size, int device, aclrtStream stream) {
+EXPORT_API void dma_free(void *ptr, size_t size, int device, aclrtStream stream) {
     c10_npu::dma::caching_allocator.free(ptr);
 }
 
-EXPORT_API void my_init(int device_count) {
+EXPORT_API void dma_init(int device_count) {
     c10_npu::dma::caching_allocator.init(device_count);
 }
 
-EXPORT_API void my_record_stream(void *ptr, c10_npu::NPUStream stream) {
+EXPORT_API void dma_record_stream(void *ptr, c10_npu::NPUStream stream) {
     c10_npu::dma::caching_allocator.recordStream(ptr, stream);
 }
 
-EXPORT_API void my_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+EXPORT_API void dma_erase_stream(void *ptr, c10_npu::NPUStream stream) {
     c10_npu::dma::caching_allocator.eraseStream(ptr, stream);
 }
 
-EXPORT_API void my_empty_cache(bool check_error) {
+EXPORT_API void dma_empty_cache(bool check_error) {
     c10_npu::dma::caching_allocator.emptyCache(check_error);
 }
 
-EXPORT_API void my_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+EXPORT_API void dma_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
     c10_npu::dma::caching_allocator.beginAllocateToPool(device, mempool_id, filter);
 }
 
-EXPORT_API void my_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
+EXPORT_API void dma_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
     c10_npu::dma::caching_allocator.endAllocateToPool(device, mempool_id);
 }
 
-EXPORT_API void my_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
+EXPORT_API void dma_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
     c10_npu::dma::caching_allocator.releasePool(device, mempool_id);
 }
 
-EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
-    std::cout << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
+// TODO merge this un-official to inner py func
+EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
+    std::cout << "dma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
     if (shmem_init_status() != 2) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.")
+        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
         shmem_init_attr_t *attributes;
         status = shmem_set_attr(my_rank, n_ranks, local_mem_size, ip_port, &attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.")
+        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.");
         status = shmem_init_attr(attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.")
+        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
     }
 
     void *shmem_base_ptr = shmem_malloc(local_mem_size);
@@ -4065,10 +4066,13 @@ EXPORT_API void init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, ui
     c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
 }
 
-EXPORT_API void* get_shmem_base_addr() {
-    int device = 0;
-    c10_npu::GetDevice(&device);
-    return c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr;
+EXPORT_API void* dma_get_base_addr(int device) {
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+    return c10_npu::dma::caching_allocator.device_allocator[device_i]->shmem_base_addr;
 }
 
 }

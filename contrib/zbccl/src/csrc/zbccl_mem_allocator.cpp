@@ -32,7 +32,7 @@ void zbccl_sma_uninit(int32_t flags) {
 
 void zbccl_pluggable_init(int32_t device_count) {
 #ifdef USE_C10NPU_DMA
-    my_init(device_count);
+    dma_init(device_count);
 #else
     sma_init(device_count);
 #endif
@@ -41,7 +41,7 @@ void zbccl_pluggable_init(int32_t device_count) {
 
 void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
-    return my_malloc(size, device, stream);
+    return dma_malloc(size, device, stream);
 #else
     return sma_malloc(size, device, stream);
 #endif
@@ -49,7 +49,7 @@ void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
 
 void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
-    my_free(ptr, size, device, stream);
+    dma_free(ptr, size, device, stream);
 #else
     sma_free(ptr, size, device, stream);
 #endif
@@ -58,32 +58,42 @@ void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream st
 
 void zbccl_pluggable_empty_cache(bool check_error) {
 #ifdef USE_C10NPU_DMA
-    my_empty_cache(check_error);
+    dma_empty_cache(check_error);
 #else
     sma_empty_cache(check_error);
 #endif
     return;
 }
 
-void zbccl_record_stream(void *ptr, c10_npu::NPUStream stream) {
+void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream) {
 #ifdef USE_C10NPU_DMA
-    my_record_stream(ptr, stream);
+    dma_record_stream(ptr, stream);
 #endif
     return;
 }
 
-void zbccl_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream) {
 #ifdef USE_C10NPU_DMA
-    my_erase_stream(ptr, stream);
+    dma_erase_stream(ptr, stream);
 #endif
     return;
 }
 
-void *zbccl_get_shmem_base_addr() {
+void *zbccl_inner_get_shmem_base_addr() {
 #ifdef USE_C10NPU_DMA
-    get_shmem_base_addr();
+    return dma_get_base_addr();
+#else
+    return sma_get_base_addr();
 #endif
-    return nullptr;
+}
+
+void zbccl_inner_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
+#ifdef USE_C10NPU_DMA
+    dma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port);
+#else
+    sma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port);
+#endif
+    return;
 }
 
 #ifdef __cplusplus

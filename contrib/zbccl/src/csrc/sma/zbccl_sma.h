@@ -88,7 +88,31 @@ public:
      */
     ZResult Free(void *ptr) noexcept;
 
+    /**
+     * @brief free cached memory
+     *
+     * @param check_error  [in] assert when aclrt func error
+     * @return 0 if successful
+     */
     ZResult EmptyCache(bool check_error);
+
+    /**
+     * @brief record a stream on its depend mem block
+     *
+     * @param ptr         [in] mem ptr of stream rely on
+     * @param stream      [in] relied stream
+     * @return 0 if successful
+     */
+    ZResult RecordStream(void *ptr, c10_npu::NPUStream stream);
+
+    /**
+     * @brief release a stream on its depend mem block
+     *
+     * @param ptr         [in] mem ptr of stream rely on
+     * @param stream      [in] stream to be released
+     * @return 0 if successful
+     */
+    ZResult EraseStream(void *ptr, c10_npu::NPUStream stream);
 };
 using SMAPtr = ZRef<SecondaryMemoryAllocator>;
 
@@ -103,6 +127,12 @@ ZBCCL_API void sma_init(int device_count);
 ZBCCL_API void sma_empty_cache(bool check_error);
 
 ZBCCL_API void sma_free(void *ptr, size_t size, int device, aclrtStream stream);
+
+ZBCCL_API void sma_record_stream(void *ptr, c10_npu::NPUStream stream);
+
+ZBCCL_API void sma_erase_stream(void *ptr, c10_npu::NPUStream stream);
+
+ZBCCL_API void *sma_get_base_addr(int device = -1);
 
 ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port);
 }
