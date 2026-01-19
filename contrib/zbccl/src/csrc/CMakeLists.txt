@@ -8,7 +8,10 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
+message(STATUS "ACLSHMEM PATH = $ENV{SHMEM_HOME_PATH}")
+
 include_directories(
+        $ENV{SHMEM_HOME_PATH}/shmem/include
         ${ASCEND_HOME_PATH}/include
         ${TORCH_DIR}/include/torch/csrc/api/include
         ${TORCH_DIR}/include

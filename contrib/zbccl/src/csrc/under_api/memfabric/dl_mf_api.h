@@ -51,12 +51,12 @@ public:
     DlMfApi() = delete;
     ~DlMfApi() = delete;
 
-    ZResult SmemInit(uint32_t flags);
-    ZResult SmemSetExternLogger(void (*func)(int level, const char *msg));
-    ZResult SmemSetLoggerLevel(int level);
-    void SmemUnInit(void);
-    const char *SmemGetLastErrMsg(void);
-    const char *SmemGetAndClearLastErrMsg(void);
+    static ZResult SmemInit(uint32_t flags);
+    static ZResult SmemSetExternLogger(void (*func)(int level, const char *msg));
+    static ZResult SmemSetLoggerLevel(int level);
+    static void SmemUnInit(void);
+    static const char *SmemGetLastErrMsg(void);
+    static const char *SmemGetAndClearLastErrMsg(void);
 
     /**
      * @brief Initialize smem_shm_config_t, i.e. set to default value
@@ -64,7 +64,7 @@ public:
      * @param config           [in] config to be initialized
      * @return 0 if successful
      */
-    ZResult SmemShmConfigInit(smem_shm_config_t *config);
+    static ZResult SmemShmConfigInit(smem_shm_config_t *config);
 
     /**
      * @brief Initialize shm library with global config store
@@ -80,21 +80,21 @@ public:
      * @param config           [in] config, see @smem_shm_config_t
      * @return 0 if successfully, negative value if failed, use @ref smem_get_last_error_msg to get last err msg
      */
-    ZResult SmemShmInit(const char *configStoreIpPort, uint32_t worldSize, uint32_t rankId, uint16_t deviceId,
-                        smem_shm_config_t *config);
+    static ZResult SmemShmInit(const char *configStoreIpPort, uint32_t worldSize, uint32_t rankId, uint16_t deviceId,
+                               smem_shm_config_t *config);
 
     /**
      * @brief Un-initialize shm library with destroy all things
      *
      * @param flags            [in] optional flags, set to 0
      */
-    void SmemShmUnInit(uint32_t flags);
+    static void SmemShmUnInit(uint32_t flags);
 
     /**
      * @brief Query supported data operation type
      * @return the set of smem_shm_data_op_type
      */
-    uint32_t SmemShmQuerySupportDataOperation(void);
+    static uint32_t SmemShmQuerySupportDataOperation(void);
 
     /**
      * @brief Create shm object peer by peer
@@ -109,8 +109,8 @@ public:
      * @return shm object created if successful, null if failed, use @ref smem_get_last_error_msg to get last error
      * message
      */
-    smem_shm_t SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
-                             smem_shm_data_op_type dataOpType, uint32_t flags, void **gva);
+    static smem_shm_t SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
+                                    smem_shm_data_op_type dataOpType, uint32_t flags, void **gva);
 
     /**
      * @brief Destroy shm object
@@ -119,7 +119,7 @@ public:
      * @param flags            [in] optional flags
      * @return 0 if successful
      */
-    ZResult SmemShmDestroy(smem_shm_t handle, uint32_t flags);
+    static ZResult SmemShmDestroy(smem_shm_t handle, uint32_t flags);
 
     /**
      * @brief Set user extra context of shm object
@@ -129,7 +129,7 @@ public:
      * @param size             [in] extra context size (max is 64K)
      * @return 0 if successful
      */
-    ZResult SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size);
+    static ZResult SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size);
 
     /**
      * @brief Get local rank of a shm object
@@ -137,7 +137,7 @@ public:
      * @param handle           [in] the shm object
      * @return local rank in the input object, return UINT32_MAX if error
      */
-    uint32_t SmemShmGetGlobalRank(smem_shm_t handle);
+    static uint32_t SmemShmGetGlobalRank(smem_shm_t handle);
 
     /**
      * @brief Get rank size of a shm object
@@ -145,7 +145,7 @@ public:
      * @param handle           [in] the shm object
      * @return rank size in the input object, return UINT32_MAX if error
      */
-    uint32_t SmemShmGetGlobalRankSize(smem_shm_t handle);
+    static uint32_t SmemShmGetGlobalRankSize(smem_shm_t handle);
 
     /**
      * @brief Do barrier on a shm object, using control network
@@ -153,7 +153,7 @@ public:
      * @param handle           [in] the shm object
      * @return 0 if successful, other is error
      */
-    ZResult SmemShmControlBarrier(smem_shm_t handle);
+    static ZResult SmemShmControlBarrier(smem_shm_t handle);
 
     /**
      * @brief Do all gather on a shm object, using control network
@@ -165,8 +165,8 @@ public:
      * @param recvSize         [in] output data buf size
      * @return 0 if successful
      */
-    ZResult SmemShmControlAllGather(smem_shm_t handle, const char *sendBuf, uint32_t sendSize, char *recvBuf,
-                                    uint32_t recvSize);
+    static ZResult SmemShmControlAllGather(smem_shm_t handle, const char *sendBuf, uint32_t sendSize, char *recvBuf,
+                                           uint32_t recvSize);
 
     /**
      * @brief Query if remote rank can ranch
@@ -176,7 +176,7 @@ public:
      * @param reachInfo        [out] reach info, the set of smem_shm_data_op_type
      * @return 0 if successful
      */
-    ZResult SmemShmTopologyCanReach(smem_shm_t handle, uint32_t remoteRank, uint32_t *reachInfo);
+    static ZResult SmemShmTopologyCanReach(smem_shm_t handle, uint32_t remoteRank, uint32_t *reachInfo);
 
     /**
      * @brief Register function of exit
@@ -186,7 +186,7 @@ public:
      * @param handle           [in] shm object
      * @return 0 if successful
      */
-    ZResult SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int));
+    static ZResult SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int));
 
     /**
      * @brief Wait for all ranks exit
@@ -194,7 +194,7 @@ public:
      * @param handle           [in] shm object
      * @param status           [in] int
      */
-    void SmemShmGlobalExit(smem_shm_t handle, int status);
+    static void SmemShmGlobalExit(smem_shm_t handle, int status);
 
 private:
     static std::mutex gMutex;

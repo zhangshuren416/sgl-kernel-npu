@@ -35,7 +35,6 @@ MemBootstrapPtr MemBootstrap::Create(const MemBootstrapOptions &options)
 ZResult MemBootstrap::VerifyOptions()
 {
     ZBCCL_VALIDATE_RETURN(options_.rankCount > 0, "invalid options, rankCount should > 0", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(options_.rankId >= 0, "invalid options, rankId should >= 0", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(options_.rankId < options_.rankCount, "invalid options, rankId should < rankCount",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(options_.deviceId < 32, "invalid options, deviceId should be less than 32", Z_INVALID_PARAM);
