@@ -16,13 +16,25 @@ def zbccl_init(physicalMemoryFraction: float, bootstrap: ZBCCLBootstrapType):
     :param bootstrap: gva memory bootstrap backend
     :return: 0 if
     '''
+    # bootstrap
 
     # init mem allocator
 
-    # init process group
+    # init ccl
 
     return None
 
 
 def zbccl_uninit():
-    pass
+    '''
+    Un-initialize zbccl library
+    :return:
+    '''
+
+    # un-init ccl
+
+    # un-init allocator
+
+    # un-init bootstrap
+
+    return None

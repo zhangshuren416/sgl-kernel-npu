@@ -12,6 +12,7 @@
 #ifndef ZBCCL_H_
 #define ZBCCL_H_
 
+#include "zbccl_bootstrap.h"
 #include "zbccl_mem_allocator.h"
 #include "zbccl_operations.h"
 
@@ -25,24 +26,6 @@ extern "C" {
  * @return string of version
  */
 const char *zbccl_version();
-
-/**
- * @brief Bootstrap zbccl
- *
- * @param options          [in] options of bootstrap
- * @param flags            [in] optional flags
- * @param output           [out] bootstrap info after work done
- *
- * @return 0 if successful
- */
-int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_bootstrap_output_t* output);
-
-/**
- * @brief Un-bootstrap zbccl
- *
- * @param flags            [in] optional flags
- */
-void zbccl_unboostrap(uint32_t flags);
 
 /**
  * @brief Set external log function
