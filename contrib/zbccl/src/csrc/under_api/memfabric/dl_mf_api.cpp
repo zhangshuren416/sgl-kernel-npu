@@ -17,8 +17,8 @@ namespace zbccl {
 namespace underapi {
 std::mutex DlMfApi::gMutex;
 bool DlMfApi::gLoaded = false;
-void *gMfSmemHandle = nullptr;
-const char *gMfLibName = "libmf_smem.so";
+void *DlMfApi::gMfSmemHandle = nullptr;
+const char *DlMfApi::gMfLibName = "libmf_smem.so";
 
 mfSmemInitFunc DlMfApi::gMfSmemInit = nullptr;
 mfSmemCreateConfigStoreFunc DlMfApi::gMfSmemCreateConfigStore = nullptr;

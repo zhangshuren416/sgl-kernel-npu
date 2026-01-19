@@ -61,7 +61,17 @@ struct DeviceBlock
  * @brief Comparator function of device block in blockSets
  */
 using Comparison = bool (*)(const DeviceBlock *, const DeviceBlock *);
-static bool DeviceBlockCompareBySize(const DeviceBlock *a, const DeviceBlock *b);
+inline bool DeviceBlockCompareBySize(const DeviceBlock *a, const DeviceBlock *b) {
+    if (a->stream_ != b->stream_) {
+        return (uintptr_t)a->stream_ < (uintptr_t)b->stream_;
+    }
+
+    if (a->size_ != b->size_) {
+        return a->size_ < b->size_;
+    }
+
+    return a->ptr_ < b->ptr_;
+}
 
 /**
  * @brief DeviceBlockPool
@@ -99,9 +109,15 @@ struct DeviceAllocParams {
             : search_key_(device, stream, size), pool_(pool), alloc_size_(alloc_size), block_type_(block_type)
     {}
 
-    int32_t device() const;
-    aclrtStream stream() const;
-    size_t size() const;
+    inline int32_t device() const {
+        return search_key_.deviceId_;
+    };
+    inline aclrtStream stream() const {
+        return search_key_.stream_;
+    };
+    inline size_t size() const {
+        return search_key_.size_;
+    };
 
     DeviceBlock search_key_;
     // since all value pass of DeviceBlockPool using ptr, we direct use pool_ instead of p_pool_

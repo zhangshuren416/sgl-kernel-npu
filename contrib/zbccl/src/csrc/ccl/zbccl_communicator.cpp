@@ -15,6 +15,7 @@
 namespace zbccl {
 namespace ccl {
 ZBCCLCommPtr ZBCCLComm::gWorldZBCCLComm{nullptr};
+std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
 std::mutex ZBCCLComm::gMutex;
 
 ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)

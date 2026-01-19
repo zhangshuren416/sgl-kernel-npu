@@ -14,6 +14,9 @@
 namespace zbccl {
 namespace sma {
 
+SecondaryMemoryAllocator::SecondaryMemoryAllocator() {
+}
+
 void SecondaryMemoryAllocator::add_allocated_block(device::DeviceBlock *block) {
     std::lock_guard<std::mutex> lock(mutex_);
     allocated_blocks_[block->ptr_] = block;

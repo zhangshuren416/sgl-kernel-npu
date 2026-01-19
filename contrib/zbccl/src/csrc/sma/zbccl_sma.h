@@ -45,7 +45,8 @@ private:
 public:
     std::vector<std::unique_ptr<device::DeviceSMACachingAllocator>> device_allocator_;
 
-    ~SecondaryMemoryAllocator();
+    SecondaryMemoryAllocator();
+    ~SecondaryMemoryAllocator() override = default;;
 
     static ZRef<SecondaryMemoryAllocator> GetInstance() {
         static ZRef<SecondaryMemoryAllocator> instance = new SecondaryMemoryAllocator();
