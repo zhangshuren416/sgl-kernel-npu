@@ -12,6 +12,7 @@
 
 #include "aclrtlaunch_ShmemReduceScatter.h"
 #include "aclrtlaunch_ShmemZeroBuffReduceScatter.h"
+#include "aclrtlaunch_ShmemZeroBuffReduceScatterNew.h"
 #include "zbccl_op_reduce_scatter.h"
 
 namespace zbccl {
@@ -77,7 +78,7 @@ ZBCCL_API int ZcclReduceScatterZeroBuff(uint8_t *inp, uint8_t *out,
     // Prepare FFTS address
     uint64_t fftsAddr = shmemx_get_ffts_config();
     // allocate gva buffer
-    size_t gvaSize = blockDim * SYNC_FLAG_INTERVAL * sizeof(int32_t);
+    size_t gvaSize = blockDim * SYNC_FLAG_INTERVAL * sizeof(int32_t) + rankSize * 64 * 2;
     void *ptr = shmem_malloc(gvaSize);
     aclrtMemset(ptr, gvaSize, 0, gvaSize);
     // set output empty
@@ -85,7 +86,7 @@ ZBCCL_API int ZcclReduceScatterZeroBuff(uint8_t *inp, uint8_t *out,
     aclrtMemset(out, outputSize, 0, outputSize);
 
     /* launch the kernel function via ACLRT_LAUNCH_KERNEL */
-    ACLRT_LAUNCH_KERNEL(ShmemZeroBuffReduceScatter)(blockDim, stream, inp, out, (uint8_t *)ptr,
+    ACLRT_LAUNCH_KERNEL(ShmemZeroBuffReduceScatterNew)(blockDim, stream, inp, out, (uint8_t *)ptr,
                                                     fftsAddr, dataTypeNum, inpNumel, teamId, reduceOp);
     shmem_free(ptr);
     return 0;

@@ -40,8 +40,6 @@ int g_npus = 8;
 const char *ipport;
 int f_rank = 0;
 int f_npu = 0;
-const char *data_type;
-bool zero_buff = false;
 
 template<class T>
 int test_shmem_reduce_scatter(int rank_id, int n_ranks, uint64_t local_mem_size, zbccl_datatype_t dataType, bool zero_buff)
@@ -178,8 +176,8 @@ int main(int argc, char *argv[])
     g_npus = atoi(argv[4]);
     f_rank = atoi(argv[5]);
     f_npu = atoi(argv[6]);
-    data_type = argv[7];
-    zero_buff = (argv[8] != nullptr && std::string(argv[8]) == "1");
+    const char *data_type = argv[7];
+    bool zero_buff = (argv[8] != nullptr && std::string(argv[8]) == "1");
     uint64_t local_mem_size = 1024UL * 1024UL * 1024;
     int32_t ret = shmem_set_conf_store_tls(false, nullptr, 0);
     std::cout << "init shmem tls result:" << ret << std::endl;
