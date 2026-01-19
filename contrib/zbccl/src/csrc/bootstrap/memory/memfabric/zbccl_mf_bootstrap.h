@@ -29,12 +29,10 @@ public:
     ZResult Initialize() noexcept override;
     void UnInitialize() noexcept override;
 
-    void *GetMyGVA() noexcept override;
-
 private:
     /* one bootstrap maps to one shm handle */
     smem_shm_config_t shmConfig_;
-    uint32_t shmId_ = 1;
+    uint32_t shmId_ = 0;
     smem_shm_t shmHandle_ = nullptr;
     void *shmGva = nullptr;
 };

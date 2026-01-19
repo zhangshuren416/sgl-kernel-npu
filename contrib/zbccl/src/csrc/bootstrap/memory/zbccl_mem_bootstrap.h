@@ -16,7 +16,7 @@
 
 namespace zbccl {
 namespace bootstrap {
-enum MemBoostrapType {
+enum MemBoostrapType : uint16_t {
     MBT_MEMFABRIC = 0,
     MBT_ACLSHMEM,
 
@@ -28,10 +28,19 @@ using MemBootstrapPtr = ZRef<MemBootstrap>;
 
 struct MemBootstrapOptions {
     MemBoostrapType boostrapType = MBT_MEMFABRIC; /* memory init type */
+    uint16_t deviceId = 0;                        /* device id */
     uint32_t rankCount = 0;                       /* total rank count */
     uint32_t rankId = 0;                          /* my rank id */
     uint64_t totalMemSize = 0;                    /* total memory size */
     uint32_t flags = 0;                           /* optional flags */
+    uint32_t dataOperationType = 0;               /* data operation type MTE etc */
+    std::string ipPort;                           /* SHM exchange ip port*/
+};
+
+struct MemBootstrapOutput {
+    void *gvaDevice = nullptr;
+    void *myGvaDevice = nullptr;
+    uint64_t memorySizeDevice = 0;
 };
 
 class MemBootstrap : public ZReferable
@@ -57,12 +66,11 @@ public:
     virtual void UnInitialize() noexcept = 0;
 
     /**
-     * @brief Get the local part of GVA for secondary memory allocation,
-     * this should be called after initialization
+     * @brief Get output after initialized
      *
-     * @return nullptr is not initialized successfully, loca GVA if initialized successfully
+     * @return output
      */
-    virtual void *GetMyGVA() noexcept = 0;
+    const MemBootstrapOutput &GetOutput() const;
 
 protected:
     MemBootstrap(const MemBootstrapOptions &options) : options_(options) {}
@@ -73,7 +81,13 @@ protected:
     std::mutex mutex_;
 
     MemBootstrapOptions options_;
+    MemBootstrapOutput output_;
 };
+
+inline const MemBootstrapOutput &MemBootstrap::GetOutput() const
+{
+    return output_;
+}
 }  // namespace bootstrap
 }  // namespace zbccl
 

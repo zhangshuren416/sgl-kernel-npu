@@ -40,6 +40,8 @@ public:
 
 private:
     ZResult VerifyOptions() noexcept;
+    ZResult CreateMemBootstrap() noexcept;
+    void DestroyMemoryBootstrap() noexcept;
 
 private:
     MemBootstrapPtr memBootstrap_{nullptr};

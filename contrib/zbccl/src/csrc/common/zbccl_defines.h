@@ -18,7 +18,6 @@
 #include <string>
 #include <sstream>
 
-
 namespace zbccl {
 using ZResult = int32_t;
 
@@ -35,6 +34,8 @@ enum ZResultErrorCode : ZResult {
     Z_ERROR_ALLOC = -9,
     Z_NOT_ENOUGH_MEM = -10,
     Z_RT_ERROR = -11,
+    Z_LOAD_BOOTSTRAP_LIBRARY_FAILED = -12,
+    Z_INIT_BOOTSTRAP_FAILED = -13,
 };
 
 #define PATH_MAX_LIMIT 4096L

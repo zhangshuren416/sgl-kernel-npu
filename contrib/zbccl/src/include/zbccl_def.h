@@ -64,14 +64,25 @@ typedef enum {
 typedef struct {
     uint32_t flags;                /* optional flags*/
     zbccl_bootstrap_type_t btType; /* bootstrap type */
+    char *ipPort;                  /* tcp://127.0.0.1:9897*/
+    uint16_t worldSize;            /* how many rank in total */
+    uint16_t rankId;               /* my rank id in the world*/
+    uint16_t deviceId;             /* device id */
+    uint16_t startConfigServer;    /* if start config store server, 1 means start, 0 means not start */
+    uint64_t deviceMemorySize;     /* memory size can be allocated */
+    uint32_t dataOperationType;    /* data operation type */
 } zbccl_bootstrap_options_t;
 
 typedef struct {
+    void *deviceGva;                    /* gva of the world */
+    void *myDeviceGva;                  /* gva of this rank */
+    uint64_t allocatedDeviceMemorySize; /* actually allocated memory size */
 } zbccl_bootstrap_output_t;
 
 typedef struct {
-    void *address;
-    size_t size;
+    void *gva;     /* gva of the world */
+    void *myGva;   /* gva of this rank */
+    uint64_t size; /* device memory size */
 } zbccl_allocator_options;
 
 typedef struct {

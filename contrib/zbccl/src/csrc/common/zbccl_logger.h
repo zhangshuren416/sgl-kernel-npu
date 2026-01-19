@@ -78,6 +78,10 @@ public:
         }
     }
 
+    inline ExternalLog GetExternalLogFunction() const {
+        return logFunc_;
+    }
+
     inline void Log(int level, const std::string &logMsg)
     {
         if (logFunc_ != nullptr) {
