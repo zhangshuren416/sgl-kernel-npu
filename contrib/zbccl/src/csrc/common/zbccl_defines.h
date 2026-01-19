@@ -36,6 +36,9 @@ enum ZResultErrorCode : ZResult {
     Z_RT_ERROR = -11,
     Z_LOAD_BOOTSTRAP_LIBRARY_FAILED = -12,
     Z_INIT_BOOTSTRAP_FAILED = -13,
+    Z_CANNOT_UNBOOTSTRAP = -14,
+    Z_NOT_BOOTSTRAPPED = -15,
+    Z_CREATE_COMM_FAILED = -16,
 };
 
 constexpr uint32_t PATH_MAX_LIMIT = 4096;

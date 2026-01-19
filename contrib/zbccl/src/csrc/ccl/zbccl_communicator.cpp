@@ -18,6 +18,42 @@ ZBCCLCommPtr ZBCCLComm::gWorldZBCCLComm{nullptr};
 std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
 std::mutex ZBCCLComm::gMutex;
 
+ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, uint16_t worldSize,
+                          uint16_t worldRankId, uint16_t deviceId)
+{
+    /* translate api options to inner options */
+    ZBCommOptions commOptions;
+    commOptions.worldSize = worldSize;
+    commOptions.groupSize = options.groupSize;
+    commOptions.myWorldRank = worldRankId;
+    commOptions.myGroupRank = options.groupRankId;
+    commOptions.metaDataGva = options.deviceGva;
+    commOptions.myMetaDataGva = options.myDeviceGva;
+    commOptions.deviceId = deviceId;
+    commOptions.isolateOpMeta = options.isolateOpMeta == 1;
+
+    auto commInner = CreateInner(options.backendType, commOptions, options.isWorldGroup);
+    if (commInner == nullptr || commInner->Initialize() != Z_OK) {
+        return Z_CREATE_COMM_FAILED;
+    }
+
+    *comm = commInner.Get();
+
+    return Z_OK;
+}
+
+ZResult ZBCCLComm::Destroy(zbccl_comm_t comm, uint32_t flags)
+{
+    ZBCCLCommPtr tmpComm = reinterpret_cast<ZBCCLComm *>(comm);
+
+    return ZBCCLComm::DestroyInner(tmpComm);
+}
+
+void ZBCCLComm::DestroyAll()
+{
+    DestroyAllInner();
+}
+
 ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
     : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup)
 {
@@ -29,7 +65,7 @@ ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCC
     metaInfo_.myMetaDataGva = options.myMetaDataGva;
 }
 
-ZBCCLCommPtr ZBCCLComm::Create(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
+ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
 {
     std::lock_guard<std::mutex> guard(gMutex);
     if (backendType == ZBCCL_ASCEND_NPU) {
@@ -75,7 +111,7 @@ ZBCCLCommPtr ZBCCLComm::Create(zbccl_backend_t backendType, const ZBCommOptions 
     return nullptr;
 }
 
-ZResult ZBCCLComm::Destroy(zbccl::ccl::ZBCCLCommPtr &comm)
+ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 {
     ZBCCL_VALIDATE_RETURN(comm == nullptr, "invalid param, ZBCCLComm is null", Z_INVALID_PARAM);
 
@@ -101,7 +137,7 @@ ZResult ZBCCLComm::Destroy(zbccl::ccl::ZBCCLCommPtr &comm)
     return Z_OK;
 }
 
-void ZBCCLComm::DestroyAll()
+void ZBCCLComm::DestroyAllInner()
 {
     std::lock_guard<std::mutex> guard(gMutex);
     /* clear all other world comm*/

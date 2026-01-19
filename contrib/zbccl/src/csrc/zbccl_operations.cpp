@@ -9,34 +9,87 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_operations.h"
-#include "zbccl_defines.h"
+#include "zbccl_common_includes.h"
+#include "zbccl_communicator.h"
+#include "zbccl_init_state.h"
+
+using namespace zbccl;
+using namespace zbccl::ccl;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int32_t zbccl_init() {
-    // TODO
-    return zbccl::ZResultErrorCode::Z_OK;
+ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
+{
+    ZBCCL_VALIDATE_RETURN(options != nullptr, "Create zbccl communicator failed as options is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+
+    auto &state = ZBCCLInitState::Instance();
+
+    if (!state.Bootstrapped()) {
+        ZBCCL_LOG_ERROR("Create zbccl communicator failed as not bootstrapped");
+        return Z_NOT_BOOTSTRAPPED;
+    } else if (options->isWorldGroup == 1 && state.WorldSize() != options->groupSize) {
+        ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
+                        << options->groupSize << "> is not equal to bootstrap's world size <" << state.WorldSize()
+                        << ">");
+        return Z_NOT_BOOTSTRAPPED;
+    } else if (options->isWorldGroup == 0 && state.WorldSize() < options->groupSize) {
+        ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
+                        << options->groupSize << "> is bigger than bootstrap's world size <" << state.WorldSize()
+                        << ">");
+        return Z_NOT_BOOTSTRAPPED;
+    }
+
+    /* create one communicator */
+    auto result = ZBCCLComm::Create(*options, comm, state.WorldSize(), state.WorldRankId(), state.DeviceId());
+    if (result != Z_OK) {
+        return result;
+    }
+
+    /* update init state */
+    state.CommunicatorCreated();
+
+    return Z_OK;
 }
 
-int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                         zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream) {
-    // TODO
-    return zbccl::ZResultErrorCode::Z_OK;
+ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t *comm, uint32_t flags)
+{
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+
+    /* destroy one */
+    auto result = ZBCCLComm::Destroy(comm, flags);
+    if (result != Z_OK) {
+        return result;
+    }
+
+    /* update init state */
+    ZBCCLInitState::Instance().CommunicatorDestroy();
+
+    return Z_OK;
 }
 
-int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
-                             zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream) {
+ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
+                                   zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream)
+{
     // TODO
-    return zbccl::ZResultErrorCode::Z_OK;
+    return Z_OK;
 }
 
-int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count, zbccl_datatype_t data_type,
-                         zbccl_comm_t comm, aclrtStream stream) {
+ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count,
+                                       zbccl_datatype_t data_type, zbccl_reduce_op_t op, zbccl_comm_t comm,
+                                       aclrtStream stream)
+{
     // TODO
-    return zbccl::ZResultErrorCode::Z_OK;
+    return Z_OK;
+}
+
+ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count,
+                                   zbccl_datatype_t data_type, zbccl_comm_t comm, aclrtStream stream)
+{
+    // TODO
+    return Z_OK;
 }
 
 #ifdef __cplusplus

@@ -19,18 +19,18 @@
 extern "C" {
 #endif
 
-int32_t zbccl_sma_init(zbccl_allocator_options *options, int32_t flags) {
+ZBCCL_API int32_t zbccl_sma_init(zbccl_allocator_options *options, int32_t flags) {
     // call zbccl_init wil create zbccl_allocator_options, then init zbccl::sma
     // currently we use dma and its direct init from init_shmem
     return zbccl::ZResultErrorCode::Z_OK;
 }
 
-void zbccl_sma_uninit(int32_t flags) {
+ZBCCL_API void zbccl_sma_uninit(int32_t flags) {
     // TODO: get trigger time correctly, maybe callback
     return;
 }
 
-void zbccl_pluggable_init(int32_t device_count) {
+ZBCCL_API void zbccl_pluggable_init(int32_t device_count) {
 #ifdef USE_C10NPU_DMA
     dma_init(device_count);
 #else
@@ -39,7 +39,7 @@ void zbccl_pluggable_init(int32_t device_count) {
     return;
 }
 
-void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
+ZBCCL_API void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
     return dma_malloc(size, device, stream);
 #else
@@ -47,7 +47,7 @@ void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
 #endif
 }
 
-void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream stream) {
+ZBCCL_API void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
     dma_free(ptr, size, device, stream);
 #else
@@ -56,7 +56,7 @@ void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream st
     return;
 }
 
-void zbccl_pluggable_empty_cache(bool check_error) {
+ZBCCL_API void zbccl_pluggable_empty_cache(bool check_error) {
 #ifdef USE_C10NPU_DMA
     dma_empty_cache(check_error);
 #else
@@ -65,21 +65,21 @@ void zbccl_pluggable_empty_cache(bool check_error) {
     return;
 }
 
-void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream) {
+ZBCCL_API void zbccl_record_stream(void *ptr, c10_npu::NPUStream stream) {
 #ifdef USE_C10NPU_DMA
     dma_record_stream(ptr, stream);
 #endif
     return;
 }
 
-void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream) {
+ZBCCL_API void zbccl_erase_stream(void *ptr, c10_npu::NPUStream stream) {
 #ifdef USE_C10NPU_DMA
     dma_erase_stream(ptr, stream);
 #endif
     return;
 }
 
-void *zbccl_inner_get_shmem_base_addr() {
+ZBCCL_API void *zbccl_get_shmem_base_addr() {
 #ifdef USE_C10NPU_DMA
     return dma_get_base_addr();
 #else

@@ -66,7 +66,7 @@ typedef struct {
     zbccl_bootstrap_type_t btType; /* bootstrap type */
     char *ipPort;                  /* tcp://127.0.0.1:9897*/
     uint16_t worldSize;            /* how many rank in total */
-    uint16_t rankId;               /* my rank id in the world*/
+    uint16_t rankId;               /* my rank id in the world */
     uint16_t deviceId;             /* device id */
     uint16_t startConfigServer;    /* if start config store server, 1 means start, 0 means not start */
     uint64_t deviceMemorySize;     /* memory size can be allocated */
@@ -86,7 +86,15 @@ typedef struct {
 } zbccl_allocator_options;
 
 typedef struct {
-} zbccl_ccl_options;
+    zbccl_backend_t backendType; /* backend type */
+    uint32_t flags;              /* optional flags */
+    uint16_t isWorldGroup;       /* if this is the world group, 1 means true, 0 means false */
+    uint16_t groupSize;          /* how many rank in total */
+    uint16_t groupRankId;        /* my rank id in the world */
+    uint16_t isolateOpMeta;      /* if isolate the operator meta data */
+    void *deviceGva;             /* gva of the world */
+    void *myDeviceGva;           /* gva of this rank */
+} zbccl_ccl_options_t;
 
 #ifdef __cplusplus
 }

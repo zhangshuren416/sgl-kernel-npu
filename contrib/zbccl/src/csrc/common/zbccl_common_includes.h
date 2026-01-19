@@ -12,6 +12,7 @@
 #ifndef ZBCCL_COMMON_INCLUDES_H
 #define ZBCCL_COMMON_INCLUDES_H
 
+#include <atomic>
 #include <iostream>
 #include <map>
 #include <mutex>

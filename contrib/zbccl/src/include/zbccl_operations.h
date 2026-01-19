@@ -19,11 +19,22 @@ extern "C" {
 #endif
 
 /**
- * @brief Initialize zero buffer collective communication library
+ * @brief Create zero buffer communicator
  *
+ * @param options          [in] communicator options
+ * @param comm             [out] created communicator
  * @return 0 if successful
  */
-int32_t zbccl_init();
+int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm);
+
+/**
+ * @brief Destroy zero buffer communicator
+ *
+ * @param comm             [in] the communicator to be destroyed
+ * @param flags            [in] optional flags
+ * @return
+ */
+int32_t zbccl_destroy(zbccl_comm_t *comm, uint32_t flags);
 
 /**
  * @brief Do all reduce operation

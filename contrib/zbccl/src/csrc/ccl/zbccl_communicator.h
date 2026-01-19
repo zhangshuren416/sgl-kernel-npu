@@ -17,12 +17,14 @@
 namespace zbccl {
 namespace ccl {
 struct ZBCommOptions {
-    uint16_t worldSize = 0;     /* the ranks in the world */
-    uint16_t groupSize = 0;     /* the ranks in the group */
-    uint16_t myWorldRank = 0;   /* rank id in the world */
-    uint16_t myGroupRank = 0;   /* rank id in the group */
-    uint64_t metaDataGva = 0;   /* gva of the world */
-    uint64_t myMetaDataGva = 0; /* gva of mine */
+    uint16_t worldSize = 0;        /* the ranks in the world */
+    uint16_t groupSize = 0;        /* the ranks in the group */
+    uint16_t myWorldRank = 0;      /* rank id in the world */
+    uint16_t myGroupRank = 0;      /* rank id in the group */
+    void *metaDataGva = nullptr;   /* gva of the world */
+    void *myMetaDataGva = nullptr; /* gva of mine */
+    uint16_t deviceId = 0;         /*device Id */
+    bool isolateOpMeta = false;    /* isolate meta area of operations */
 };
 
 struct ZBCommMetaInfo : ZBCommOptions {
@@ -35,8 +37,9 @@ using ZBCCLCommPtr = ZRef<ZBCCLComm>;
 class ZBCCLComm : public ZReferable
 {
 public:
-    static ZBCCLCommPtr Create(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
-    static ZResult Destroy(ZBCCLCommPtr &comm);
+    static ZResult Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, uint16_t worldSize,
+                          uint16_t worldRankId, uint16_t deviceId);
+    static ZResult Destroy(zbccl_comm_t comm, uint32_t flags);
     static void DestroyAll();
 
 public:
@@ -79,6 +82,11 @@ public:
     virtual int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count,
                               zbccl_datatype_t data_type) noexcept = 0;
 
+    /**
+     * @brief Check if it is world group
+     *
+     * @return true if world group
+     */
     bool IsWorldGroup() const;
 
     const ZBCommMetaInfo &GetMetaInfo() const;
@@ -89,6 +97,10 @@ protected:
     ZBCCLCommPtr worldGroup_;   /* world group */
 
 private:
+    static ZBCCLCommPtr CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
+    static ZResult DestroyInner(ZBCCLCommPtr &comm);
+    static void DestroyAllInner();
+
     static ZBCCLCommPtr gWorldZBCCLComm;                           /* the world comm, i.e. the first one */
     static std::mutex gMutex;                                      /* mutex for world comm */
     static std::map<uintptr_t, ZBCCLCommPtr> gZBCCLCommLookupMap_; /* all comm object except the world comm */
