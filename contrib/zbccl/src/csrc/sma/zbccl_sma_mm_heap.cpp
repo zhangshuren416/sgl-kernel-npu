@@ -42,7 +42,7 @@ void *MemoryHeap::allocate(uint64_t size) noexcept {
     return nullptr;
   }
 
-  auto aligned_size = allocatedSizeAlignUp(size);
+  auto aligned_size = allocated_size_align_up(size);
   MemoryRange anchor{0, aligned_size};
 
   pthread_spin_lock(&spinlock_);
@@ -58,8 +58,8 @@ void *MemoryHeap::allocate(uint64_t size) noexcept {
   auto addr_pos = address_idle_tree_.find(target_offset);
   if (addr_pos == address_idle_tree_.end()) {
     pthread_spin_unlock(&spinlock_);
-    ZBCCL_LOG_ERROR("offset(" << target_offset << ") size(" << target_size
-                                 << ") in size tree, not in address tree.");
+    ZBCCL_LOG_ERROR("offset(" << target_offset << ") size(" << target_size <<
+                    ") in size tree, not in address tree.");
     return nullptr;
   }
 
@@ -79,25 +79,23 @@ void *MemoryHeap::allocate(uint64_t size) noexcept {
 void *MemoryHeap::alignedAllocate(uint64_t alignment,
                                     uint64_t size) noexcept {
   if (size == 0 || alignment == 0 || size > size_) {
-    ZBCCL_LOG_ERROR("invalid input, align=" << alignment
-                                               << ", size=" << size);
+    ZBCCL_LOG_ERROR("invalid input, align=" << alignment << ", size=" << size);
     return nullptr;
   }
 
   if ((alignment & (alignment - 1UL)) != 0) {
-    ZBCCL_LOG_ERROR("alignment should be power of 2, but real "
-                       << alignment);
+    ZBCCL_LOG_ERROR("alignment should be power of 2, but real " << alignment);
     return nullptr;
   }
 
   uint64_t head_skip = 0;
-  auto aligned_size = allocatedSizeAlignUp(size);
+  auto aligned_size = allocated_size_align_up(size);
   MemoryRange anchor{0, aligned_size};
 
   pthread_spin_lock(&spinlock_);
   auto size_pos = size_idle_tree_.lower_bound(anchor);
   while (size_pos != size_idle_tree_.end() &&
-         !alignmentMatches(*size_pos, alignment, aligned_size, head_skip)) {
+         !alignment_matches(*size_pos, alignment, aligned_size, head_skip)) {
     ++size_pos;
   }
 
@@ -113,8 +111,8 @@ void *MemoryHeap::alignedAllocate(uint64_t alignment,
   auto addr_pos = address_idle_tree_.find(target_offset);
   if (addr_pos == address_idle_tree_.end()) {
     pthread_spin_unlock(&spinlock_);
-    ZBCCL_LOG_ERROR("offset(" << target_offset << ") size(" << target_size
-                                 << ") in size tree, not in address tree.");
+    ZBCCL_LOG_ERROR("offset(" << target_offset << ") size(" << target_size <<
+                    ") in size tree, not in address tree.");
     return nullptr;
   }
   MemoryRange result_range{size_pos->offset_ + head_skip, aligned_size};
@@ -156,8 +154,7 @@ bool MemoryHeap::changeSize(void *address, uint64_t size) noexcept {
   auto pos = address_used_tree_.find(offset);
   if (pos == address_used_tree_.end()) {
     pthread_spin_unlock(&spinlock_);
-    ZBCCL_LOG_ERROR("change size for address " << address
-                                                  << " not allocated.");
+    ZBCCL_LOG_ERROR("change size for address " << address << " not allocated.");
     return false;
   }
 
@@ -169,13 +166,13 @@ bool MemoryHeap::changeSize(void *address, uint64_t size) noexcept {
 
   // 缩小size
   if (pos->second > size) {
-    reduceSizeInLock(pos, size);
+    reduce_size_in_lock(pos, size);
     pthread_spin_unlock(&spinlock_);
     return true;
   }
 
   // 扩大size
-  auto success = expendSizeInLock(pos, size);
+  auto success = expend_size_in_lock(pos, size);
   pthread_spin_unlock(&spinlock_);
 
   return success;
@@ -234,6 +231,10 @@ int32_t MemoryHeap::release(void *address) noexcept {
   return 0;
 }
 
+size_t MemoryHeap::reservedTotalSize() noexcept {
+    return size_;
+}
+
 bool MemoryHeap::allocatedSize(void *address, uint64_t &size) const noexcept {
   auto u8a = reinterpret_cast<uint8_t *>(address);
   if (u8a < base_ || u8a >= base_ + size_) {
@@ -254,13 +255,13 @@ bool MemoryHeap::allocatedSize(void *address, uint64_t &size) const noexcept {
   return exist;
 }
 
-uint64_t MemoryHeap::allocatedSizeAlignUp(uint64_t input_size) noexcept {
+uint64_t MemoryHeap::allocated_size_align_up(uint64_t input_size) noexcept {
   constexpr uint64_t align_size = 16UL;
   constexpr uint64_t align_size_mask = ~(align_size - 1UL);
   return (input_size + align_size - 1UL) & align_size_mask;
 }
 
-bool MemoryHeap::alignmentMatches(const MemoryRange &mr, uint64_t alignment,
+bool MemoryHeap::alignment_matches(const MemoryRange &mr, uint64_t alignment,
                                   uint64_t size,
                                   uint64_t &head_skip) noexcept {
   if (mr.size_ < size) {
@@ -277,7 +278,7 @@ bool MemoryHeap::alignmentMatches(const MemoryRange &mr, uint64_t alignment,
   return mr.size_ >= size + head_skip;
 }
 
-void MemoryHeap::reduceSizeInLock(
+void MemoryHeap::reduce_size_in_lock(
     const std::map<uint64_t, uint64_t>::iterator &pos,
     uint64_t new_size) noexcept {
   auto offset = pos->first;
@@ -298,7 +299,7 @@ void MemoryHeap::reduceSizeInLock(
   }
 }
 
-bool MemoryHeap::expendSizeInLock(
+bool MemoryHeap::expend_size_in_lock(
     const std::map<uint64_t, uint64_t>::iterator &pos,
     uint64_t new_size) noexcept {
   auto offset = pos->first;
@@ -338,14 +339,19 @@ ZBCCL_API int HeapAlignedAllocate(void **devPtr, size_t size,
                                   std::shared_ptr<heap::MemoryHeap> shmem_pool) {
     *devPtr = shmem_pool->alignedAllocate(ALIGN_32, size);
     if (*devPtr == nullptr) {
-        return 1;
+        return Z_ERROR_ALLOC;
     } else {
-        return 0;
+        return Z_OK;
     }
 }
 
 ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr<heap::MemoryHeap> shmem_pool) {
     return shmem_pool->release(devPtr);
+}
+
+ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool) {
+    size = shmem_pool->reservedTotalSize();
+    return Z_OK;
 }
 
 }  // namespace sma

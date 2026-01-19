@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_bootstrap.h"
+#include "zbccl_bootstrap_default.h"
 
 namespace zbccl {
 namespace bootstrap {

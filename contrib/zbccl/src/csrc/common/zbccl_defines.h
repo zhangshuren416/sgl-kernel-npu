@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 
+
 namespace zbccl {
 using ZResult = int32_t;
 
@@ -29,6 +30,11 @@ enum ZResultErrorCode : ZResult {
     Z_DL_OPEN_LIB_FAILED = -4,
     Z_DL_LOAD_SYM_FAILED = -5,
     Z_FILE_NOT_FOUND = -6,
+    Z_INVALID_VALUE = -7,
+    Z_INVALID_PTR = -8,
+    Z_ERROR_ALLOC = -9,
+    Z_NOT_ENOUGH_MEM = -10,
+    Z_RT_ERROR = -11,
 };
 
 #define PATH_MAX_LIMIT 4096L
@@ -41,17 +47,10 @@ enum ZResultErrorCode : ZResult {
 #define UNLIKELY(x) (__builtin_expect(!!(x), 0) != 0)
 #endif
 
-#define ZBCCL_API __attribute__((visibility("default")))
+#define ZBCCL_LIKELY(expr)   LIKELY(expr)
+#define ZBCCL_UNLIKELY(expr) UNLIKELY(expr)
 
-#define ZBCCL_CHECK(condition, ...)                                        \
-    do {                                                                   \
-        if (!(condition)) {                                                \
-            std::ostringstream oss;                                        \
-            oss << "[ERROR][ZBCCL_" << __FILE__ << ":" << __LINE__ << "] " \
-                << "Check failed: " #condition ". " << __VA_ARGS__;        \
-            throw std::runtime_error(oss.str());                           \
-        }                                                                  \
-    } while (0)
+#define ZBCCL_API __attribute__((visibility("default")))
 
 #define DL_LOAD_SYM(TARGET_FUNC_VAR, TARGET_FUNC_TYPE, FILE_HANDLE, SYMBOL_NAME)                         \
     do {                                                                                                 \

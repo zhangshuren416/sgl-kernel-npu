@@ -28,6 +28,16 @@
 namespace zbccl {
 using ExternalLog = void (*)(int, const char *);
 
+template <typename T>
+void log_recursive(std::ostream& os, T&& arg) {
+    os << std::forward<T>(arg);
+}
+
+template <typename... Args>
+void log_all(std::ostream& os, Args&&... args) {
+    (os << ... << std::forward<Args>(args));
+}
+
 enum LogLevel : int {
     DEBUG_LEVEL = 0,
     INFO_LEVEL,
@@ -195,4 +205,28 @@ private:
         }                                        \
     } while (0)
 
-#endif  // MEMFABRIC_HYBRID_LOGGER_H
+#define ZBCCL_CHECK_S(condition, ...)                               \
+do {                                                                \
+    if (!(condition)) {                                             \
+        std::ostringstream oss;                                     \
+        oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] "     \
+            << "Check failed: " #condition ". ";                    \
+        zbccl::log_all(oss, __VA_ARGS__);                           \
+        oss << std::endl;                                           \
+        throw std::runtime_error(oss.str());                        \
+    }                                                               \
+} while (0)
+
+#define ZBCCL_ASSERT_S(condition, ...)                             \
+do {                                                               \
+    if (!(condition)) {                                            \
+        std::ostringstream oss;                                    \
+        oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] "    \
+            << "Assertion failed: (" #condition ") ";              \
+        zbccl::log_all(oss, __VA_ARGS__);                          \
+        oss << std::endl;                                          \
+        throw std::runtime_error(oss.str());                       \
+    }                                                              \
+} while (0)
+
+#endif  // ZBCCL_LOGGER_H

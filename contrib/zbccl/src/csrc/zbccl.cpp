@@ -12,7 +12,7 @@
 
 #include "zbccl_version.h"
 #include "zbccl_common_includes.h"
-#include "zbccl_bootstrap.h"
+#include "zbccl_bootstrap_default.h"
 
 using namespace zbccl;
 using namespace zbccl::bootstrap;

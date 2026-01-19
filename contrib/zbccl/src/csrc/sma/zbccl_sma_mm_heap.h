@@ -9,7 +9,8 @@
  * FOR A PARTICULAR PURPOSE. See LICENSE in the root of the software repository
  * for the full text of the License.
  */
-#pragma once
+#ifndef ZBCCL_SMA_MM_HEAP_H
+#define ZBCCL_SMA_MM_HEAP_H
 
 #include <pthread.h>
 
@@ -18,6 +19,7 @@
 #include <memory>
 #include <set>
 #include <sstream>
+#include <iostream>
 
 #include "zbccl_common_includes.h"
 
@@ -50,21 +52,23 @@ public:
 
     bool changeSize(void *address, uint64_t size) noexcept;
 
+    size_t reservedTotalSize() noexcept;
+
     int32_t release(void *address) noexcept;
 
     bool allocatedSize(void *address, uint64_t &size) const noexcept;
 
 private:
-    static uint64_t allocatedSizeAlignUp(uint64_t input_size) noexcept;
+    static uint64_t allocated_size_align_up(uint64_t input_size) noexcept;
 
-    static bool alignmentMatches(const MemoryRange &mr, uint64_t alignment,
-                                 uint64_t size, uint64_t &head_skip) noexcept;
+    static bool alignment_matches(const MemoryRange &mr, uint64_t alignment,
+                                  uint64_t size, uint64_t &head_skip) noexcept;
 
-    void reduceSizeInLock(const std::map<uint64_t, uint64_t>::iterator &pos,
-                          uint64_t new_size) noexcept;
+    void reduce_size_in_lock(const std::map<uint64_t, uint64_t>::iterator &pos,
+                             uint64_t new_size) noexcept;
 
-    bool expendSizeInLock(const std::map<uint64_t, uint64_t>::iterator &pos,
-                          uint64_t new_size) noexcept;
+    bool expend_size_in_lock(const std::map<uint64_t, uint64_t>::iterator &pos,
+                             uint64_t new_size) noexcept;
 
 private:
     bool initialized_{false};
@@ -82,5 +86,10 @@ ZBCCL_API int HeapAlignedAllocate(void **devPtr, size_t size,
                                   std::shared_ptr <heap::MemoryHeap> shmem_pool);
 
 ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr <heap::MemoryHeap> shmem_pool);
+
+ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool);
+
 }  // namespace sma
 }  // namespace zbccl
+
+#endif  // ZBCCL_SMA_MM_HEAP_H

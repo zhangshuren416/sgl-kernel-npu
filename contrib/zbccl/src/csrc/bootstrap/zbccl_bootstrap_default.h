@@ -9,8 +9,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_BOOTSTRAP_H
-#define ZBCCL_BOOTSTRAP_H
+#ifndef ZBCCL_BOOTSTRAP_DEFAULT_H
+#define ZBCCL_BOOTSTRAP_DEFAULT_H
 
 #include "zbccl_common_includes.h"
 #include "zbccl_mem_bootstrap.h"
@@ -61,4 +61,4 @@ inline const zbccl_bootstrap_output_t &Bootstrap::GetOutput() const
 }  // namespace bootstrap
 }  // namespace zbccl
 
-#endif  // ZBCCL_BOOTSTRAP_H
+#endif  // ZBCCL_BOOTSTRAP_DEFAULT_H

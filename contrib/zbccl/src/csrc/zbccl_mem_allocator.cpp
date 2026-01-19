@@ -11,8 +11,9 @@
  */
 #include "zbccl_mem_allocator.h"
 #include "c10_npu_dma.h"
+#include "zbccl_sma.h"
 
-#define USE_C10NPU_DMA
+#define USE_C10NPU_DMA // else USE_ZBCCL_SMA
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +33,8 @@ void zbccl_sma_uninit(int32_t flags) {
 void zbccl_pluggable_init(int32_t device_count) {
 #ifdef USE_C10NPU_DMA
     my_init(device_count);
+#else
+    sma_init(device_count);
 #endif
     return;
 }
@@ -39,13 +42,16 @@ void zbccl_pluggable_init(int32_t device_count) {
 void *zbccl_pluggable_malloc(size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
     return my_malloc(size, device, stream);
+#else
+    return sma_malloc(size, device, stream);
 #endif
-    return nullptr;
 }
 
 void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream stream) {
 #ifdef USE_C10NPU_DMA
     my_free(ptr, size, device, stream);
+#else
+    sma_free(ptr, size, device, stream);
 #endif
     return;
 }
@@ -53,6 +59,8 @@ void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream st
 void zbccl_pluggable_empty_cache(bool check_error) {
 #ifdef USE_C10NPU_DMA
     my_empty_cache(check_error);
+#else
+    sma_empty_cache(check_error);
 #endif
     return;
 }

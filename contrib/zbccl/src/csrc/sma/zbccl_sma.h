@@ -12,71 +12,99 @@
 #ifndef ZBCCL_SMA_H
 #define ZBCCL_SMA_H
 
-#include "zbccl_common_includes.h"
+#include "zbccl_sma_common.h"
+#include "zbccl_sma_device.h"
+#include "zbccl_sma_device_pool.h"
+
+#include "shmem_api.h"  //  need include after zbccl_sma_common.h
 
 namespace zbccl {
 namespace sma {
 
-static const char* kPytorchNPUAllocConf = "PYTORCH_NPU_ALLOC_CONF";
-static const char* kMaxSplitSizeMB = "max_split_size_mb";
-static const char* kGarbageCollectionThreshold = "garbage_collection_threshold";
-// static const char* kExpandableSegments = "expandable_segments";
-static const char* kBaseAddrAlignedKB = "base_addr_aligned_kb";
-static const char* kPageSize = "page_size";
-static const char* kSegmentSizeMB = "segment_size_mb";
-
-static constexpr size_t kAlignRoundLarge = 16384;            // round up large allocs to 16 KB
-static constexpr size_t kSmallBuffer = 2097152;              // "small" allocations are packed in 2 MiB blocks
-static constexpr size_t kLargeBuffer = 20971520;             // "large" allocations may be packed in 20 MiB blocks
-constexpr size_t kMB = 1024 * 1024;                          // 1 MB
-
 class SecondaryMemoryAllocator : public ZReferable
 {
+private:
+    std::mutex mutex_;
+
+    // allocated blocks by device pointer
+    ska::flat_hash_map<void *, device::DeviceBlock *> allocated_blocks_;
+
+    void add_allocated_block(device::DeviceBlock *block);
+
+    device::DeviceBlock *get_allocated_block(void *ptr, bool remove = false);
+
+    bool initialized();
+
+    void cleanEvent();
+
+    // TODO fix those if pluggable also need
+    bool checkBlockIsSafe(const c10::DataPtr &ptr);
+    void markAllBlockUnsafe(int device);
+    void updateBlockToSafe(const c10::DataPtr &ptr);
+
 public:
-    virtual ~SecondaryMemoryAllocator() = default;
+    std::vector<std::unique_ptr<device::DeviceSMACachingAllocator>> device_allocator_;
+
+    ~SecondaryMemoryAllocator();
+
+    static ZRef<SecondaryMemoryAllocator> GetInstance() {
+        static ZRef<SecondaryMemoryAllocator> instance = new SecondaryMemoryAllocator();
+        return instance;
+    }
 
     /**
      * @brief Initialize the allocator
      *
-     * @param options      [in] options for the allocator
-     * @param flags        [in] extra flags
+     * @param options           [in] options for the allocator
+     * @param device_cnt        [in] device count
      * @return 0 is successful
      */
-    virtual ZResult Initialize(zbccl_allocator_options *options, int32_t flags) noexcept = 0;
+    ZResult Initialize(zbccl_allocator_options *options, int32_t device_count) noexcept;
 
     /**
      * @brief Un-initialize the allocator
      *
      * @param flags        [in] extra flags
      */
-    virtual void UnInitialize(int32_t flags) noexcept = 0;
+    void UnInitialize(int32_t flags) noexcept;
 
     /**
      * @brief Allocate memory
      *
-     * @param size         [in] size to be allocated
-     * @param device       [in] device id
-     * @param stream       [in] stream
-     * @param flags        [in] optional flags
-     * @param out          [out] pointer that allocated
+     * @param devPtr         [in] ptr of memory pointer wanted to be allocated
+     * @param device         [in] device id
+     * @param size           [in] allocate size
+     * @param stream         [in] aclrtStream
      * @return 0 if successful
      */
-    virtual ZResult Allocate(ssize_t size, int32_t device, aclrtStream stream, int32_t flags, void *&out) noexcept = 0;
+    ZResult Allocate(void **devPtr, int device, size_t size, aclrtStream stream) noexcept;
 
     /**
      * @brief Free memory
      *
      * @param ptr          [in] memory pointer allocated by <i>Allocate</i>
-     * @param size         [in] size of the memory
-     * @param device       [in] device id
-     * @param stream       [in] stream
-     * @param flags        [in] optional flags
      * @return 0 if successful
      */
-    virtual ZResult Free(void *ptr, ssize_t size, int32_t device, aclrtStream stream, int32_t flags) noexcept = 0;
+    ZResult Free(void *ptr) noexcept;
+
+    ZResult EmptyCache(bool check_error);
 };
 using SMAPtr = ZRef<SecondaryMemoryAllocator>;
+
 }  // namespace sma
 }  // namespace zbccl
 
+extern "C" {
+ZBCCL_API void *sma_malloc(size_t size, int device, aclrtStream stream);
+
+ZBCCL_API void sma_init(int device_count);
+
+ZBCCL_API void sma_empty_cache(bool check_error);
+
+ZBCCL_API void sma_free(void *ptr, size_t size, int device, aclrtStream stream);
+
+ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port);
+}
+
 #endif  // ZBCCL_SMA_H
+

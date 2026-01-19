@@ -35,12 +35,12 @@ void SMAConfig::parseEnv(const char *env)
             i = parseMaxSplitSize(config, i);
         } else if (config[i].compare(kGarbageCollectionThreshold) == 0) {
             i = parseGarbageCollectionThreshold(config, i);
-        } else if (config[i] == kBaseAddrAlignedKB) {
-            i = parseAddrAlignSize(config, i);
+        //} else if (config[i] == kBaseAddrAlignedKB) {
+        //    i = parseAddrAlignSize(config, i);
         } else if (config[i] == kSegmentSizeMB) {
             i = parseSegmentSizeMb(config, i);
         } else {
-            ZBCCL_CHECK(false, "Unrecognized SMAConfig option: ", config[i]);
+            ZBCCL_CHECK_S(false, "Unrecognized SMAConfig option: ", config[i]);
         }
 
         if (i + 1 < config.size()) {
@@ -72,7 +72,7 @@ void SMAConfig::lexArgs(const char *env, std::vector<std::string> &config)
 
 void SMAConfig::consumeToken(const std::vector<std::string> &config, size_t i, const char c)
 {
-    ZBCCL_CHECK(i < config.size() && config[i].compare(std::string(1, c)) == 0,
+    ZBCCL_CHECK_S(i < config.size() && config[i].compare(std::string(1, c)) == 0,
         "Error parsing SMAConfig settings, expected ", c);
 }
 
@@ -81,13 +81,13 @@ size_t SMAConfig::parseMaxSplitSize(const std::vector<std::string> &config, size
     consumeToken(config, ++i, ':');
     if (++i < config.size()) {
         size_t val1 = static_cast<size_t>(stoi(config[i]));
-        ZBCCL_CHECK(val1 > kLargeBuffer / (1024 * 1024),
+        ZBCCL_CHECK_S(val1 > kLargeBuffer / (1024 * 1024),
                     "SMAConfig option max_split_size_mb too small, must be > ", kLargeBuffer / (1024 * 1024));
         val1 = std::max(val1, kLargeBuffer / (1024 * 1024));
         val1 = std::min(val1, (std::numeric_limits<size_t>::max() / (1024 * 1024)));
         max_split_size_ = val1 * 1024 * 1024;
     } else {
-        ZBCCL_CHECK(false, "Error, expecting max_split_size_mb value");
+        ZBCCL_CHECK_S(false, "Error, expecting max_split_size_mb value");
     }
     return i;
 }
@@ -97,31 +97,32 @@ size_t SMAConfig::parseGarbageCollectionThreshold(const std::vector<std::string>
     consumeToken(config, ++i, ':');
     if (++i < config.size()) {
         double val1 = stod(config[i]);
-        ZBCCL_CHECK(val1 > 0, "garbage_collect_threshold too small, set it 0.0~1.0");
-        ZBCCL_CHECK(val1 < 1.0, "garbage_collect_threshold too big, set it 0.0~1.0");
+        ZBCCL_CHECK_S(val1 > 0, "garbage_collect_threshold too small, set it 0.0~1.0");
+        ZBCCL_CHECK_S(val1 < 1.0, "garbage_collect_threshold too big, set it 0.0~1.0");
         garbage_collection_threshold_ = val1;
     } else {
-        ZBCCL_CHECK(false, "Error, expecting garbage_collection_threshold value");
+        ZBCCL_CHECK_S(false, "Error, expecting garbage_collection_threshold value");
     }
     return i;
 }
 
+/*
 size_t SMAConfig::parseAddrAlignSize(const std::vector<std::string> &config, size_t i)
 {
     consumeToken(config, ++i, ':');
     if (++i < config.size()) {
         size_t val = static_cast<size_t>(stoi(config[i]));
-        ZBCCL_CHECK(config[i].length() == std::to_string(val).length(),
+        ZBCCL_CHECK_S(config[i].length() == std::to_string(val).length(),
                     "SMAConfig option base_addr_aligned_kb error, must be [0~16], dtype is int");
-        // ZBCCL_CHECK(val >= 0, "SMAConfig option base_addr_aligned_kb error, must be [0~16], dtype is int");
-        ZBCCL_CHECK(val <= kAlignRoundLarge / 1024,
+        // ZBCCL_CHECK_S(val >= 0, "SMAConfig option base_addr_aligned_kb error, must be [0~16], dtype is int");
+        ZBCCL_CHECK_S(val <= kAlignRoundLarge / 1024,
                     "SMAConfig option base_addr_aligned_kb error, must be [0~16], dtype is int");
         base_addr_aligned_size_ = val * 1024;
     } else {
-        ZBCCL_CHECK(false, "Error, expecting base_addr_aligned_kb value");
+        ZBCCL_CHECK_S(false, "Error, expecting base_addr_aligned_kb value");
     }
     return i;
-}
+}*/
 
 size_t SMAConfig::parseSegmentSizeMb(const std::vector<std::string> &config, size_t i)
 {
@@ -130,7 +131,7 @@ size_t SMAConfig::parseSegmentSizeMb(const std::vector<std::string> &config, siz
         size_t val = static_cast<size_t>(stoi(config[i]));
         segment_size_mb_ = val * kMB;
     } else {
-        ZBCCL_CHECK(false, "Error, expecting segment_size_mb value");
+        ZBCCL_CHECK_S(false, "Error, expecting segment_size_mb value");
     }
     return i;
 }

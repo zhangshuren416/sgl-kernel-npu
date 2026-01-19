@@ -12,7 +12,7 @@
 #ifndef ZBCCL_SMA_CONFIG_H
 #define ZBCCL_SMA_CONFIG_H
 
-#include "zbccl_sma.h"
+#include "zbccl_sma_common.h"
 #include "zbccl_common_includes.h"
 
 namespace zbccl {
@@ -31,6 +31,7 @@ public:
         return instance().garbage_collection_threshold_;
     }
 
+    /*
     static bool expandable_segments()
     {
         return instance().expandable_segments_;
@@ -39,7 +40,7 @@ public:
     static size_t base_addr_aligned_size()
     {
         return instance().base_addr_aligned_size_;
-    }
+    }*/
 
     static size_t segment_size_mb()
     {
@@ -60,15 +61,15 @@ public:
 private:
     size_t max_split_size_;
     double garbage_collection_threshold_;
-    bool expandable_segments_;
-    size_t base_addr_aligned_size_ = kAlignRoundLarge;
+    // bool expandable_segments_;
+    // size_t base_addr_aligned_size_ = kAlignRoundLarge;
     size_t segment_size_mb_;
 
     SMAConfig():
         max_split_size_(std::numeric_limits<size_t>::max()),
         garbage_collection_threshold_(0),
-        expandable_segments_(false),
-        base_addr_aligned_size_(kAlignRoundLarge),
+        // expandable_segments_(false),
+        // base_addr_aligned_size_(kAlignRoundLarge),
         segment_size_mb_(0)
     {}
 
@@ -78,7 +79,7 @@ private:
     void consumeToken(const std::vector<std::string> &config, size_t i, const char c);
     size_t parseMaxSplitSize(const std::vector<std::string> &config, size_t i);
     size_t parseGarbageCollectionThreshold(const std::vector<std::string> &config, size_t i);
-    size_t parseAddrAlignSize(const std::vector<std::string> &config, size_t i);
+    // size_t parseAddrAlignSize(const std::vector<std::string> &config, size_t i);
     size_t parseSegmentSizeMb(const std::vector<std::string> &config, size_t i);
 };
 }  // namespace sma
