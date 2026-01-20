@@ -71,18 +71,22 @@ ZBCCL_API void zbccl_pluggable_empty_cache(bool check_error)
     return;
 }
 
-ZBCCL_API void zbccl_record_stream(void *ptr, c10_npu::NPUStream stream)
+ZBCCL_API void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream)
 {
 #ifdef USE_C10NPU_DMA
     dma_record_stream(ptr, stream);
+#else
+    sma_record_stream(ptr, stream);
 #endif
     return;
 }
 
-ZBCCL_API void zbccl_erase_stream(void *ptr, c10_npu::NPUStream stream)
+ZBCCL_API void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream)
 {
 #ifdef USE_C10NPU_DMA
     dma_erase_stream(ptr, stream);
+#else
+    sma_erase_stream(ptr, stream);
 #endif
     return;
 }

@@ -112,7 +112,6 @@ sources = (glob.glob(str(csrc_dir / "*.cpp")) + \
            glob.glob(str(csrc_dir / "bootstrap" / "memory" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "*.cpp")) + \
            glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
 libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python"]

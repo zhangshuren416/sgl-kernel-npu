@@ -75,6 +75,11 @@ void zbccl_pluggable_free(void *ptr, size_t size, int32_t device, aclrtStream st
  */
 void zbccl_pluggable_empty_cache(bool check_error);
 
+
+// TODO add adaptor for stream API since we dont want to include c10_npu in top level
+// void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream);
+// void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream);
+
 #ifdef __cplusplus
 }
 #endif
