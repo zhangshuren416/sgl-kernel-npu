@@ -1,21 +1,56 @@
 import ctypes
-import os
 from pathlib import Path
-
 import torch
 import torch_npu
+from enum import Enum
+
+CURRENT_DIR = Path(__file__).resolve().parent
+ZBCCL_LIB = list(CURRENT_DIR.glob("zbccl.*.so"))[0]
 
 
-lib_dir = Path(__file__).resolve().parent / "lib"
-allocator_module_path = list(lib_dir.glob("libzbccl.*.so"))[0]
+class ZBCCLBootstrapType(Enum):
+    MEMFABRIC = 0,
+    ACLSHMEM = 1,
+
+
+def zbccl_init(physicalMemoryFraction: float, bootstrap: ZBCCLBootstrapType):
+    '''
+    Initialize zbccl library
+
+    :param physicalMemoryFraction: proportion of device memory managed by zbccl
+    :param bootstrap: gva memory bootstrap backend
+    :return: 0 if
+    '''
+    # bootstrap
+
+    # init mem allocator
+
+    # init ccl
+
+    return None
+
+
+def zbccl_uninit():
+    '''
+    Un-initialize zbccl library
+    :return:
+    '''
+
+    # un-init ccl
+
+    # un-init allocator
+
+    # un-init bootstrap
+
+    return None
 
 
 def switch_to_allocator():
-    new_alloc = torch_npu.npu.memory.NPUPluggableAllocator(allocator_module_path,
+    new_alloc = torch_npu.npu.memory.NPUPluggableAllocator(ZBCCL_LIB,
                                                            "zbccl_pluggable_malloc", "zbccl_pluggable_free")
     # Swap the current allocator
     torch_npu.npu.memory.change_current_allocator(new_alloc)
-    zbccl_allocator = ctypes.CDLL(allocator_module_path)
+    zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
 
     init_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_init"), ctypes.c_void_p).value
     empty_fn = ctypes.cast(getattr(zbccl_allocator, "zbccl_pluggable_empty_cache"), ctypes.c_void_p).value
@@ -35,7 +70,7 @@ def switch_to_allocator():
 
 
 def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port):
-    zbccl_allocator = ctypes.CDLL(allocator_module_path)
+    zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
     # 设置函数原型
     zbccl_allocator.zbccl_inner_init_shmem.argtypes = [
         ctypes.c_int,      # my_rank
@@ -53,3 +88,5 @@ def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port):
         ctypes.c_uint64(meta_size),               # meta_size
         ip_port.encode('utf-8')                   # ip_port
     )
+
+

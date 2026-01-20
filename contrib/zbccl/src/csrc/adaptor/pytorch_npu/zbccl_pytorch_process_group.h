@@ -22,6 +22,7 @@
 #include <c10d/comm.hpp>
 #include <c10d/Work.hpp>
 #include <pybind11/chrono.h>
+#include <pybind11/pybind11.h>
 
 #include <torch/csrc/THP.h>
 #include <torch/python.h>
@@ -34,7 +35,7 @@
 #include <torch/csrc/utils/tensor_flatten.h>
 #include <torch/csrc/distributed/c10d/python_comm_hook.h>
 
-#include "torch_npu/csrc/npu/Event.h"
+// #include "torch_npu/csrc/npu/Event.h"
 
 namespace zbccl {
 namespace adaptor {
@@ -81,10 +82,10 @@ public:
         // std::vector<at_npu::lccl::LcclComm> lcclComms_;
 
         // multiple runtime devices. These start npu events are needed by desync debugging if enabled.
-        std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclStartEvents_;
+        // std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclStartEvents_;
 
         // The end npu events of LCCL operator tracking this work item on multiple npu devices.
-        std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclEndEvents_;
+        // std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclEndEvents_;
 
         // Clone of blockingWait_ from ProcessGroupZBCCL.
         bool blockingWait_ = false;
@@ -124,6 +125,15 @@ public:
         friend class ProcessGroupZBCCL;
     };
 
+    // struct Options : c10d::Backend::Options {
+    //     Options() : c10d::Backend::Options(ZBCCL_BACKEND_NAME) {}
+
+    //     static c10::intrusive_ptr<Options> create()
+    //     {
+    //         return c10::make_intrusive<Options>();
+    //     }
+    // };
+
     ProcessGroupZBCCL(int rank, int size);
 
     ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store, int rank, int size, uint32_t teamId);
@@ -157,19 +167,31 @@ public:
     static c10::intrusive_ptr<c10d::Backend> createBackend(const c10::intrusive_ptr<::c10d::Store> &store, int rank,
                                                            int size, const std::chrono::duration<float> &timeout);
 
+    // static c10::intrusive_ptr<c10d::Backend> createBackend(::c10d::DistributedBackendOptions &options,
+        // ProcessGroupZBCCL::Options &zbcclOpt);
+
     static void ProcessGroupZBcclConstructor() __attribute__((constructor))
     {
         py::object module = py::module::import("torch.distributed");
         py::object register_backend = module.attr("Backend").attr("register_backend");
-        register_backend("zbccl", py::cpp_function(ProcessGroupZBCCL::createBackend));
+        register_backend("zbccl", py::cpp_function(ProcessGroupZBCCL::createBackend), py::arg("devices") = "npu");
+
+        // register_backend("zbccl", py::cpp_function(ProcessGroupZBCCL::createBackend), py::arg("extended_api") = true);
+
+        // bind zbccl Options
+        // py::class_<ProcessGroupZBCCL::Options>(module, "ProcessGroupZBCCL.Options")
+        //     .def(py::init<>());
+
+        // py::class_<ProcessGroupZBCCL::Options>(module, "ProcessGroupZBCCL.Options")
+            // .def(py::init<>());
     }
 
 protected:
     bool blockingWait_ = false;
     std::chrono::milliseconds opTimeout_;
     c10::intrusive_ptr<c10d::Store> store_;
-    std::unordered_map<std::string, std::vector<c10_npu::NPUStream>> zbcclStreams_;
-    std::unordered_map<std::string, std::vector<c10_npu::NPUEvent>> zbcclEvents_;
+    // std::unordered_map<std::string, std::vector<c10_npu::NPUStream>> zbcclStreams_;
+    // std::unordered_map<std::string, std::vector<c10_npu::NPUEvent>> zbcclEvents_;
     std::mutex mutext_;
 
 private:
@@ -192,10 +214,13 @@ private:
         PostProcess post,
         c10d::OpType opType);
 
+    int32_t CreateZBCCLComm(int rank, int size);
 };
 
 }  // namespace pytorch_npu
 }  // namespace adaptor
 }  // namespace zbccl
+
+void pybind11_adaptor(pybind11::module &m);
 
 #endif  // ZBCCL_PROCESS_GROUP_H

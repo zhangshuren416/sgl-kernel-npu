@@ -13,6 +13,7 @@
 
 #define EXPORT_API __attribute__((visibility("default")))
 
+#include <pybind11/pybind11.h>
 #include <c10/core/Allocator.h>
 #include <c10/util/Registry.h>
 #include <c10/util/SmallVector.h>
@@ -330,6 +331,7 @@ private:
 
 void finalize();
 
+void pybind11_allocator(pybind11::module_ &m);
 
 extern "C" {
 EXPORT_API void *dma_malloc(size_t size, int device, aclrtStream stream);

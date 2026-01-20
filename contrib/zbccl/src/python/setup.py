@@ -9,7 +9,6 @@
 # See the Mulan PSL v2 for more details.
 import logging
 import os
-import shutil
 import glob
 from pathlib import Path
 import sysconfig
@@ -63,38 +62,44 @@ repo_root = Path(__file__).resolve().parents[4]  # sgl-kernel-npu/
 zbccl_root = repo_root / "contrib/zbccl/"
 
 # allocator compile inputs
-alloc_include_dirs = [
-    str(python_include_dir),
-    str((ascend_home / "include").resolve()),
-    str((torch_npu_dir / "include").resolve()),
-    str((torch_dir / "include").resolve()),
-    str((torch_dir / "include/torch/csrc/api/include").resolve()),
-    str((shmem_home / "shmem/include").resolve()),
-    str((repo_root / "contrib/zbccl/third_party/ska").resolve()),
-    str((repo_root / "contrib/zbccl/third_party/mstx").resolve()),
-    str((repo_root / "contrib/zbccl").resolve()),
-    str((repo_root / "contrib/zbccl/src/include").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/ccl").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/ccl/npu").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/common").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/dma").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/sma").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/under_api/memfabric").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/bootstrap").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/bootstrap/memory").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/bootstrap/memory/memfabric").resolve()),
-    str((repo_root / "contrib/zbccl/src/csrc/bootstrap/memory/aclshmem").resolve())
+include_dirs = [
+    f"{python_include_dir}",
+    f"{ascend_home}/include",
+    f"{shmem_home}/shmem/include",
+    f"{torch_npu_dir}/include",
+    f"{torch_dir}/",
+    f"{torch_dir}/include",
+    f"{torch_dir}/include/torch/csrc/api/include",
+    f"{torch_dir}/include/torch/csrc/distributed/",
+    f"{torch_dir}/include/torch/csrc/utils/",
+    f"{torch_dir}/include/c10/util/",
+    f"{zbccl_root}/",
+    f"{zbccl_root}/third_party/ska",
+    f"{zbccl_root}/third_party/mstx",
+    f"{zbccl_root}/src/include",
+    f"{zbccl_root}/src/csrc/",
+    f"{zbccl_root}/src/csrc/ccl",
+    f"{zbccl_root}/src/csrc/ccl/npu",
+    f"{zbccl_root}/src/csrc/common",
+    f"{zbccl_root}/src/csrc/dma",
+    f"{zbccl_root}/src/csrc/sma",
+    f"{zbccl_root}/src/csrc/under_api/memfabric",
+    f"{zbccl_root}/src/csrc/bootstrap",
+    f"{zbccl_root}/src/csrc/bootstrap/memory",
+    f"{zbccl_root}/src/csrc/bootstrap/memory/memfabric",
+    f"{zbccl_root}/src/csrc/bootstrap/memory/aclshmem",
+    f"{zbccl_root}/src/csrc/adaptor/pytorch_npu/",
 ]
 
-alloc_library_dirs = [
-    str((torch_dir / "lib").resolve()),
-    str((torch_npu_dir / "lib").resolve()),
-    str((shmem_home / "shmem/lib").resolve())
+library_dirs = [
+    f"{torch_dir}/lib",
+    f"{torch_npu_dir}/lib",
+    f"{shmem_home}/shmem/lib",
+    sysconfig.get_config_var("LIBDIR"),
 ]
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
-alloc_sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
+sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "ccl" / "npu" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
@@ -104,38 +109,17 @@ alloc_sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "bootstrap" / "memory" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
                 glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "*.cpp"))
+                glob.glob(str(csrc_dir / "*.cpp")) + \
+                glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp"))
 
-alloc_libraries = ["torch", "torch_npu", "shmem"]
-
-# pytorch adaptor process group compile inputs
-torch_install_dir = torch_dir.resolve()
-adator_pytorch_root = zbccl_root / "src/csrc/adaptor/pytorch_npu/"
-py_adap_include_dirs = [
-    f"{adator_pytorch_root}/",
-    f"{zbccl_root}/src/include/",
-    f"{ascend_home}/include/",
-    f"{torch_install_dir}/",
-    f"{torch_install_dir}/include/torch/csrc/distributed/",
-    f"{torch_install_dir}/include/torch/csrc/utils/",
-    f"{torch_install_dir}/include/",
-    f"{torch_install_dir}/include/c10/util/",
-    f"{torch_install_dir}/../torch_npu/include/",
-    f"{_find_python_include()}/"
-]
-py_adapt_sources = [
-    f"{adator_pytorch_root}/zbccl_pytorch_process_group.cpp",
-    f"{adator_pytorch_root}/zbccl_pytorch_util.cpp",
-]
-py_adapt_library_dirs = [sysconfig.get_config_var("LIBDIR"), f"{torch_install_dir}/lib/"]
-py_adapt_libraries = ["c10", "torch_cpu", "torch_python", "torch"]
+libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python"]
 
 logger.warning(f"Using ASCEND_TOOLKIT_HOME at: {ascend_home}")
 logger.warning(f"Using SHMEM_HOME_PATH at: {shmem_home}")
-logger.warning(f"{alloc_include_dirs=} {py_adap_include_dirs=}")
-logger.warning(f"{alloc_sources=} {py_adapt_sources=}")
-logger.warning(f"{alloc_library_dirs=} {py_adapt_library_dirs=}")
-logger.warning(f"{alloc_libraries=} {py_adapt_libraries=}")
+logger.warning(f"{include_dirs=}")
+logger.warning(f"{sources=}")
+logger.warning(f"{library_dirs=}")
+logger.warning(f"{libraries=}")
 
 extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wno-unused-function", "-Wunused-value", "-Wcast-align",
                       "-Wcast-qual", "-Winvalid-pch", "-Wwrite-strings", "-Wsign-compare", "-Wextra",
@@ -149,26 +133,17 @@ setup(
     version="0.0.1",
     ext_modules=[
         cpp_extension.CppExtension(
-            name="zbccl.lib.libzbccl",
-            sources=alloc_sources,
-            include_dirs=alloc_include_dirs,
-            library_dirs=alloc_library_dirs,
+            name="zbccl.zbccl",  # TORCH_EXTENSION_NAME
+            sources=sources,
+            include_dirs=include_dirs,
+            library_dirs=library_dirs,
             # CUDA -> ACL
-            libraries=alloc_libraries,
+            libraries=libraries,
             define_macros=[
                 *common_macros,
             ],
             extra_compile_args=extra_compile_args,
             cxx_std=17
-        ),
-        cpp_extension.CppExtension(
-            name="zbccl.process_group",  # TORCH_EXTENSION_NAME
-            sources=py_adapt_sources,
-            include_dirs=py_adap_include_dirs,
-            libraries=py_adapt_libraries,
-            library_dirs=py_adapt_library_dirs,
-            runtime_library_dirs=py_adapt_library_dirs,
-            extra_compile_args=extra_compile_args,
         )
     ],
     python_requires=">=3.10",

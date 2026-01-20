@@ -16,7 +16,7 @@
 bool OptionsManager::IsHcclZeroCopyEnable = false;
 bool OptionsManager::CheckForceUncached = false;
 
-std::string formatErrorCode(int32_t errorCode)
+std::string ZBCCLFormatErrorCode(int32_t errorCode)
 {
     // if (c10_npu::option::OptionsManager::IsCompactErrorOutput()) {
     //     return "";

@@ -20,10 +20,10 @@ struct OptionsManager {
     static bool CheckForceUncached;
 };
 
-std::string formatErrorCode(int32_t errorCode);
+std::string ZBCCLFormatErrorCode(int32_t errorCode);
 
-#define PTA_ERROR_MOCK(err_code) formatErrorCode((int32_t)err_code)
-#define OPS_ERROR_MOCK(err_code) formatErrorCode((int32_t)err_code)
+#define PTA_ERROR_MOCK(err_code) ZBCCLFormatErrorCode((int32_t)err_code)
+#define OPS_ERROR_MOCK(err_code) ZBCCLFormatErrorCode((int32_t)err_code)
 
 #define NPU_CHECK_ERROR_MOCK(err_code, ...)                                  \
     do {                                                                     \

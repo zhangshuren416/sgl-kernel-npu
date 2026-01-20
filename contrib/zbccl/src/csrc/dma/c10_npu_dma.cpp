@@ -20,7 +20,6 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include <c10/core/Allocator.h>
@@ -4227,7 +4226,8 @@ py::dict dump_snapshot() {
     return result;
 }
 
-PYBIND11_MODULE(libzbccl, m) {
+void pybind11_allocator(pybind11::module_ &m)
+{
     m.def("record_memory_history", &record_memory_history);
     m.def("dump_snapshot", &dump_snapshot);
 }
