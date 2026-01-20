@@ -47,5 +47,53 @@ int32_t ZBCCLCommDefault::AllGather(const void *send_buff, void *recv_buff, size
 {  // TODO
     return Z_OK;
 }
+
+int32_t ZBCCLCommDefault::All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
+                                  uint64_t stride_count, uint8_t repeat) noexcept
+{
+    // TODO
+    return Z_OK;
+}
+
+int32_t ZBCCLCommDefault::DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount,
+                                               int64_t topKNum, const zbccl_tensor_info_t *recvBuff,
+                                               int64_t *totalRecvTokens, const zbccl_tensor_info_t *recvTokensPerExpert,
+                                               const zbccl_tensor_info_t *pushTargetOffset, int64_t flags) noexcept
+{
+    // TODO
+    return Z_OK;
+}
+
+int32_t ZBCCLCommDefault::DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
+                                               int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
+                                               const zbccl_tensor_info_t *tokensPerExpert,
+                                               const zbccl_tensor_info_t *isTokenInRank,
+                                               const zbccl_tensor_info_t *tokenIndex, zbccl_comm_t comm,
+                                               aclrtStream stream, int64_t flags) noexcept
+{
+    // TODO
+    return Z_OK;
+}
+
+int32_t ZBCCLCommDefault::DispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
+                                         const zbccl_tensor_info_t *sendTokensIndex,
+                                         const zbccl_tensor_info_t *pushTargetOffset, int64_t expertNum,
+                                         zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
+                                         const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
+                                         int64_t flags) noexcept
+{
+    // TODO
+    return Z_OK;
+}
+
+int32_t ZBCCLCommDefault::CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
+                                        const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
+                                        const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
+                                        const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
+                                        int64_t flags) noexcept
+{
+    // TODO
+    return Z_OK;
+}
 }  // namespace ccl
 }  // namespace zbccl
