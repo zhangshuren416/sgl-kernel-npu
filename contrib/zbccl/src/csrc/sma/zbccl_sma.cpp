@@ -124,9 +124,8 @@ ZResult SecondaryMemoryAllocator::EmptyCache(bool check_error) {
     }
 
     int count = static_cast<int>(device_allocator_.size());
-    bool free_physical = true;  // actually we do not need free_physical
     for (int i = 0; i < count; i++)
-        device_allocator_[i]->emptyCache(i, check_error, free_physical);
+        device_allocator_[i]->emptyCache(i, check_error);
     // FIXME skip using GetUsedDevices
     // auto used_devices_list = c10_npu::GetUsedDevices();
     // for (int8_t device_idx : used_devices_list) {

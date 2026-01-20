@@ -162,8 +162,7 @@ private:
                                          std::unique_lock<std::recursive_mutex>& lock);
 
     // npuSynchronizeDevice must be executed before this function can be called
-    // TODO remove physical for sma
-    bool release_cached_blocks(bool check_error, const std::shared_ptr<c10::GatheredContext> &context, bool free_physical);
+    bool release_cached_blocks(bool check_error, const std::shared_ptr<c10::GatheredContext> &context);
 
     // release a block from cached pool
     void release_block(DeviceBlock *block, const std::shared_ptr<c10::GatheredContext> &context);
@@ -214,7 +213,7 @@ public:
     void setMemoryFraction(double fraction);
 
     // returns cached blocks to the system allocator
-    void emptyCache(int device, bool check_error, bool free_physical);
+    void emptyCache(int device, bool check_error);
 
     // Retrieves info (total size + largest block) of the memory cache
     void cacheInfo(size_t *total, size_t *largest);

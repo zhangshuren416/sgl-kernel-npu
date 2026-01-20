@@ -490,7 +490,7 @@ void DeviceSMACachingAllocator::synchronize_and_free_events(bool check_error, co
     npu_events_.clear();
 }
 
-bool DeviceSMACachingAllocator::release_cached_blocks(bool check_error, const std::shared_ptr<c10::GatheredContext> &context, bool free_physical) {
+bool DeviceSMACachingAllocator::release_cached_blocks(bool check_error, const std::shared_ptr<c10::GatheredContext> &context) {
     // First ensure that all blocks that can't currently be allocated due to
     // outstanding events are returned to the pool.
     synchronize_and_free_events(check_error, context);
@@ -713,7 +713,7 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
             c10_npu::npuSynchronizeDevice(true);
         }
         // TODO fix context & free_phy bool
-        block_found = (release_cached_blocks(true, nullptr, true) && alloc_block(params, true, context, lock));
+        block_found = (release_cached_blocks(true, nullptr) && alloc_block(params, true, context, lock));
     }
 
     if (!block_found) {
@@ -769,6 +769,7 @@ void DeviceSMACachingAllocator::recordStream(DeviceBlock *block, c10_npu::NPUStr
     }*/
 }
 
+// this func is a non-standard func since Pytorch do not have this API, and erase without query is a wrong action
 void DeviceSMACachingAllocator::eraseStream(DeviceBlock *block, c10_npu::NPUStream stream) {
     std::shared_ptr<c10::GatheredContext> context = nullptr;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -797,15 +798,13 @@ void DeviceSMACachingAllocator::setMemoryFraction(double fraction)
     set_fraction_ = true;
 }
 
-void DeviceSMACachingAllocator::emptyCache(int device, bool check_error, bool free_physical) {
+void DeviceSMACachingAllocator::emptyCache(int device, bool check_error) {
     std::shared_ptr<c10::GatheredContext> context = nullptr;
     // Make sure event deque from taskqueue, then synchronize Event
     c10_npu::npuSynchronizeDevice(check_error);
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
-    // we do not need free_physical but this is a pluggable standard API
-    bool free_private = true;
-    release_cached_blocks(check_error, context, free_private);
+    release_cached_blocks(check_error, context);
 }
 
 void DeviceSMACachingAllocator::cacheInfo(size_t *total, size_t *largest) {
