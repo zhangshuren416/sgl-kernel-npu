@@ -32,6 +32,7 @@ include_directories(
         ${ZBCCL_SRC_DIR}/csrc/common
         ${ZBCCL_SRC_DIR}/csrc/dma
         ${ZBCCL_SRC_DIR}/csrc/sma
+        ${ZBCCL_SRC_DIR}/csrc/under_api/cann
         ${ZBCCL_SRC_DIR}/csrc/under_api/memfabric
         ${ZBCCL_SRC_DIR}/csrc/bootstrap
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory
@@ -46,6 +47,7 @@ file(GLOB_RECURSE ZBCCL_SRC
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/common/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/under_api/cann/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/under_api/memfabric/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp

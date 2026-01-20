@@ -83,6 +83,7 @@ include_dirs = [
     f"{zbccl_root}/src/csrc/common",
     f"{zbccl_root}/src/csrc/dma",
     f"{zbccl_root}/src/csrc/sma",
+    f"{zbccl_root}/src/csrc/under_api/cann",
     f"{zbccl_root}/src/csrc/under_api/memfabric",
     f"{zbccl_root}/src/csrc/bootstrap",
     f"{zbccl_root}/src/csrc/bootstrap/memory",
@@ -99,18 +100,20 @@ library_dirs = [
 ]
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
-sources = glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "ccl" / "npu" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "under_api" / "memfabric" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "bootstrap" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "bootstrap" / "memory" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "*.cpp")) + \
-                glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp"))
+sources = (glob.glob(str(csrc_dir / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "ccl" / "npu" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "under_api" / "cann" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "under_api" / "memfabric" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "bootstrap" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
 libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python"]
 
@@ -121,7 +124,8 @@ logger.warning(f"{sources=}")
 logger.warning(f"{library_dirs=}")
 logger.warning(f"{libraries=}")
 
-extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wno-unused-function", "-Wunused-value", "-Wcast-align",
+extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wno-unused-function",
+                      "-Wunused-value", "-Wcast-align",
                       "-Wcast-qual", "-Winvalid-pch", "-Wwrite-strings", "-Wsign-compare", "-Wextra",
                       "-O3", "-fvisibility-inlines-hidden", "-fstack-protector-strong",
                       "-Wl,-z,noexecstack", "-Wl,-z,relro", "-Wl,-z,now", "-fPIE", "-fPIC",
