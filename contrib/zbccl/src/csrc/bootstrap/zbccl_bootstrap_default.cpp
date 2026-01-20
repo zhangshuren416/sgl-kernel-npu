@@ -109,7 +109,6 @@ ZResult Bootstrap::CreateMemBootstrap() noexcept
     /* translate options from api options to internal options */
     MemBootstrapOptions memOptions{};
     memOptions.boostrapType = static_cast<MemBoostrapType>(options_.btType);
-
     memOptions.deviceId = options_.deviceId;
     memOptions.rankCount = options_.worldSize;
     memOptions.rankId = options_.rankId;
@@ -117,6 +116,8 @@ ZResult Bootstrap::CreateMemBootstrap() noexcept
     memOptions.flags = options_.flags;
     memOptions.dataOperationType = options_.dataOperationType;
     memOptions.ipPort = std::string(options_.ipPort);
+
+    ZBCCL_LOG_INFO("MemBootstrapOptions dump: " << memOptions);
 
     /* new bootstrap */
     auto memBootstrap = MemBootstrap::Create(memOptions);

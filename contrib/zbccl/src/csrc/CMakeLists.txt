@@ -25,7 +25,7 @@ include_directories(
         ${ZBCCL_BASE_DIR}/third_party/ska
         ${ZBCCL_BASE_DIR}/third_party/mstx
         ${ZBCCL_SRC_DIR}/include
-        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch
+        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu
         ${ZBCCL_SRC_DIR}/csrc/
         ${ZBCCL_SRC_DIR}/csrc/ccl
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu
@@ -41,7 +41,7 @@ include_directories(
 )
 
 file(GLOB_RECURSE ZBCCL_SRC
-        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp

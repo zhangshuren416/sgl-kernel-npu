@@ -67,6 +67,8 @@ ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCC
 
 ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
 {
+    ZBCCL_LOG_INFO("ZBCommOptions dump: " << options);
+
     std::lock_guard<std::mutex> guard(gMutex);
     if (backendType == ZBCCL_ASCEND_NPU) {
         auto comm = ZMakeRef<ZBCCLCommDefault>(options, isWorldGroup, gWorldZBCCLComm);

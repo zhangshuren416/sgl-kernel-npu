@@ -25,6 +25,16 @@ struct ZBCommOptions {
     void *myMetaDataGva = nullptr; /* gva of mine */
     uint16_t deviceId = 0;         /*device Id */
     bool isolateOpMeta = false;    /* isolate meta area of operations */
+
+    friend std::ostream &operator<<(std::ostream &os, const ZBCommOptions &options)
+    {
+        os << "ZBCommOptions [worldSize: " << options.worldSize << ", groupSize: " << options.groupSize
+           << ", myWorldRank: " << options.myWorldRank << ", myGroupRank: " << options.myGroupRank
+           << ", metaDataGva: " << options.metaDataGva << ", myMetaDataGva: " << options.myMetaDataGva
+           << ", deviceId: " << options.deviceId << ", isolateOpMeta: " << options.isolateOpMeta << "]";
+
+        return os;
+    }
 };
 
 struct ZBCommMetaInfo : ZBCommOptions {
