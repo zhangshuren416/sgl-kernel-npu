@@ -12,6 +12,7 @@
 #include "zbccl_pytorch_process_group.h"
 #include "zbccl_pytorch_util.h"
 #include "zbccl_operations.h"
+#include "zbccl_common_includes.h"
 // #include "torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.h"
 // #include "torch_npu/csrc/framework/FormatHelper.h"
 // #include "torch_npu/csrc/core/NPUBridge.h"
@@ -30,7 +31,7 @@ constexpr int64_t kSynchronizeBusyWaitMillis = 10;
 ProcessGroupZBCCL::WorkZBCCL::WorkZBCCL(const std::vector<at::Device> &devices, int rank, c10d::OpType opType)
     : Work(rank, opType), devices_(devices), workStartTime_(std::chrono::steady_clock::now())
 {
-    // zbcclEndEvents_ = std::make_shared<std::vector<c10_npu::NPUEvent>>(devices.size());
+    zbcclEndEvents_ = std::make_shared<std::vector<c10_npu::NPUEvent>>(devices.size());
 }
 
 ProcessGroupZBCCL::WorkZBCCL::~WorkZBCCL() {}
@@ -51,26 +52,26 @@ bool ProcessGroupZBCCL::WorkZBCCL::isSuccess() const
 
 void ProcessGroupZBCCL::WorkZBCCL::synchronizeInternal(std::chrono::milliseconds timeout)
 {
-    // for (const auto i: c10::irange(devices_.size())) {
-    //     auto currentStream = c10_npu::getCurrentNPUStream(devices_[i].index());
-    //     // Block the current stream on the LCCL stream
-    //     (*zbcclEndEvents_)[i].block(currentStream);
-    //     ASCEND_LOGI("Event: block lccl work is successfully executed, event=%p", (*zbcclEndEvents_)[i].event());
-    // }
+    for (const auto i: c10::irange(devices_.size())) {
+        auto currentStream = c10_npu::getCurrentNPUStream(devices_[i].index());
+        // Block the current stream on the LCCL stream
+        (*zbcclEndEvents_)[i].block(currentStream);
+        ZBCCL_LOG_INFO("Event: block lccl work is successfully executed, event=" << (*zbcclEndEvents_)[i].event());
+    }
 
-    // // In case of blocking, wait for the operation to complete.
-    // if (blockingWait_) {
-    //     // Wait for the operation to complete.
-    //     while (!isCompleted()) {
-    //         auto currentTimepoint = std::chrono::steady_clock::now();
-    //         if (std::chrono::duration_cast<std::chrono::milliseconds>(currentTimepoint - workStartTime_) > opTimeout_) {
-    //             throw std::runtime_error("Operation has exceeded timeout limit!");
-    //         }
-    //         checkAndThrowException();
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(kSynchronizeBusyWaitMillis));
-    //     }
-    //     checkAndThrowException();
-    // }
+    // In case of blocking, wait for the operation to complete.
+    if (blockingWait_) {
+        // Wait for the operation to complete.
+        while (!isCompleted()) {
+            auto currentTimepoint = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(currentTimepoint - workStartTime_) > opTimeout_) {
+                throw std::runtime_error("Operation has exceeded timeout limit!");
+            }
+            checkAndThrowException();
+            std::this_thread::sleep_for(std::chrono::milliseconds(kSynchronizeBusyWaitMillis));
+        }
+        checkAndThrowException();
+    }
 }
 
 bool ProcessGroupZBCCL::WorkZBCCL::wait(std::chrono::milliseconds timeout)
@@ -116,25 +117,23 @@ void ProcessGroupZBCCL::WorkZBCCL::checkAndSetException() const
 
 bool ProcessGroupZBCCL::WorkZBCCL::finishedNPUExecutionInternal() const
 {
-    // // If in the Finalize, should not query event
-    // if (!c10_npu::NpuSysCtrl::GetInstance().GetInitFlag()) {
-    //     return false;
-    // }
-    // try {
-    //     for (const auto i: c10::irange(devices_.size())) {
-    //         // Checking the work's corresponding ASCEND events' status
-    //         if (!(*zbcclEndEvents_)[i].query()) {
-    //             return false;
-    //         }
-    //     }
-    // } catch (const std::exception &e) {
-    //     if (std::string(e.what()).find("driver shutting down") == std::string::npos) {
-    //         throw std::runtime_error(DIST_ERROR(ErrCode::INTERNAL));
-    //     }
-    //     LOG(INFO) << "[Rank " << rank_ << "] Event query failed with exception: " << e.what();
-    // }
+    if (!c10_npu::NpuSysCtrl::GetInstance().GetInitFlag()) {
+        return false;
+    }
+    try {
+        for (const auto i: c10::irange(devices_.size())) {
+            if (!(*zbcclEndEvents_)[i].query()) {
+                return false;
+            }
+        }
+    } catch (const std::exception &e) {
+        if (std::string(e.what()).find("driver shutting down") == std::string::npos) {
+            throw std::runtime_error("finish execution internal failed.");
+        }
+        ZBCCL_LOG_INFO("[Rank " << rank_ << "] Event query failed with exeption: " << e.what());
+    }
 
-    // return true;
+    return true;
 }
 
 c10::intrusive_ptr<c10::ivalue::Future> ProcessGroupZBCCL::WorkZBCCL::getFuture()
@@ -144,79 +143,123 @@ c10::intrusive_ptr<c10::ivalue::Future> ProcessGroupZBCCL::WorkZBCCL::getFuture(
 
 const int64_t ProcessGroupZBCCL::kProcessGroupZBcclOpTimeoutMillis = 10 * 1000;
 
-ProcessGroupZBCCL::ProcessGroupZBCCL(int rank, int size) : c10d::Backend(rank, size), teamId_(0), store_(nullptr) {}
+ProcessGroupZBCCL::ProcessGroupZBCCL(int rank, int size) : c10d::Backend(rank, size), store_(nullptr) {}
 
-ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store, int rank, int size, uint32_t teamId)
-    : c10d::Backend(rank, size), teamId_(teamId), store_(store)
-{}
+ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store,
+    int rank, int size, std::chrono::milliseconds tm) : c10d::Backend(rank, size), store_(store), opTimeout_(tm)
+{
+}
 
+int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
+                                        const std::vector<at::Device> &devices,
+                                        std::vector<zbccl_comm_t> &zbcclComms)
+{
+    if (devices.empty()) {
+        ZBCCL_LOG_ERROR("input devices is empty.");
+        return Z_INVALID_PARAM;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mutext_);
+        if (devZBCCLCommMap_.find(key) != devZBCCLCommMap_.end()) {
+            zbcclComms = devZBCCLCommMap_[key];
+            return Z_OK;
+        }
+    }
+
+    zbcclComms.resize(devices.size());
+
+    c10_npu::OptionalNPUGuard npuGuard;
+    std::vector<c10_npu::NPUStream> streamVal;
+    streamVal.reserve(devices.size());
+
+    for (size_t i = 0; i < devices.size(); ++i) {
+        npuGuard.set_index(devices[i].index());
+        zbccl_ccl_options_t opt;
+        opt.backendType = ZBCCL_ASCEND_NPU;
+        opt.isWorldGroup = 1;
+        opt.groupSize = size_;
+        opt.groupRankId = rank_;
+        opt.symmetricMetaGva = 0;  // TODO
+        auto ret = zbccl_create(&opt, &zbcclComms[i]);
+        if (ret != Z_OK || zbcclComms[i] == nullptr) {
+            ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size=" << size_);
+            return Z_CREATE_COMM_FAILED;
+        }
+
+        streamVal.push_back(c10_npu::getNPUStreamFromPool(devices[i].index()));
+    }
+
+    zbcclStreams_.emplace(key, std::move(streamVal));
+    zbcclEvents_.emplace(std::piecewise_construct, std::make_tuple(key), std::make_tuple(devices.size()));
+
+    std::lock_guard<std::mutex> lock(mutext_);
+    devZBCCLCommMap_.emplace(key, std::move(zbcclComms));
+    return Z_OK;
+}
 
 template<typename Fn, typename PreProcess, typename PostProcess>
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Tensor> &inputs,
                                                              std::vector<at::Tensor> &outputs, Fn fn, PreProcess pre,
                                                              PostProcess post, c10d::OpType opType)
 {
-    // const auto devices = GetDeviceList(inputs);
-    // auto key = GetKeyFromDevices(devices);
+    const auto devices = GetDeviceList(inputs);
+    auto key = GetKeyFromDevices(devices);
 
-    // // std::vector<at_npu::lccl::LcclComm> lcclComms;
-    // // lcclComms = getLCCLComm(key, devices);
+    std::vector<zbccl_comm_t> zbcclComms;
+    ZBCCL_CHECK_S(GetZBCCLComm(key, devices, zbcclComms), "get zbccl comm failed.");
 
-    // // Used many times below, so we stash the unordered_map lookup
-    // auto &zbcclSteams = zbcclStreams_[key];
-    // // First let LCCL streams wait for input tensors allocation streams
-    // SyncStreams(devices, zbcclEvents_[key], zbcclSteams);
+    auto &zbcclSteams = zbcclStreams_[key];
+    SyncStreams(devices, zbcclEvents_[key], zbcclSteams);
 
-    // // Work itself will create the events on all NPUs of tensors
-    // auto work = c10::make_intrusive<ProcessGroupZBCCL::WorkZBCCL>(devices, rank_, opType);
-    // // Store references to outputs to be used by WorkLCCL::result and operator<<.
-    // work->outputs_ = std::make_shared<std::vector<at::Tensor>>(outputs);
+    auto work = c10::make_intrusive<ProcessGroupZBCCL::WorkZBCCL>(devices, rank_, opType);
+    work->outputs_ = std::make_shared<std::vector<at::Tensor>>(outputs);
 
-    // // c10_npu::OptionalNPUGuard npuGuard;
-    // pre(zbcclSteams, work);
+    c10_npu::OptionalNPUGuard npuGuard;
+    pre(zbcclSteams, work);
 
-    // for (const auto i: c10::irange(inputs.size())) {
-    //     // npuGuard.set_index(devices[i].index());
-    //     c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+    for (const auto i: c10::irange(inputs.size())) {
+        npuGuard.set_index(devices[i].index());
+        c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
 
-    //     // Both `inputs' and `outputs' are created on a worker stream and used in
-    //     // different zbcclSteams.  Hence, both must record the zbcclStream to
-    //     // prevent being freed before the collective finishes.
-    //     //
-    //     // We only record `inputs' here, and leave recording `outputs' to `fn' for
-    //     // operations where `inputs' and `outputs' are not the same.
-    //     //
-    //     // See [Sync Streams].
-    //     // c10_npu::NPUCachingAllocator::recordStream(inputs[i].storage().data_ptr(), zbcclStream);        // TODO
-    // }
-    // {
-    //     for (const auto i: c10::irange(inputs.size())) {
-    //         // npuGuard.set_index(devices[i].index());
-    //         // to avoid to much task pushed to the stream, leading to stream overflow
-    //         // insert sync point fluxLimit(key, i)
+        // Both `inputs' and `outputs' are created on a worker stream and used in
+        // different zbcclSteams.  Hence, both must record the zbcclStream to
+        // prevent being freed before the collective finishes.
+        //
+        // We only record `inputs' here, and leave recording `outputs' to `fn' for
+        // operations where `inputs' and `outputs' are not the same.
+        //
+        // See [Sync Streams].
+        c10_npu::NPUCachingAllocator::recordStream(inputs[i].storage().data_ptr(), zbcclStream);        // TODO
+    }
 
-    //         c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
-    //         auto ret = fn(inputs[i], outputs[i], zbcclStream);
-    //         TORCH_CHECK(ret == 0, "ZBCCL function error:", opTypeToString(opType).c_str(), ", error code is", ret, "\n");
-    //     }
-    // }
-    // post(zbcclSteams, work);
-    // {
-    //     c10_npu::NPUMultiStreamGuard guard(zbcclSteams);
-    //     work->future_ = c10::make_intrusive<at::ivalue::Future>(c10::ListType::create(c10::TensorType::get()), devices);
-    //     work->future_->markCompleted(at::IValue(*work->outputs_));
-    // }
+    {
+        for (const auto i: c10::irange(inputs.size())) {
+            npuGuard.set_index(devices[i].index());
+            // to avoid to much task pushed to the stream, leading to stream overflow
+            // insert sync point fluxLimit(key, i)
 
-    // for (size_t i = 0; i < inputs.size(); ++i) {
-    //     c10_npu::NPUStream &zbcclStream = zbcclStreams_[key][i];
-    //     (*(work->zbcclEndEvents_))[i].record(zbcclStream);
-    //     ASCEND_LOGI("Event: record lccl work is successfully executed, event=%p", (*(work->zbcclEndEvents_))[i].event());
-    //     // work->lcclComms_[i] = lcclComms[i];
-    // }
-    // work->blockingWait_ = blockingWait_;
-    // work->opTimeout_ = opTimeout_;
-    // return work;
-    return nullptr;
+            c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+            auto ret = fn(inputs[i], outputs[i], zbcclStream, zbcclComms[i]);
+            TORCH_CHECK(ret == 0, "zbccl exec failed");
+        }
+    }
+
+    post(zbcclSteams, work);
+    {
+        c10_npu::NPUMultiStreamGuard guard(zbcclSteams);
+        work->future_ = c10::make_intrusive<at::ivalue::Future>(c10::ListType::create(c10::TensorType::get()), devices);
+        work->future_->markCompleted(at::IValue(*work->outputs_));
+    }
+
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+        (*(work->zbcclEndEvents_))[i].record(zbcclStream);
+        work->zbcclComms_[i] = zbcclComms[i];
+    }
+    work->blockingWait_ = blockingWait_;
+    work->opTimeout_ = opTimeout_;
+    return work;
 }
 
 template<typename Fn>
@@ -224,19 +267,11 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
                                                              std::vector<at::Tensor> &outputs, Fn fn,
                                                              c10d::OpType opType)
 {
-    // return collective(
-    //     inputs, outputs, fn,
-    //     [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {
-    //     },
-    //     [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {
-    //     },
-    //     opType);
-    return nullptr;
-}
-
-int32_t ProcessGroupZBCCL::CreateZBCCLComm(int rank, int size)
-{
-    return 0;
+    return collective(
+        inputs, outputs, fn,
+        [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        opType);
 }
 
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tensor> &tensors,
@@ -249,46 +284,38 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tens
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &outputTensor, at::Tensor &inputTensor,
     const c10d::AllgatherOptions &opts)
 {
-    return nullptr;
-    // if (inputTensor.dtype() != outputTensor.dtype()) {
-    //     TORCH_CHECK(false, "output tensor must have the same type as input tensor", DIST_ERROR(ErrCode::PARAM));
-    // }
+    if (inputTensor.dtype() != outputTensor.dtype()) {
+        ZBCCL_CHECK_S(false, "output tensor must have the same dtype as input tensor");
+    }
 
-    // if (inputTensor.numel() * size_ != outputTensor.numel()) {
-    //     TORCH_CHECK(false, "output tensor size must be equal to world_size times input tensor size", DIST_ERROR(ErrCode::PARAM));
-    // }
+    if (inputTensor.numel() * size_ != outputTensor.numel()) {
+        ZBCCL_CHECK_S(false, "output tensor size must be equal to world_size times input tensor size");
+    }
 
-    // std::vector<at::Tensor> inputTensors = {inputTensor};
-    // std::vector<at::Tensor> outputTensors = {outputTensor};
-    // // CheckNpuTensorsDifferentDevices(inputTensors);
-    // // CheckNpuTensorsDifferentDevices(outputTensors);
+    std::vector<at::Tensor> inputTensors = {inputTensor};
+    std::vector<at::Tensor> outputTensors = {outputTensor};
+    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(inputTensors) == 0, "check input tensor failed.");
+    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(outputTensors) == 0, "check output tenso failed.");
 
     // // auto inputTensors_ = CastOriginFormat(inputTensors);
 
-    // return collective(
-    //     inputTensors, outputTensors,
-    //     [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream) {
-    //         RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({input}));
-    //         // if (c10_npu::option::OptionsManager::GetMultiStreamMemoryReuse() != c10_npu::option::AVOID_RECORD_STREAM) {
-    //         //     c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);
-    //         // }
+    return collective(
+        inputTensors, outputTensors,
+        [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream, zbccl_comm_t comm) {
+            RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({}));
+            c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
 
-    //         auto inputDataPtr = input.data_ptr();
-    //         auto outputDataPtr = output.data_ptr();
-    //         auto numel = GetNumelForZBCCL(input);
-    //         auto zbcclType = GetZBcclDataType(input.scalar_type());
-    //         zbccl_comm_t comm = nullptr;
-    //         // auto zbccl_call = [inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream]() -> int {
-    //         // auto ret = zbccl_all_gather(inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream.stream(false));
-    //         // return ret;
-    //         // };
-    //         // at_npu::native::OpCommand::RunOpApiV2("ZBcclAllgather", zbccl_call);
-    //         return 0;
-    //     },
-    //     [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
-    //     [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
-    //     c10d::OpType::ALLGATHER
-    // );
+            auto inputDataPtr = input.data_ptr();
+            auto outputDataPtr = output.data_ptr();
+            auto numel = GetNumelForZBCCL(input);
+            auto zbcclType = GetZBcclDataType(input.scalar_type());
+            auto ret = zbccl_all_gather(inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream.stream(false));
+            return ret;
+        },
+        [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        c10d::OpType::ALLGATHER
+    );
 }
 
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
@@ -315,20 +342,10 @@ c10::intrusive_ptr<c10d::Backend> ProcessGroupZBCCL::createBackend(const c10::in
                                                                    int rank, int size,
                                                                    const std::chrono::duration<float> &timeout)
 {
-    auto backend = c10::make_intrusive<ProcessGroupZBCCL>(rank, size);
-    std::cout << "in c++ create pg" << std::endl;
-    backend->store_ = store;
+    auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(timeout);
+    auto backend = c10::make_intrusive<ProcessGroupZBCCL>(store, rank, size, tm);
     return backend;
 }
-
-// c10::intrusive_ptr<c10d::Backend> ProcessGroupZBCCL::createBackend(::c10d::DistributedBackendOptions &options,
-//                                                        ProcessGroupZBCCL::Options &zbcclOpt)
-// {
-//     auto backend = c10::make_intrusive<ProcessGroupZBCCL>(0, 0);
-//     // backend->store_ = store;
-//     std::cout << "in c++ " << std::endl;
-//     return backend;
-// }
 
 ProcessGroupZBCCL::~ProcessGroupZBCCL() {}
 

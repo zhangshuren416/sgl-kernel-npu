@@ -40,6 +40,7 @@ enum ZResultErrorCode : ZResult {
     Z_NOT_BOOTSTRAPPED = -15,
     Z_CREATE_COMM_FAILED = -16,
     Z_DL_FUNCTION_UNLOAD = -17,
+    Z_CCL_EXEC_FAILED = -18,
 };
 
 constexpr uint32_t PATH_MAX_LIMIT = 4096;

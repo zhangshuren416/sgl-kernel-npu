@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_pytorch_util.h"
+#include "zbccl_common_includes.h"
 
 namespace zbccl {
 namespace adaptor {
@@ -51,15 +52,16 @@ std::string GetKeyFromDevices(const std::vector<at::Device> &devices)
     return deviceList;
 }
 
-void SyncStreams(const std::vector<at::Device> &devices, std::vector<c10_npu::NPUEvent> &events,
-    std::vector<c10_npu::NPUStream> &streams)
+void SyncStreams(const std::vector<at::Device> &devices,
+                 std::vector<c10_npu::NPUEvent> &events,
+                 std::vector<c10_npu::NPUStream> &streams)
 {
-    // for (size_t i = 0; i < devices.size(); ++i) {
-    //     c10_npu::NPUStream &zbcclSteam = streams[i];
-    //     c10_npu::NPUEvent &event = events[i];
-    //     event.record(c10_npu::getCurrentNPUStream(devices[i].index()));
-    //     event.block(zbcclSteam);
-    // }
+    for (size_t i = 0; i < devices.size(); ++i) {
+        c10_npu::NPUStream &zbcclSteam = streams[i];
+        c10_npu::NPUEvent &event = events[i];
+        event.record(c10_npu::getCurrentNPUStream(devices[i].index()));
+        event.block(zbcclSteam);
+    }
 }
 
 void CheckTensors(const std::vector<at::Tensor> &tensors)
@@ -100,47 +102,52 @@ std::vector<at::Tensor> CastOriginFormat(const std::vector<at::Tensor> &inputTen
     return inputTensors;
 }
 
-void CheckNpuTensorsDifferentDevices(const std::vector<at::Tensor> &tensors)
+int32_t CheckNpuTensorsDifferentDevices(const std::vector<at::Tensor> &tensors)
 {
-    // if (tensors.size() != 1) {
-    //     TORCH_CHECK(false, "Tensor list mustn't be larger than the number of available NPUs", DIST_ERROR(ErrCode::VALUE));
-    // }
+    if (tensors.size() != 1) {
+        ZBCCL_LOG_ERROR("Tensor list mustn't be larger than the number of available NPUs");
+        return Z_INVALID_PARAM;
+    }
 
-    // const auto &first = tensors.front();
-    // std::unordered_set<decltype(first.get_device())> usedDevices;
-    // usedDevices.reserve(tensors.size());
+    const auto &first = tensors.front();
+    std::unordered_set<decltype(first.get_device())> usedDevices;
+    usedDevices.reserve(tensors.size());
 
-    // for (auto &t : tensors) {
-    //     if (!torch_npu::utils::is_npu(t) || t.is_sparse()) {
-    //         TORCH_CHECK(false, "Tensors must be NPU and dense", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    //     if (t.scalar_type() != first.scalar_type()) {
-    //         TORCH_CHECK(false, "Tensors must have identical type", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    //     if (t.sizes() != first.sizes()) {
-    //         TORCH_CHECK(false, "Tensors must have identical size", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    //     if (t.strides() != first.strides()) {
-    //         TORCH_CHECK(false, "Tensors must have identical strides", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    //     if (!t.is_contiguous(t.suggest_memory_format())) {
-    //         TORCH_CHECK(false, "Tensors must be contiguous", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    //     // if (!at_npu::native::FormatHelper::IsBaseFormatType(t) && (t.storage().data_ptr().get() != t.data_ptr())) {
-    //         // TORCH_CHECK(false, "For a tensor of internal format, it's storage_offset must be 0", DIST_ERROR(ErrCode::NOT_SUPPORT));
-    //     // }
-    //     const auto inserted = usedDevices.insert(t.get_device()).second;
-    //     if (!inserted) {
-    //         TORCH_CHECK(false, "Tensors must be on distinct NPU devices", DIST_ERROR(ErrCode::TYPE));
-    //     }
-    // }
+    for (auto &t : tensors) {
+        if (!torch_npu::utils::is_npu(t) || t.is_sparse()) {
+            ZBCCL_LOG_ERROR("tensors must be NPU and dense");
+            return Z_INVALID_PARAM;
+        }
+        if (t.scalar_type() != first.scalar_type()) {
+            ZBCCL_LOG_ERROR("tensors must have same scaler type type");
+            return Z_INVALID_PARAM;
+        }
+        if (t.sizes() != first.sizes()) {
+            ZBCCL_LOG_ERROR("tensors must have same size");
+            return Z_INVALID_PARAM;
+        }
+        if (t.strides() != first.strides()) {
+            ZBCCL_LOG_ERROR("tensors must have same strides");
+            return Z_INVALID_PARAM;
+        }
+        if (!t.is_contiguous(t.suggest_memory_format())) {
+            ZBCCL_LOG_ERROR("tensor must be contiguous");
+            return Z_INVALID_PARAM;
+        }
+        const auto inserted = usedDevices.insert(t.get_device()).second;
+        if (!inserted) {
+            ZBCCL_LOG_ERROR("tensors must be on distinct NPU devices");
+            return Z_INVALID_PARAM;
+        }
+    }
+    return Z_OK;
 }
 
 uint64_t GetNumelForZBCCL(const at::Tensor &t)
 {
     // if (!at_npu::native::FormatHelper::IsBaseFormatType(t)) {
     //     if (t.storage().data_ptr().get() != t.data_ptr()) {
-    //         TORCH_CHECK(false, "For a tensor of internal format, it's storage_offset must be 0", DIST_ERROR(ErrCode::NOT_SUPPORT));
+    //         ZBCCL_CHECK_S(false, "For a tensor of internal format, it's storage_offset must be 0");
     //     }
     //     auto sizes = torch_npu::NPUBridge::GetNpuStorageImpl(t)->npu_desc_.storage_sizes_;
     //     uint64_t n = 1;
@@ -149,18 +156,16 @@ uint64_t GetNumelForZBCCL(const at::Tensor &t)
     //     }
     //     return n;
     // }
-    // return t.numel();
-    return 0;
+    return t.numel();
 }
 
 zbccl_datatype_t GetZBcclDataType(at::ScalarType type)
 {
-    // try {
-    //     return kScalarTypeToZBcclDataType.at(type);
-    // } catch (std::out_of_range &e) {
-    //     throw std::runtime_error("Unsupported data type for ZBCCL process group" + DIST_ERROR(ErrCode::NOT_SUPPORT));
-    // }
-    return ZBCCL_DATA_TYPE_UINT8;
+    auto it = kScalarTypeToZBcclDataType.find(type);
+    if (it == kScalarTypeToZBcclDataType.end()) {
+        ZBCCL_CHECK_S(false, "Unsupported data type for ZBCCL process group");
+    }
+    return kScalarTypeToZBcclDataType.at(type);
 }
 
 

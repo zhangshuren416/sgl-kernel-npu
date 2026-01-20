@@ -38,7 +38,7 @@ void CheckTensors(const std::vector<at::Tensor> &tensors);
 
 std::vector<at::Tensor> CastOriginFormat(const std::vector<at::Tensor>& inputTensors);
 
-void CheckNpuTensorsDifferentDevices(const std::vector<at::Tensor> &tensors);
+int32_t CheckNpuTensorsDifferentDevices(const std::vector<at::Tensor> &tensors);
 
 uint64_t GetNumelForZBCCL(const at::Tensor &t);
 
