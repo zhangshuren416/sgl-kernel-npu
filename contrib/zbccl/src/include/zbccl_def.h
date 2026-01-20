@@ -28,6 +28,8 @@ typedef void *aclrtStream;
 
 typedef enum {
     ZBCCL_ASCEND_NPU = 0,
+
+    ZBCCL_BACK_BUTT
 } zbccl_backend_t;
 
 typedef enum {
@@ -43,16 +45,18 @@ typedef enum {
     ZBCCL_DATA_TYPE_UINT32 = 9, /**< uint32 */
     ZBCCL_DATA_TYPE_FP64 = 10,  /**< fp64 */
     ZBCCL_DATA_TYPE_BFP16 = 11, /**< bfp16 */
-    ZBCCL_DATA_TYPE_RESERVED    /**< reserved */
-} zbccl_datatype_t;             // reference to HcclDataType
+
+    ZBCCL_DATA_TYPE_BUTT /* reserved */
+} zbccl_datatype_t;      /* reference to HcclDataType */
 
 typedef enum {
     ZBCCL_REDUCE_SUM = 0,  /**< sum */
     ZBCCL_REDUCE_PROD = 1, /**< prod */
     ZBCCL_REDUCE_MAX = 2,  /**< max */
     ZBCCL_REDUCE_MIN = 3,  /**< min */
-    ZBCCL_REDUCE_RESERVED  /**< reserved */
-} zbccl_reduce_op_t;       // reference to HcclReduceOp
+
+    ZBCCL_REDUCE_BUTT /*  reserved */
+} zbccl_reduce_op_t;  /* reference to HcclReduceOp */
 
 typedef enum {
     BOOT_BY_MEMFABRIC = 0,
@@ -83,7 +87,7 @@ typedef struct {
     void *gva;     /* gva of the world */
     void *myGva;   /* gva of this rank */
     uint64_t size; /* device memory size */
-} zbccl_allocator_options;
+} zbccl_allocator_options_t;
 
 typedef struct {
     zbccl_backend_t backendType; /* backend type */

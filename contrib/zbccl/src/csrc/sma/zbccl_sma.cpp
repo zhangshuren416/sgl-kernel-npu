@@ -79,7 +79,7 @@ void SecondaryMemoryAllocator::updateBlockToSafe(const c10::DataPtr &ptr) {
     block->is_safe_ = true;
 }
 
-ZResult SecondaryMemoryAllocator::Initialize(zbccl_allocator_options *options, int32_t device_count) noexcept {
+ZResult SecondaryMemoryAllocator::Initialize(zbccl_allocator_options_t *options, int32_t device_count) noexcept {
     int size = static_cast<int>(device_allocator_.size());
     if (size < device_count) {
         device_allocator_.resize(device_count);

@@ -30,7 +30,7 @@ extern "C" {
  * @param flags            [in] optional flags
  * @return 0 if successful
  */
-int32_t zbccl_sma_init(zbccl_allocator_options *options, int32_t flags);
+int32_t zbccl_sma_init(zbccl_allocator_options_t *options, int32_t flags);
 
 /**
  * @brief Un-initialize allocator

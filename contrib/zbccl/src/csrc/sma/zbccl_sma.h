@@ -60,7 +60,7 @@ public:
      * @param device_cnt        [in] device count
      * @return 0 is successful
      */
-    ZResult Initialize(zbccl_allocator_options *options, int32_t device_count) noexcept;
+    ZResult Initialize(zbccl_allocator_options_t *options, int32_t device_count) noexcept;
 
     /**
      * @brief Un-initialize the allocator

@@ -15,7 +15,6 @@
 #include "zbccl_common_includes.h"
 
 namespace zbccl {
-
 static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_options_t &options)
 {
     os << "zbccl_bootstrap_options_t [flags: " << options.flags << ", bootstrap_type: " << options.btType
@@ -31,6 +30,24 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_o
 {
     os << "zbccl_bootstrap_output_t [deviceGva: " << output.deviceGva << ", myDeviceGva: " << output.myDeviceGva
        << ", allocatedDeviceMemorySize: " << output.allocatedDeviceMemorySize << "]";
+
+    return os;
+}
+
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_allocator_options_t &options)
+{
+    os << "zbccl_allocator_options_t [gva: " << options.gva << ", myGva: " << options.myGva
+       << ", size: " << options.size << "]";
+
+    return os;
+}
+
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_options_t &options)
+{
+    os << "zbccl_ccl_options_t [backendType: " << options.backendType << ", flags: " << options.flags
+       << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
+       << ", groupRankId: " << options.groupRankId << ", isolateOpMeta: " << options.isolateOpMeta
+       << ", deviceGva: " << options.deviceGva << ", myDeviceGva: " << options.myDeviceGva << "]";
 
     return os;
 }

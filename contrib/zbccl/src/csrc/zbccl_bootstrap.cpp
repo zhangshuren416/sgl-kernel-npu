@@ -25,6 +25,8 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     ZBCCL_VALIDATE_RETURN(options != nullptr, "invalid param, bootstrap options should not be null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(output != nullptr, "invalid param, bootstrap output should not be null", Z_INVALID_PARAM);
 
+    ZBCCL_LOG_INFO("options dump, " << (*options));
+
     auto bootstrap = Bootstrap::Create(*options);
     if (bootstrap == nullptr) {
         return Z_ERROR;

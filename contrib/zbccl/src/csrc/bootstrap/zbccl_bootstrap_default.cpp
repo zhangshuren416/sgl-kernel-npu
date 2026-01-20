@@ -48,8 +48,6 @@ void Bootstrap::Destroy()
 
 ZResult Bootstrap::VerifyOptions() noexcept
 {
-    ZBCCL_LOG_INFO("verify options, " << options_);
-
     ZBCCL_VALIDATE_RETURN(0 <= options_.btType && options_.btType < BOOT_BY_BUTT,
                           "invalid option, bootstrapType is invalid", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(options_.ipPort != nullptr, "invalid option, ipPort is nullptr", Z_INVALID_PARAM);

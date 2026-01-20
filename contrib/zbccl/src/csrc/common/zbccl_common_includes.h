@@ -24,6 +24,7 @@
 #include "zbccl_last_error.h"
 #include "zbccl_logger.h"
 #include "zbccl_ref.h"
+#include "zbccl_struct_dump_helper.h"
 #include "zbccl_version.h"
 
 #endif  // ZBCCL_COMMON_INCLUDES_H

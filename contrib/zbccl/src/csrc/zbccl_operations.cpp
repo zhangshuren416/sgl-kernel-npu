@@ -25,6 +25,8 @@ ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
     ZBCCL_VALIDATE_RETURN(options != nullptr, "Create zbccl communicator failed as options is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
 
+    ZBCCL_LOG_INFO("options dump, " << (*options));
+
     auto &state = ZBCCLInitState::Instance();
 
     if (!state.Bootstrapped()) {
@@ -73,23 +75,53 @@ ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t *comm, uint32_t flags)
 ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
                                    zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream)
 {
-    // TODO
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllReduce failed, send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllReduce failed, recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(count > 0, "AllReduce failed, count " << count << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
+                          "AllReduce failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "AllReduce failed, op " << op << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllReduce failed, comm is null", Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    return innerComm->AllReduce(send_buff, recv_buff, count, data_type, op);
 }
 
 ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count,
                                        zbccl_datatype_t data_type, zbccl_reduce_op_t op, zbccl_comm_t comm,
                                        aclrtStream stream)
 {
-    // TODO
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "ReduceScatter failed, send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "ReduceScatter failed, recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_count > 0, "ReduceScatter failed, recv_count " << recv_count << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
+                          "ReduceScatter failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "ReduceScatter failed, op " << op << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "ReduceScatter failed, comm is null", Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    return innerComm->ReduceScatter(send_buff, recv_buff, recv_count, data_type, op);
 }
 
 ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count,
                                    zbccl_datatype_t data_type, zbccl_comm_t comm, aclrtStream stream)
 {
-    // TODO
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllGather failed, send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllGather failed, recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(send_count > 0, "AllGather failed, send_count " << send_count << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
+                          "AllGather failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllGather failed, comm is null", Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    return innerComm->AllGather(send_buff, recv_buff, send_count, data_type);
 }
 
 #ifdef __cplusplus
