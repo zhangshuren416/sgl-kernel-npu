@@ -100,6 +100,19 @@ typedef struct {
     void *myDeviceGva;           /* gva of this rank */
 } zbccl_ccl_options_t;
 
+typedef struct {
+    void *data;                /* base pointer of tensor data, default value is null */
+    zbccl_datatype_t dataType; /* data type of tensor */
+    uint32_t dim;              /* dimension of the shape, default value is 0 */
+    uint32_t shape[32];        /* shape, default value is 0 */
+} zbccl_tensor_info_t;
+
+typedef enum {
+    QUANT_BF16_2_INT8 = 0, /* from bf16 to int8*/
+
+    QUANT_BUTT
+} zbccl_quant_mode_t;
+
 #ifdef __cplusplus
 }
 #endif
