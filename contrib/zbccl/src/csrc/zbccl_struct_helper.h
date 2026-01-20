@@ -37,8 +37,7 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_o
 static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_output_t &output)
 {
     os << "zbccl_bootstrap_output_t [deviceGva: " << output.deviceGva
-       << ", allocatedDeviceMemorySize: " << output.allocatedDeviceMemorySize
-       << ", myDeviceGva: " << output.myDeviceGva
+       << ", allocatedDeviceMemorySize: " << output.allocatedDeviceMemorySize << ", myDeviceGva: " << output.myDeviceGva
        << ", myCCLMetaDeviceGva: " << output.myCCLMetaDeviceGva << ", metaSizeOfDevice: " << output.metaSizeOfDevice
        << ", mySMAGva: " << output.mySMAGva << ", myDeviceGva: " << output.myDeviceGva
        << ", smaSizeOfDevice: " << output.smaSizeOfDevice << "]";
@@ -59,6 +58,27 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_options
     os << "zbccl_ccl_options_t [backendType: " << options.backendType << ", flags: " << options.flags
        << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
        << ", groupRankId: " << options.groupRankId << ", symmetricMetaGva: " << options.symmetricMetaGva << "]";
+
+    return os;
+}
+
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_comm_property_t &property)
+{
+    os << "zbccl_ccl_comm_property_t [backendType: " << property.backendType << ", flags: " << property.flags
+       << ", isWorldGroup: " << property.isWorldGroup << ", groupSize: " << property.groupSize
+       << ", groupRankId: " << property.groupRankId << ", symmetricMetaGva: " << property.symmetricMetaGva
+       << ", myGVA: " << property.myGVA << ", myMetaGVA: " << property.myMetaGVA
+       << ", sizeOfMetaArea: " << property.sizeOfMetaArea
+       << ", sizeOfMetaForAddressExchange: " << property.sizeOfMetaForAddressExchange
+       << ", myMetaGVAForOpParam: " << property.myMetaGVAForOpParam
+       << ", sizeOfMetaForOpParam: " << property.sizeOfMetaForOpParam << ", groupIndex: " << property.groupIndex << "]";
+
+    return os;
+}
+
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_tensor_info_t &info)
+{
+    os << "zbccl_tensor_info_t [data: " << info.data << ", dataType: " << info.dataType << ", dim: " << info.dim << "]";
 
     return os;
 }

@@ -56,7 +56,14 @@ ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
     return Z_OK;
 }
 
-ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t *comm, uint32_t flags)
+ZBCCL_API int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property) {
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+
+    // TODO
+    return Z_OK;
+}
+
+ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t comm, uint32_t flags)
 {
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
 

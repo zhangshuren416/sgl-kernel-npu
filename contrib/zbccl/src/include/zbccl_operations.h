@@ -28,13 +28,22 @@ extern "C" {
 int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm);
 
 /**
+ * @brief Get property of zero buffer communicator object
+ *
+ * @param comm                 [in] the communicator handle
+ * @param property             [in/out]
+ * @return 0 if successful
+ */
+int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property);
+
+/**
  * @brief Destroy zero buffer communicator
  *
  * @param comm                 [in] the communicator to be destroyed
  * @param flags                [in] optional flags
  * @return
  */
-int32_t zbccl_destroy(zbccl_comm_t *comm, uint32_t flags);
+int32_t zbccl_destroy(zbccl_comm_t comm, uint32_t flags);
 
 /**
  * @brief Do all reduce operation

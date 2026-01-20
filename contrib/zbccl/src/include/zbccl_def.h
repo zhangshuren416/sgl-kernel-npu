@@ -104,6 +104,24 @@ typedef struct {
     uint16_t symmetricMetaGva;   /* use symmetric memory for meta */
 } zbccl_ccl_options_t;
 
+typedef struct {
+    zbccl_backend_t backendType;                       /* backend type */
+    uint32_t flags;                                    /* optional flags */
+    uint16_t isWorldGroup;                             /* if this is the world group, 1 means true, 0 means false */
+    uint16_t groupSize;                                /* how many rank in total */
+    uint16_t groupRankId;                              /* my rank id in the world */
+    uint16_t symmetricMetaGva;                         /* use symmetric memory for meta */
+    void *myGVA;                                       /* gva of this rank in world */
+    void *myMetaGVA;                                   /* gva of this rank in group */
+    uint64_t sizeOfMetaArea;                           /* device memory size of meta area */
+    uint64_t sizeOfMetaForAddressExchange;             /* device memory size of address exchange area in meta */
+    void *myMetaGVAForOpParam;                         /* gva for operation param on device in meta area */
+    uint64_t sizeOfMetaForOpParam;                     /* device memory size of operation param in meta area */
+    uint32_t groupIndex;                               /* group index */
+    uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS]; /* peer rank id in world */
+    void *peerMetaGVA[ZBCCL_MAX_RANKS];                /* peer gva */
+} zbccl_ccl_comm_property_t;
+
 /**
  * Make sure the size of this struct is 64 bytes, which fit to one cacheline to cpu
  */
