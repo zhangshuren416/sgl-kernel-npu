@@ -20,6 +20,19 @@ using namespace zbccl::bootstrap;
 extern "C" {
 #endif
 
+ZBCCL_API int32_t zbccl_bootstrap_options_init(zbccl_bootstrap_options_t *options)
+{
+    ZBCCL_VALIDATE_RETURN(options != nullptr, "invalid param, bootstrap options should not be null", Z_INVALID_PARAM);
+
+    bzero(options, sizeof(zbccl_bootstrap_options_t));
+    options->btType = BOOT_BY_MEMFABRIC;
+    options->startConfigServer = 0;
+    options->cclMetaSpaceSize = CCL_META_SPACE_SIZE_DEFAULT;
+    options->cclGroupCap = CCL_GROUP_COUNT_CAP_DEFAULT;
+
+    return Z_OK;
+}
+
 ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_bootstrap_output_t *output)
 {
     ZBCCL_VALIDATE_RETURN(options != nullptr, "invalid param, bootstrap options should not be null", Z_INVALID_PARAM);
@@ -37,10 +50,19 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     memcpy(output, &out, sizeof(zbccl_bootstrap_output_t));
 
     /* set init state */
-    ZBCCLInitState::Instance().Bootstrapped(true);
-    ZBCCLInitState::Instance().WorldSize(options->worldSize);
-    ZBCCLInitState::Instance().DeviceId(options->deviceId);
-    ZBCCLInitState::Instance().WorldRankId(options->rankId);
+    auto &state = ZBCCLInitState::Instance();
+    state.Bootstrapped(true);
+    state.ext_.btType = options->btType;
+    state.ext_.worldSize = options->worldSize;
+    state.ext_.worldRankId = options->rankId;
+    state.ext_.deviceId = options->deviceId;
+    state.ext_.cclMetaSpaceSize = options->cclMetaSpaceSize;
+    state.ext_.cclGroupCap = options->cclGroupCap;
+    state.ext_.gvaDevice = output->deviceGva;
+    state.ext_.myCCLMetaDeviceGva = output->myCCLMetaDeviceGva;
+    state.ext_.metaSizeOfDevice = output->metaSizeOfDevice;
+    state.ext_.mySMAGva = output->mySMAGva;
+    state.ext_.smaSizeOfDevice = output->smaSizeOfDevice;
 
     return Z_OK;
 }
@@ -59,6 +81,7 @@ ZBCCL_API int32_t zbccl_unboostrap(uint32_t flags)
     }
 
     Bootstrap::Destroy();
+    ZBCCLInitState::Instance().Reset();
     ZBCCL_LOG_INFO("ZBCCL un-bootstrap successfully");
     return Z_OK;
 }

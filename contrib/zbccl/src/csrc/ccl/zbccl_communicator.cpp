@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_communicator.h"
+#include "zbccl_comm_group_meta.h"
 #include "zbccl_communicator_default.h"
 
 namespace zbccl {
@@ -18,20 +19,36 @@ ZBCCLCommPtr ZBCCLComm::gWorldZBCCLComm{nullptr};
 std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
 std::mutex ZBCCLComm::gMutex;
 
-ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, uint16_t worldSize,
-                          uint16_t worldRankId, uint16_t deviceId)
+ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState)
 {
     /* translate api options to inner options */
     ZBCommOptions commOptions;
-    commOptions.worldSize = worldSize;
+    commOptions.worldSize = extraState.worldSize;
     commOptions.groupSize = options.groupSize;
-    commOptions.myWorldRank = worldRankId;
+    commOptions.myWorldRank = extraState.worldRankId;
     commOptions.myGroupRank = options.groupRankId;
-    commOptions.metaDataGva = options.deviceGva;
-    commOptions.myMetaDataGva = options.myDeviceGva;
-    commOptions.deviceId = deviceId;
-    commOptions.isolateOpMeta = options.isolateOpMeta == 1;
+    commOptions.gva = extraState.gvaDevice;
+    commOptions.deviceId = extraState.deviceId;
 
+    std::lock_guard<std::mutex> guard(gMutex);
+    /* init group meta arranger, already prevent initialize multiple time */
+    auto &groupMetaArranger = GroupMetaArranger::Instance();
+    auto result = groupMetaArranger.Initialize(extraState);
+    if (result != Z_OK) {
+        return result;
+    }
+
+    /* set size of spaces */
+    commOptions.metaSizeOfDevice = groupMetaArranger.GetSingleMetaSpaceSize();
+    commOptions.metaSizeForExchangeAddress = groupMetaArranger.GetAddressExchangeSpaceSize();
+    commOptions.sizeForExchangeParam = GroupMetaArranger::OPERATE_PARAM_SIZE;
+
+    /* get current index and myMetaGva */
+    result = groupMetaArranger.CurrentGroup(commOptions.groupIndex, commOptions.myMetaDataGva);
+    ZBCCL_VALIDATE_RETURN(result == Z_OK, "Get meta range for group failed, probably out of range", result);
+    commOptions.myParamDataGva = commOptions.myMetaDataGva + commOptions.metaSizeForExchangeAddress;
+
+    /* create comm object */
     auto commInner = CreateInner(options.backendType, commOptions, options.isWorldGroup);
     if (commInner == nullptr || commInner->Initialize() != Z_OK) {
         return Z_CREATE_COMM_FAILED;
@@ -39,11 +56,15 @@ ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm
 
     *comm = commInner.Get();
 
+    /* move to next group */
+    groupMetaArranger.Move2NextGroup();
+
     return Z_OK;
 }
 
 ZResult ZBCCLComm::Destroy(zbccl_comm_t comm, uint32_t flags)
 {
+    std::lock_guard<std::mutex> guard(gMutex);
     ZBCCLCommPtr tmpComm = reinterpret_cast<ZBCCLComm *>(comm);
 
     return ZBCCLComm::DestroyInner(tmpComm);
@@ -51,25 +72,22 @@ ZResult ZBCCLComm::Destroy(zbccl_comm_t comm, uint32_t flags)
 
 void ZBCCLComm::DestroyAll()
 {
+    std::lock_guard<std::mutex> guard(gMutex);
     DestroyAllInner();
 }
 
 ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
     : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup)
 {
-    metaInfo_.worldSize = options.worldSize;
-    metaInfo_.groupSize = options.groupSize;
-    metaInfo_.myWorldRank = options.myWorldRank;
-    metaInfo_.myGroupRank = options.myGroupRank;
-    metaInfo_.metaDataGva = options.metaDataGva;
-    metaInfo_.myMetaDataGva = options.myMetaDataGva;
+    memcpy(&metaInfo_, &options, sizeof(ZBCommOptions));
 }
 
 ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
 {
     ZBCCL_LOG_INFO("ZBCommOptions dump: " << options);
 
-    std::lock_guard<std::mutex> guard(gMutex);
+    /* lock is acquired by caller already */
+
     if (backendType == ZBCCL_ASCEND_NPU) {
         auto comm = ZMakeRef<ZBCCLCommDefault>(options, isWorldGroup, gWorldZBCCLComm);
         if (comm == nullptr) {
@@ -117,7 +135,8 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 {
     ZBCCL_VALIDATE_RETURN(comm == nullptr, "invalid param, ZBCCLComm is null", Z_INVALID_PARAM);
 
-    std::lock_guard<std::mutex> guard(gMutex);
+    /* lock is acquired by caller already */
+
     /* if it is the world one */
     if (comm->isWorldGroup_) {
         if (gZBCCLCommLookupMap_.size() != 0) {
@@ -141,7 +160,8 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 
 void ZBCCLComm::DestroyAllInner()
 {
-    std::lock_guard<std::mutex> guard(gMutex);
+    /* lock is acquired by caller already */
+
     /* clear all other world comm*/
     gZBCCLCommLookupMap_.clear();
 

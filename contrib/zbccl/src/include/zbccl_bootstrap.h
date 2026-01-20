@@ -19,6 +19,15 @@ extern "C" {
 #endif
 
 /**
+ * @brief Initialize 'zbccl_bootstrap_options_t' with default values
+ *
+ * @param options          [in] options to be initialized
+ *
+ * @return 0 if successful
+ */
+int32_t zbccl_bootstrap_options_init(zbccl_bootstrap_options_t *options);
+
+/**
  * @brief Bootstrap zbccl
  *
  * @param options          [in] options of bootstrap

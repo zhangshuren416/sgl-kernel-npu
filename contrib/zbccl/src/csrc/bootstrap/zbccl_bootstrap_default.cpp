@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_bootstrap_default.h"
-#include "zbccl_struct_dump_helper.h"
+#include "zbccl_struct_helper.h"
 
 namespace zbccl {
 namespace bootstrap {
@@ -132,11 +132,26 @@ ZResult Bootstrap::CreateMemBootstrap() noexcept
         return result;
     }
 
+    void *deviceGva;                    /* gva of the world */
+    uint64_t allocatedDeviceMemorySize; /* actually allocated memory size */
+    void *myDeviceGva;                  /* gva of this rank */
+    void *myCCLMetaDeviceGva;           /* gva of ccl meta of this rank */
+    uint64_t metaSizeOfDevice;          /* size of device memory for SMA */
+    void *mySMAGva;                     /* gva of sma of this rank */
+    uint64_t smaSizeOfDevice;           /* size of device memory for SMA */
+
     /* assign output */
     auto &memOutput = memBootstrap->GetOutput();
     output_.deviceGva = memOutput.gvaDevice;
     output_.myDeviceGva = memOutput.myGvaDevice;
     output_.allocatedDeviceMemorySize = memOutput.memorySizeDevice;
+    output_.myCCLMetaDeviceGva = memOutput.myGvaDevice;
+    output_.metaSizeOfDevice = options_.cclMetaSpaceSize;
+    /* translate to bytes */
+    output_.metaSizeOfDevice = output_.metaSizeOfDevice * 1024 * options_.cclGroupCap;
+    output_.mySMAGva =
+        reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(output_.myDeviceGva) + output_.metaSizeOfDevice);
+    output_.smaSizeOfDevice = output_.allocatedDeviceMemorySize - output_.metaSizeOfDevice;
 
     memBootstrap_ = memBootstrap;
     return Z_OK;

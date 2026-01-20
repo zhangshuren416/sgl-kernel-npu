@@ -27,12 +27,6 @@ typedef void *zbccl_comm_t;
 typedef void *aclrtStream;
 
 typedef enum {
-    ZBCCL_ASCEND_NPU = 0,
-
-    ZBCCL_BACK_BUTT
-} zbccl_backend_t;
-
-typedef enum {
     ZBCCL_DATA_TYPE_INT8 = 0,   /**< int8 */
     ZBCCL_DATA_TYPE_INT16 = 1,  /**< int16 */
     ZBCCL_DATA_TYPE_INT32 = 2,  /**< int32 */
@@ -59,6 +53,12 @@ typedef enum {
 } zbccl_reduce_op_t;  /* reference to HcclReduceOp */
 
 typedef enum {
+    ZBCCL_ASCEND_NPU = 0,
+
+    ZBCCL_BACK_BUTT
+} zbccl_backend_t;
+
+typedef enum {
     BOOT_BY_MEMFABRIC = 0,
     BOOT_BY_ACLSHMEM,
 
@@ -66,21 +66,27 @@ typedef enum {
 } zbccl_bootstrap_type_t;
 
 typedef struct {
-    uint32_t flags;                /* optional flags*/
+    uint32_t flags;                /* optional, flags*/
     zbccl_bootstrap_type_t btType; /* bootstrap type */
-    char *ipPort;                  /* tcp://127.0.0.1:9897*/
+    char *ipPort;                  /* tcp://127.0.0.1:9897 */
     uint16_t worldSize;            /* how many rank in total */
     uint16_t rankId;               /* my rank id in the world */
     uint16_t deviceId;             /* device id */
-    uint16_t startConfigServer;    /* if start config store server, 1 means start, 0 means not start */
+    uint16_t startConfigServer;    /* optional, if start config store server, 1 means start, 0 means not start */
     uint64_t deviceMemorySize;     /* memory size can be allocated */
-    uint32_t dataOperationType;    /* data operation type */
+    uint32_t dataOperationType;    /* optional, data operation type */
+    uint16_t cclMetaSpaceSize;     /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
+    uint16_t cclGroupCap;          /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
 } zbccl_bootstrap_options_t;
 
 typedef struct {
     void *deviceGva;                    /* gva of the world */
-    void *myDeviceGva;                  /* gva of this rank */
     uint64_t allocatedDeviceMemorySize; /* actually allocated memory size */
+    void *myDeviceGva;                  /* gva of this rank */
+    void *myCCLMetaDeviceGva;           /* gva of ccl meta of this rank */
+    uint64_t metaSizeOfDevice;          /* size of device memory for SMA */
+    void *mySMAGva;                     /* gva of sma of this rank */
+    uint64_t smaSizeOfDevice;           /* size of device memory for SMA */
 } zbccl_bootstrap_output_t;
 
 typedef struct {
@@ -95,16 +101,17 @@ typedef struct {
     uint16_t isWorldGroup;       /* if this is the world group, 1 means true, 0 means false */
     uint16_t groupSize;          /* how many rank in total */
     uint16_t groupRankId;        /* my rank id in the world */
-    uint16_t isolateOpMeta;      /* if isolate the operator meta data */
-    void *deviceGva;             /* gva of the world */
-    void *myDeviceGva;           /* gva of this rank */
+    uint16_t symmetricMetaGva;   /* use symmetric memory for meta */
 } zbccl_ccl_options_t;
 
+/**
+ * Make sure the size of this struct is 64 bytes, which fit to one cacheline to cpu
+ */
 typedef struct {
     void *data;                /* base pointer of tensor data, default value is null */
     zbccl_datatype_t dataType; /* data type of tensor */
-    uint32_t dim;              /* dimension of the shape, default value is 0 */
-    uint32_t shape[32];        /* shape, default value is 0 */
+    uint16_t dim;              /* dimension of the shape, default value is 0 */
+    uint16_t shape[25];        /* shape, default value is 0 */
 } zbccl_tensor_info_t;
 
 typedef enum {

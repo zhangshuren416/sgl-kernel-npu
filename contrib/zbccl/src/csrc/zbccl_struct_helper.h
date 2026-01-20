@@ -15,21 +15,33 @@
 #include "zbccl_common_includes.h"
 
 namespace zbccl {
+constexpr uint16_t CCL_META_SPACE_SIZE_MIN = 1024;     /* 1MB */
+constexpr uint16_t CCL_META_SPACE_SIZE_DEFAULT = 1024; /* 1MB */
+constexpr uint16_t CCL_META_SPACE_SIZE_MAX = 4096;     /* 4MB */
+constexpr uint16_t CCL_GROUP_COUNT_CAP_MIN = 1;
+constexpr uint16_t CCL_GROUP_COUNT_CAP_DEFAULT = 128;
+constexpr uint16_t CCL_GROUP_COUNT_CAP_MAX = 256;
+
 static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_options_t &options)
 {
     os << "zbccl_bootstrap_options_t [flags: " << options.flags << ", bootstrap_type: " << options.btType
        << ", ipPort: " << ((options.ipPort == nullptr) ? "" : options.ipPort) << ", worldSize: " << options.worldSize
        << ", rankId: " << options.rankId << ", deviceId: " << options.deviceId
        << ", startConfigServer: " << options.startConfigServer << ", deviceMemorySize: " << options.deviceMemorySize
-       << ", dataOperationType: " << options.dataOperationType << "]";
+       << ", dataOperationType: " << options.dataOperationType << ", cclMetaSpaceSize: " << options.cclMetaSpaceSize
+       << ", cclGroupCap: " << options.cclGroupCap << "]";
 
     return os;
 }
 
 static inline std::ostream &operator<<(std::ostream &os, const zbccl_bootstrap_output_t &output)
 {
-    os << "zbccl_bootstrap_output_t [deviceGva: " << output.deviceGva << ", myDeviceGva: " << output.myDeviceGva
-       << ", allocatedDeviceMemorySize: " << output.allocatedDeviceMemorySize << "]";
+    os << "zbccl_bootstrap_output_t [deviceGva: " << output.deviceGva
+       << ", allocatedDeviceMemorySize: " << output.allocatedDeviceMemorySize
+       << ", myDeviceGva: " << output.myDeviceGva
+       << ", myCCLMetaDeviceGva: " << output.myCCLMetaDeviceGva << ", metaSizeOfDevice: " << output.metaSizeOfDevice
+       << ", mySMAGva: " << output.mySMAGva << ", myDeviceGva: " << output.myDeviceGva
+       << ", smaSizeOfDevice: " << output.smaSizeOfDevice << "]";
 
     return os;
 }
@@ -46,8 +58,7 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_options
 {
     os << "zbccl_ccl_options_t [backendType: " << options.backendType << ", flags: " << options.flags
        << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
-       << ", groupRankId: " << options.groupRankId << ", isolateOpMeta: " << options.isolateOpMeta
-       << ", deviceGva: " << options.deviceGva << ", myDeviceGva: " << options.myDeviceGva << "]";
+       << ", groupRankId: " << options.groupRankId << ", symmetricMetaGva: " << options.symmetricMetaGva << "]";
 
     return os;
 }

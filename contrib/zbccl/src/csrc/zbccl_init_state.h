@@ -15,6 +15,20 @@
 #include "zbccl_common_includes.h"
 
 namespace zbccl {
+struct ZBCCLInitStateExt {
+    zbccl_bootstrap_type_t btType;      /* bootstrap type */
+    uint16_t worldSize = 0;             /* world size*/
+    uint16_t worldRankId = 0;           /* world rank id*/
+    uint16_t deviceId = 0;              /* device id */
+    uint16_t cclMetaSpaceSize;          /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
+    uint16_t cclGroupCap;               /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
+    void *gvaDevice = nullptr;          /* global gva */
+    void *myCCLMetaDeviceGva = nullptr; /* gva of ccl meta of this rank */
+    uint64_t metaSizeOfDevice = 0;      /* size of device memory for SMA */
+    void *mySMAGva = nullptr;           /* gva of sma of this rank */
+    uint64_t smaSizeOfDevice = 0;       /* size of device memory for SMA */
+};
+
 class ZBCCLInitState
 {
 public:
@@ -38,22 +52,15 @@ public:
     void SmaInitialized(bool smaInited) noexcept;
     bool SmaInitialized() const noexcept;
 
-    void WorldSize(uint16_t worldSize) noexcept;
-    uint16_t WorldSize() const noexcept;
+    void Reset() noexcept;
 
-    void WorldRankId(uint16_t worldRank) noexcept;
-    uint16_t WorldRankId() const noexcept;
-
-    void DeviceId(uint16_t deviceId) noexcept;
-    uint16_t DeviceId() const noexcept;
+public:
+    ZBCCLInitStateExt ext_{};
 
 private:
     std::atomic<bool> bootstrapped_{false};
     std::atomic<bool> smaInited_{false};
-    std::atomic<int16_t> communicatorCount_{false};
-    std::atomic<uint16_t> worldSize_{0};
-    uint16_t worldRankId_ = 0;
-    uint16_t deviceId_ = 0;
+    std::atomic<int16_t> communicatorCount_{0};
 };
 
 inline void ZBCCLInitState::Bootstrapped(bool bootstrapped) noexcept
@@ -90,34 +97,12 @@ inline bool ZBCCLInitState::SmaInitialized() const noexcept
     return smaInited_.load();
 }
 
-inline void ZBCCLInitState::WorldSize(uint16_t worldSize) noexcept
+inline void ZBCCLInitState::Reset() noexcept
 {
-    worldSize_ = worldSize;
-}
-
-inline uint16_t ZBCCLInitState::WorldSize() const noexcept
-{
-    return worldSize_.load();
-}
-
-inline void ZBCCLInitState::WorldRankId(uint16_t worldRank) noexcept
-{
-    worldRankId_ = worldRank;
-}
-
-inline uint16_t ZBCCLInitState::WorldRankId() const noexcept
-{
-    return worldRankId_;
-}
-
-inline void ZBCCLInitState::DeviceId(uint16_t deviceId) noexcept
-{
-    deviceId_ = deviceId;
-}
-
-inline uint16_t ZBCCLInitState::DeviceId() const noexcept
-{
-    return deviceId_;
+    bootstrapped_ = false;
+    smaInited_ = false;
+    communicatorCount_ = 0;
+    bzero(&ext_, sizeof(ZBCCLInitStateExt));
 }
 
 }  // namespace zbccl

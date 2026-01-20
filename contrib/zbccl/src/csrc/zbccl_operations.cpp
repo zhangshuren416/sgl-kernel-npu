@@ -32,20 +32,20 @@ ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
     if (!state.Bootstrapped()) {
         ZBCCL_LOG_ERROR("Create zbccl communicator failed as not bootstrapped");
         return Z_NOT_BOOTSTRAPPED;
-    } else if (options->isWorldGroup == 1 && state.WorldSize() != options->groupSize) {
+    } else if (options->isWorldGroup == 1 && state.ext_.worldSize != options->groupSize) {
         ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
-                        << options->groupSize << "> is not equal to bootstrap's world size <" << state.WorldSize()
+                        << options->groupSize << "> is not equal to bootstrap's world size <" << state.ext_.worldSize
                         << ">");
         return Z_NOT_BOOTSTRAPPED;
-    } else if (options->isWorldGroup == 0 && state.WorldSize() < options->groupSize) {
+    } else if (options->isWorldGroup == 0 && state.ext_.worldSize < options->groupSize) {
         ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
-                        << options->groupSize << "> is bigger than bootstrap's world size <" << state.WorldSize()
+                        << options->groupSize << "> is bigger than bootstrap's world size <" << state.ext_.worldSize
                         << ">");
         return Z_NOT_BOOTSTRAPPED;
     }
 
     /* create one communicator */
-    auto result = ZBCCLComm::Create(*options, comm, state.WorldSize(), state.WorldRankId(), state.DeviceId());
+    auto result = ZBCCLComm::Create(*options, comm, state.ext_);
     if (result != Z_OK) {
         return result;
     }
@@ -125,43 +125,45 @@ ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_
 }
 
 ZBCCL_API int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
-                         uint64_t stride_count, uint8_t repeat, zbccl_comm_t comm, aclrtStream stream)
+                                   uint64_t stride_count, uint8_t repeat, zbccl_comm_t comm, aclrtStream stream)
 {
     return Z_OK;
 }
 
-ZBCCL_API int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
-                                     const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
-                                     const zbccl_tensor_info_t *recvTokensPerExpert,
-                                     const zbccl_tensor_info_t *pushTargetOffset, zbccl_comm_t comm, aclrtStream stream,
-                                     int64_t flags)
+ZBCCL_API int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount,
+                                               int64_t topKNum, const zbccl_tensor_info_t *recvBuff,
+                                               int64_t *totalRecvTokens, const zbccl_tensor_info_t *recvTokensPerExpert,
+                                               const zbccl_tensor_info_t *pushTargetOffset, zbccl_comm_t comm,
+                                               aclrtStream stream, int64_t flags)
 {
     return Z_OK;
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                     int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
-                                     const zbccl_tensor_info_t *tokensPerExpert,
-                                     const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *tokenIndex,
-                                     zbccl_comm_t comm, aclrtStream stream, int64_t flags)
+                                               int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
+                                               const zbccl_tensor_info_t *tokensPerExpert,
+                                               const zbccl_tensor_info_t *isTokenInRank,
+                                               const zbccl_tensor_info_t *tokenIndex, zbccl_comm_t comm,
+                                               aclrtStream stream, int64_t flags)
 {
     return Z_OK;
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
-                              const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset,
-                              int64_t expertNum, zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
-                              const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
-                              int64_t flags)
+                                        const zbccl_tensor_info_t *sendTokensIndex,
+                                        const zbccl_tensor_info_t *pushTargetOffset, int64_t expertNum,
+                                        zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
+                                        const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
+                                        int64_t flags)
 {
     return Z_OK;
 }
 
 ZBCCL_API int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
-                             const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                             const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
-                             const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
-                             int64_t flags)
+                                       const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
+                                       const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
+                                       const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
+                                       int64_t flags)
 {
     return Z_OK;
 }
