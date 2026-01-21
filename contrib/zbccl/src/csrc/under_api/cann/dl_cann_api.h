@@ -49,6 +49,7 @@ public:
     static ZResult AclrtMemcpy(void *dst, size_t destMax, const void *src, size_t count, uint32_t kind);
     static ZResult AclrtMemcpyAsync(void *dst, size_t destMax, const void *src, size_t count, uint32_t kind,
                                    void *stream);
+    static ZResult AclrtMemset(void *ptr, size_t maxCount, int32_t value, size_t count);
     static ZResult RtGetLogicDevIdByUserDevId(const int32_t userDevId, int32_t *const logicDevId);
 
 private:
@@ -165,6 +166,14 @@ inline ZResult DlCannApi::AclrtMemcpyAsync(void *dst, size_t destMax, const void
         return Z_DL_FUNCTION_UNLOAD;
     }
     return pAclrtMemcpyAsync(dst, destMax, src, count, kind, stream);
+}
+
+inline ZResult DlCannApi::AclrtMemset(void *ptr, size_t maxCount, int32_t value, size_t count)
+{
+    if (UNLIKELY(pAclrtMemset == nullptr)) {
+        return Z_DL_FUNCTION_UNLOAD;
+    }
+    return pAclrtMemset(ptr, maxCount, value, count);
 }
 
 inline ZResult DlCannApi::RtGetLogicDevIdByUserDevId(const int32_t userDevId, int32_t *const logicDevId)
