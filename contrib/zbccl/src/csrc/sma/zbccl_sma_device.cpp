@@ -34,37 +34,6 @@ std::string format_size(uint64_t size)
     return os.str();
 }
 
-ZEvent EventPool::get(int device)
-{
-    ZBCCL_ASSERT_S(0 <= device, "get device error:", Z_INVALID_VALUE);
-    ZBCCL_ASSERT_S(device < static_cast<int>(pools_.size()), "get device error:", Z_INVALID_VALUE);
-    auto &pool = pools_[device];
-    auto destructor = [&pool](c10_npu::NPUEvent *event) {
-        std::lock_guard<std::mutex> g(pool.mutex_);
-        pool.event_pool_.push_back(std::unique_ptr<c10_npu::NPUEvent>(event));
-    };
-
-    // Try to acquire an event from the per-device pool.
-    {
-        std::lock_guard<std::mutex> g(pool.mutex_);
-        if (!pool.event_pool_.empty()) {
-            auto *event = pool.event_pool_.back().release();
-            pool.event_pool_.pop_back();
-            return ZEvent(event, destructor);
-        }
-    }
-    // otherwise, allocate a new event that will be returned to the pool on destruction.
-    return ZEvent(std::make_unique<c10_npu::NPUEvent>(ACL_EVENT_CAPTURE_STREAM_PROGRESS).release(), destructor);
-}
-
-void EventPool::emptyCache()
-{
-    for (auto &pool : pools_) {
-        std::lock_guard<std::mutex> g(pool.mutex_);
-        pool.event_pool_.clear();
-    }
-}
-
 }  // namespace sma
 }  // namespace zbccl
 
@@ -455,39 +424,11 @@ void DeviceSMACachingAllocator::release_pool(DeviceBlockPool &pool, const std::s
     }
 }
 
-ZEvent DeviceSMACachingAllocator::create_event_internal(int idx)
+EventController* DeviceSMACachingAllocator::get_event_internal()
 {
     // Leak the event pool to avoid shutdown issues.
-    static auto *event_pool_ = new EventPool();
-    return event_pool_->get(idx);
-}
-
-void DeviceSMACachingAllocator::synchronize_and_free_events(bool check_error, const std::shared_ptr<c10::GatheredContext> &context)
-{
-    // This function syncs, so capture should not be underway. Might as well
-    // make sure capture-deferred end of life events get processed too.
-    //ZBCCL_ASSERT_S(captures_underway_.empty());
-    //insert_events_deferred_until_no_capture(context);
-
-    // Synchronize on outstanding events and then free associated blocks.
-    for (auto &st : npu_events_) {
-        for (auto &e : st.second) {
-            ZEvent event = std::move(e.first);
-            DeviceBlock *block = e.second;
-            auto err = aclrtSynchronizeEvent(*event);
-            if (err != ACL_SUCCESS) {
-                ZBCCL_LOG_ERROR("Event: aclrtSynchronizeEvent failed, event = " << event.get());
-            } else {
-                ZBCCL_LOG_INFO("Event: aclrtSynchronizeEvent is successfully executed, event = " << event.get());
-            }
-
-            block->event_count_--;
-            if (block->event_count_ == 0) {
-                free_block(block, context);
-            }
-        }
-    }
-    npu_events_.clear();
+    static auto *event_pool_ = new EventController();
+    return event_pool_;
 }
 
 bool DeviceSMACachingAllocator::release_cached_blocks(bool check_error, const std::shared_ptr<c10::GatheredContext> &context) {
@@ -515,25 +456,28 @@ bool DeviceSMACachingAllocator::release_cached_blocks(bool check_error, const st
     return true;
 }
 
+void DeviceSMACachingAllocator::synchronize_and_free_events(bool check_error, const std::shared_ptr<c10::GatheredContext> &context)
+{
+    // This function syncs, so capture should not be underway. Might as well
+    // make sure capture-deferred end of life events get processed too.
+    //ZBCCL_ASSERT_S(captures_underway_.empty());
+    //insert_events_deferred_until_no_capture(context);
+
+    auto event_pool = get_event_internal();
+    event_pool->synchronizeAndFreeEvents(this, check_error, context);
+}
+
 void DeviceSMACachingAllocator::insert_events(DeviceBlock *block)
 {
+    // insert events ctx guard
     int pre_device = -1;
     c10_npu::GetDevice(&pre_device);
     aclrtContext compiler_ctx = aclrtContext();
     aclError ret_ctx = aclrtGetCurrentContext(&compiler_ctx);
 
-    StreamSet streams(std::move(block->stream_uses_));
-    ZBCCL_ASSERT_S(block->stream_uses_.empty(), "check remain stream is empty failed:", Z_INVALID_VALUE);
-    for (auto &stream : streams) {
-        ZBCCL_CHECK_S(c10_npu::SetDevice(stream.device_index()) == ACL_SUCCESS, "c10_npu func failed");
+    auto event_pool = get_event_internal();
+    event_pool->insertEvents(this, block);
 
-        ZEvent event = create_event_internal(stream.device_index());
-        event->record(stream);
-        ZBCCL_LOG_INFO("Event: record DeviceAllocator is successfully executed, event = " << event.get());
-
-        block->event_count_++;
-        npu_events_[stream].emplace_back(std::move(event), block);
-    }
     if (ret_ctx == ACL_SUCCESS) {
         ZBCCL_CHECK_S(aclrtSetCurrentContext(compiler_ctx) == ACL_SUCCESS, "c10_npu func failed");
         // Setting context will exchange device implicitly, so we need to reset the cached device here to ensure consistency.
@@ -544,35 +488,8 @@ void DeviceSMACachingAllocator::insert_events(DeviceBlock *block)
 void DeviceSMACachingAllocator::process_events(const std::shared_ptr<c10::GatheredContext> &context) {
     //insert_events_deferred_until_no_capture(context);
 
-    // Process outstanding npuEvents. Events that are completed are removed
-    // from the queue, and the 'event_count' for the corresponding allocation
-    // is decremented. Stops at the first event which has not been completed.
-    // Since events on different devices or streams may occur out of order,
-    // the processing of some events may be delayed.
-    for (auto it = npu_events_.begin(); it != npu_events_.end();) {
-        while (!it->second.empty()) {
-            auto &e = it->second.front();
-            ZEvent event = std::move(e.first);
-            DeviceBlock *block = e.second;
-
-            if (!event->query()) {
-                e.first = std::move(event);
-                break;
-            }
-
-            block->event_count_--;
-            if (block->event_count_ == 0) {
-                free_block(block, context);
-            }
-            it->second.pop_front();
-        }
-
-        if (it->second.empty()) {
-            it = npu_events_.erase(it);
-        } else {
-            it++;
-        }
-    }
+    auto event_pool = get_event_internal();
+    event_pool->processEvents(this, context);
 }
 
 void DeviceSMACachingAllocator::cache_info_aux(DeviceBlockPool &block_pool, size_t *total, size_t *largest) {
@@ -614,18 +531,9 @@ size_t DeviceSMACachingAllocator::get_allocation_size(size_t size) {
 // public funcs
 void DeviceSMACachingAllocator::releaseAndFreeEvents() {
     std::unique_lock<std::recursive_mutex> lock(mutex_);
-    std::shared_ptr<c10::GatheredContext> context = nullptr;
-    for (auto &st : npu_events_) {
-        for (auto &e : st.second) {
-            ZEvent event_ = std::move(e.first);
-            DeviceBlock *block = e.second;
-            block->event_count_--;
-            if (block->event_count_ == 0) {
-                free_block(block, context);
-            }
-        }
-    }
-    npu_events_.clear();
+
+    auto event_pool = get_event_internal();
+    event_pool->cleanEvents(this);
 }
 
 void DeviceSMACachingAllocator::markAllBlockUnsafe() {
@@ -771,23 +679,11 @@ void DeviceSMACachingAllocator::recordStream(DeviceBlock *block, c10_npu::NPUStr
 
 // this func is a non-standard func since Pytorch do not have this API, and erase without query is a wrong action
 void DeviceSMACachingAllocator::eraseStream(DeviceBlock *block, c10_npu::NPUStream stream) {
-    std::shared_ptr<c10::GatheredContext> context = nullptr;
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     block->stream_uses_.erase(stream);
 
-    // free block, lazy destroy block related events
-    for (auto it = npu_events_[stream].begin(); it != npu_events_[stream].end();) {
-        if (block != it->second) {
-            it++;
-            continue;
-        }
-        it = npu_events_[stream].erase(it);
-        block->event_count_--;
-        if (block->event_count_ == 0) {
-            free_block(block, context);
-            break;
-        }
-    }
+    auto event_pool = get_event_internal();
+    event_pool->cleanStream(this, block, stream);
 }
 
 void DeviceSMACachingAllocator::setMemoryFraction(double fraction)

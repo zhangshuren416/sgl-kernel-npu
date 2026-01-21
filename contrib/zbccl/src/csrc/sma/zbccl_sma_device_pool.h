@@ -15,11 +15,12 @@
 #include "zbccl_sma_common.h"
 #include "zbccl_sma_config.h"
 
+using StreamSet = class ska::flat_hash_set<c10_npu::NPUStream>;
+using ZEvent = std::unique_ptr<c10_npu::NPUEvent, std::function<void(c10_npu::NPUEvent *)>>;
+
 namespace zbccl {
 namespace sma {
 namespace device {
-
-using StreamSet = class ska::flat_hash_set<c10_npu::NPUStream>;
 
 struct DeviceBlockPool;
 
@@ -126,6 +127,50 @@ struct DeviceAllocParams {
     DeviceBlock *block_{nullptr};
     DeviceBlockType block_type_;
     ZResult result_{Z_OK};
+};
+
+class DeviceSMACachingAllocator;
+
+/**
+ * @brief EventController
+ * friend of DeviceSMACachingAllocator to call free_block in allocator
+ */
+class EventController {
+public:
+    // Explicit device count
+    EventController() : pools_(c10_npu::device_count()) {}
+
+    // get a zevent on target device(cached or new)
+    ZEvent get(int device);
+
+    // sync events and free block if its events cnt down to 0
+    void synchronizeAndFreeEvents(DeviceSMACachingAllocator* allocator, bool check_error,
+                                  const std::shared_ptr<c10::GatheredContext> &context);
+
+    // insert events according to blocks stream_uses_
+    void insertEvents(DeviceSMACachingAllocator* allocator, DeviceBlock *block);
+
+    // query events and free block if its events cnt down to 0, break after query one success block(if have)
+    void processEvents(DeviceSMACachingAllocator* allocator, const std::shared_ptr<c10::GatheredContext> &context);
+
+    // [US]force to clean all Events
+    void cleanEvents(DeviceSMACachingAllocator* allocator);
+
+    // [US]force to free block on target stream
+    void cleanStream(DeviceSMACachingAllocator* allocator, DeviceBlock *block, c10_npu::NPUStream stream);
+
+    void emptyCache();
+
+private:
+    // {stream: [(event -- block*), (event -- block*)]}
+    ska::flat_hash_map<c10_npu::NPUStream, std::deque<std::pair<ZEvent, DeviceBlock *>>> npu_events_;
+
+    // this struct is too simple to drop in device_pool file
+    struct PerDevicePool {
+        alignas(64) std::mutex mutex_;
+        std::vector<std::unique_ptr<c10_npu::NPUEvent>> event_pool_;
+    };
+    std::vector<PerDevicePool> pools_;
 };
 
 }  // namespace device

@@ -10,10 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_sma_device_pool.h"
+#include "zbccl_sma_device.h"
 
 namespace zbccl {
 namespace sma {
 namespace device {
+
+using StreamSet = ska::flat_hash_set<c10_npu::NPUStream>;
 
 // DeviceBlock
 bool DeviceBlock::isSplit() const
@@ -48,6 +51,138 @@ void DeviceBlockPool::insertBlock(DeviceBlockType block_type, DeviceBlock *block
         small_blocks_.insert(block);
     else
         large_blocks_.insert(block);
+}
+
+ZEvent EventController::get(int device)
+{
+    ZBCCL_ASSERT_S(0 <= device, "get device error:", Z_INVALID_VALUE);
+    ZBCCL_ASSERT_S(device < static_cast<int>(pools_.size()), "get device error:", Z_INVALID_VALUE);
+    auto &pool = pools_[device];
+    auto destructor = [&pool](c10_npu::NPUEvent *event) {
+        std::lock_guard<std::mutex> g(pool.mutex_);
+        pool.event_pool_.push_back(std::unique_ptr<c10_npu::NPUEvent>(event));
+    };
+
+    // Try to acquire an event from the per-device pool.
+    {
+        std::lock_guard<std::mutex> g(pool.mutex_);
+        if (!pool.event_pool_.empty()) {
+            auto *event = pool.event_pool_.back().release();
+            pool.event_pool_.pop_back();
+            return ZEvent(event, destructor);
+        }
+    }
+    // otherwise, allocate a new event that will be returned to the pool on destruction.
+    return ZEvent(std::make_unique<c10_npu::NPUEvent>(ACL_EVENT_CAPTURE_STREAM_PROGRESS).release(), destructor);
+}
+
+void EventController::emptyCache()
+{
+    for (auto &pool : pools_) {
+        std::lock_guard<std::mutex> g(pool.mutex_);
+        pool.event_pool_.clear();
+    }
+}
+
+void EventController::synchronizeAndFreeEvents(DeviceSMACachingAllocator* allocator, bool check_error,
+                                               const std::shared_ptr<c10::GatheredContext> &context) {
+    // Synchronize on outstanding events and then free associated-blocks.
+    for (auto &st : npu_events_) {
+        for (auto &e : st.second) {
+            ZEvent event = std::move(e.first);
+            DeviceBlock *block = e.second;
+            auto err = aclrtSynchronizeEvent(*event);
+            if (err != ACL_SUCCESS) {
+                ZBCCL_LOG_ERROR("Event: aclrtSynchronizeEvent failed, event = " << event.get());
+            } else {
+                ZBCCL_LOG_INFO("Event: aclrtSynchronizeEvent is successfully executed, event = " << event.get());
+            }
+
+            block->event_count_--;
+            if (block->event_count_ == 0) {
+                allocator->free_block(block, context);
+            }
+        }
+    }
+    npu_events_.clear();
+}
+
+void EventController::insertEvents(DeviceSMACachingAllocator* allocator, DeviceBlock *block) {
+    StreamSet streams(std::move(block->stream_uses_));
+    ZBCCL_ASSERT_S(block->stream_uses_.empty(), "check remain stream is empty failed:", Z_INVALID_VALUE);
+    for (auto &stream : streams) {
+        ZBCCL_CHECK_S(c10_npu::SetDevice(stream.device_index()) == ACL_SUCCESS, "c10_npu func failed");
+
+        ZEvent event = get(stream.device_index());
+        event->record(stream);
+        ZBCCL_LOG_INFO("Event: record DeviceAllocator is successfully executed, event = " << event.get());
+
+        block->event_count_++;
+        npu_events_[stream].emplace_back(std::move(event), block);
+    }
+}
+
+void EventController::processEvents(DeviceSMACachingAllocator* allocator, const std::shared_ptr<c10::GatheredContext> &context) {
+    // Process outstanding npuEvents. Events that are completed are removed
+    // from the queue, and the 'event_count' for the corresponding allocation
+    // is decremented. Stops at the first event which has not been completed.
+    // Since events on different devices or streams may occur out of order,
+    // the processing of some events may be delayed.
+    // first: ZEvent; second: Block*
+    for (auto it = npu_events_.begin(); it != npu_events_.end();) {
+        while (!it->second.empty()) {
+            auto &e = it->second.front();
+            ZEvent event = std::move(e.first);
+            DeviceBlock *block = e.second;
+
+            if (!event->query()) {
+                e.first = std::move(event);
+                break;
+            }
+
+            block->event_count_--;
+            if (block->event_count_ == 0) {
+                allocator->free_block(block, context);
+            }
+            it->second.pop_front();
+        }
+
+        if (it->second.empty()) {
+            it = npu_events_.erase(it);
+        } else {
+            it++;
+        }
+    }
+}
+
+void EventController::cleanEvents(DeviceSMACachingAllocator* allocator) {
+    for (auto &st : npu_events_) {
+        for (auto &e : st.second) {
+            ZEvent event_ = std::move(e.first);
+            DeviceBlock *block = e.second;
+            block->event_count_--;
+            if (block->event_count_ == 0) {
+                allocator->free_block(block, nullptr);
+            }
+        }
+    }
+    npu_events_.clear();
+}
+
+void EventController::cleanStream(DeviceSMACachingAllocator* allocator, DeviceBlock *block, c10_npu::NPUStream stream) {
+    // free block, lazy destroy block related events
+    for (auto it = npu_events_[stream].begin(); it != npu_events_[stream].end();) {
+        if (block != it->second) {
+            it++;
+            continue;
+        }
+        it = npu_events_[stream].erase(it);
+        block->event_count_--;
+        if (block->event_count_ == 0) {
+            allocator->free_block(block, nullptr);
+            break;
+        }
+    }
 }
 
 }  // namespace device

@@ -20,25 +20,6 @@ using ZEvent = std::unique_ptr<c10_npu::NPUEvent, std::function<void(c10_npu::NP
 
 namespace zbccl {
 namespace sma {
-
-class EventPool {
-public:
-    // Explicit device count
-    EventPool() : pools_(c10_npu::device_count()) {}
-
-    ZEvent get(int device);
-
-    void emptyCache();
-
-private:
-    // this struct is too simple to drop in device_pool file
-    struct PerDevicePool {
-        alignas(64) std::mutex mutex_;
-        std::vector<std::unique_ptr<c10_npu::NPUEvent>> event_pool_;
-    };
-    std::vector<PerDevicePool> pools_;
-};
-
 // To prevent the deadlock situation, temporarily release the lock.
 //
 // Deadlock Scenario Description:
@@ -69,6 +50,8 @@ namespace zbccl {
 namespace sma {
 namespace device {
 
+class EventController;
+
 class DeviceSMACachingAllocator {
 public:
     // TODO: move this(shm-vmm heap class for shmem) into private
@@ -90,7 +73,8 @@ private:
     ska::flat_hash_set<void *> shmem_addrs_;
 
     // outstanding acl events
-    ska::flat_hash_map<c10_npu::NPUStream, std::deque<std::pair<ZEvent, DeviceBlock *>>> npu_events_;
+    friend class ::zbccl::sma::device::EventController;
+    // use get_event_internal to lazy init static EventController to avoid shutdown issues
 
     // record used memory.
     size_t total_allocated_memory_ = 0;
@@ -131,8 +115,6 @@ private:
     // get all blocks(in default_pool, graph_pools, and active blocks)
     std::vector<const DeviceBlock *> get_all_blocks() const;
 
-    //std::vector<DeviceBlock*> get_private_pool_head_blocks(DevicePoolPtr pool) const;
-
     // free a block from active blocks into the pool of cached free blocks
     void free_block(DeviceBlock *block, const std::shared_ptr<c10::GatheredContext> &context, uint8_t allocator_type = 0);
 
@@ -170,20 +152,23 @@ private:
     // release all block in pool, also free private pool if free_private
     void release_pool(DeviceBlockPool &pool, const std::shared_ptr<c10::GatheredContext> &context, bool free_private);
 
-    ZEvent create_event_internal(int idx);
+    // get static EventController(to avoid auto release issue)
+    EventController* get_event_internal();
 
-    // synchronize on all outstanding events and then free associated blocks.
+    // synchronize on all outstanding events and then free associated-blocks.
     void synchronize_and_free_events(bool check_error, const std::shared_ptr<c10::GatheredContext> &context);
-
-    // void remove_npugraph_stream_uses(DeviceBlock *block);
 
     // insert events for all streams using this activated block
     void insert_events(DeviceBlock *block);
 
-    // void insert_events_deferred_until_no_capture(const std::shared_ptr<c10::GatheredContext> &context);
-
     // check each stream's events, process only one case if queried ended, decrease block event_count_ and free when it down to 0
     void process_events(const std::shared_ptr<c10::GatheredContext> &context);
+
+    //std::vector<DeviceBlock*> get_private_pool_head_blocks(DevicePoolPtr pool) const;
+
+    //void remove_npugraph_stream_uses(DeviceBlock *block);
+
+    //void insert_events_deferred_until_no_capture(const std::shared_ptr<c10::GatheredContext> &context);
 
     // Accumulates sizes of all memory blocks for given device in given pool
     void cache_info_aux(DeviceBlockPool &block_pool, size_t *total, size_t *largest);
