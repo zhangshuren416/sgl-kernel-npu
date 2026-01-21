@@ -83,7 +83,7 @@ public:
      * @return 0 if successful
      */
     virtual int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                              zbccl_reduce_op_t op) noexcept = 0;
+                              zbccl_reduce_op_t op, aclrtStream stream) noexcept = 0;
 
     /**
      * @brief Do ReduceScatter operation
@@ -91,7 +91,7 @@ public:
      * @return 0 if successful
      */
     virtual int32_t ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
-                                  zbccl_reduce_op_t op) noexcept = 0;
+                                  zbccl_reduce_op_t op, aclrtStream stream) noexcept = 0;
 
     /**
      * @brief Do allGather operation
@@ -99,7 +99,7 @@ public:
      * @return 0 if successful
      */
     virtual int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count,
-                              zbccl_datatype_t data_type) noexcept = 0;
+                              zbccl_datatype_t data_type, aclrtStream stream) noexcept = 0;
 
     /**
      * @brief Do All2all operation
@@ -107,7 +107,7 @@ public:
      * @return 0 if successful
      */
     virtual int32_t All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
-                            uint64_t stride_count, uint8_t repeat) noexcept = 0;
+                            uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept = 0;
 
     /**
      * @brief Do dispatch normal notify operation

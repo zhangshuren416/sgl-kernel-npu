@@ -56,7 +56,7 @@ add_library(boostrap_objects OBJECT ${BOOSTRAP_SRCS})
 target_compile_options(boostrap_objects PRIVATE -fPIC)
 
 # ccl objects
-file(GLOB_RECURSE CCL_SRCS
+file(GLOB CCL_SRCS
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp)
 add_library(ccl_objects OBJECT ${CCL_SRCS})

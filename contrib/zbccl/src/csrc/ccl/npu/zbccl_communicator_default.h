@@ -31,16 +31,16 @@ public:
     void UnInitialize() noexcept override;
 
     int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                      zbccl_reduce_op_t op) noexcept override;
+                      zbccl_reduce_op_t op, aclrtStream stream) noexcept override;
 
     int32_t ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
-                          zbccl_reduce_op_t op) noexcept override;
+                          zbccl_reduce_op_t op, aclrtStream stream) noexcept override;
 
     int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count,
-                      zbccl_datatype_t data_type) noexcept override;
+                      zbccl_datatype_t data_type, aclrtStream stream) noexcept override;
 
     int32_t All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
-                    uint64_t stride_count, uint8_t repeat) noexcept;
+                    uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept;
 
     int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
                                  const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,

@@ -111,7 +111,7 @@ ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
-    return innerComm->AllReduce(send_buff, recv_buff, count, data_type, op);
+    return innerComm->AllReduce(send_buff, recv_buff, count, data_type, op, stream);
 }
 
 ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count,
@@ -130,7 +130,7 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
-    return innerComm->ReduceScatter(send_buff, recv_buff, recv_count, data_type, op);
+    return innerComm->ReduceScatter(send_buff, recv_buff, recv_count, data_type, op, stream);
 }
 
 ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count,
@@ -146,7 +146,7 @@ ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
-    return innerComm->AllGather(send_buff, recv_buff, send_count, data_type);
+    return innerComm->AllGather(send_buff, recv_buff, send_count, data_type, stream);
 }
 
 ZBCCL_API int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,

@@ -29,27 +29,28 @@ void ZBCCLCommDefault::UnInitialize() noexcept
 }
 
 int32_t ZBCCLCommDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                                    zbccl_reduce_op_t op) noexcept
+                                    zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
     // TODO
     return Z_OK;
 }
 
 int32_t ZBCCLCommDefault::ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count,
-                                        zbccl_datatype_t data_type, zbccl_reduce_op_t op) noexcept
+                                        zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
     // TODO
     return Z_OK;
 }
 
 int32_t ZBCCLCommDefault::AllGather(const void *send_buff, void *recv_buff, size_t send_count,
-                                    zbccl_datatype_t data_type) noexcept
-{  // TODO
+                                    zbccl_datatype_t data_type, aclrtStream stream) noexcept
+{
+    // TODO
     return Z_OK;
 }
 
 int32_t ZBCCLCommDefault::All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
-                                  uint64_t stride_count, uint8_t repeat) noexcept
+                                  uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept
 {
     // TODO
     return Z_OK;
