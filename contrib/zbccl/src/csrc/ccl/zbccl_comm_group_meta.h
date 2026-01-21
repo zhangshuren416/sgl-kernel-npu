@@ -60,10 +60,7 @@ inline uint64_t GroupMetaArranger::GetSingleMetaSpaceSize() const noexcept
 
 inline uint64_t GroupMetaArranger::GetAddressExchangeSpaceSize() const noexcept
 {
-    uint64_t tmpSingleSize = singleMetaSpaceSize_;
-    /* translate to bytes */
-    tmpSingleSize = tmpSingleSize * 1024;
-    return tmpSingleSize - OPERATE_PARAM_SIZE;
+    return singleMetaSpaceSize_ - OPERATE_PARAM_SIZE;
 }
 }  // namespace ccl
 }  // namespace zbccl

@@ -105,9 +105,11 @@ public:
         if (strftime(strTime, sizeof strTime, "%Y-%m-%d %H:%M:%S.", result) != 0) {
             const uint8_t TIME_WIDTH = 6U;
             std::cout << strTime << std::setw(TIME_WIDTH) << std::setfill('0') << tv.tv_usec << " "
-                      << LogLevelDesc(level) << syscall(SYS_gettid) << logMsg << std::endl;
+                      << LogLevelDesc(level) << " " << getpid() << ":" << syscall(SYS_gettid) << " " << logMsg
+                      << std::endl;
         } else {
-            std::cout << " Invalid time " << LogLevelDesc(level) << syscall(SYS_gettid) << logMsg << std::endl;
+            std::cout << " Invalid time " << LogLevelDesc(level) << " " << getpid() << ":" << syscall(SYS_gettid) << " "
+                      << logMsg << std::endl;
         }
         // LCOV_EXCL_STOP
     }
@@ -138,7 +140,7 @@ private:
     LogLevel logLevel_ = ERROR_LEVEL;
     ExternalLog logFunc_ = nullptr;
 
-    const char *logLevelDesc_[BUTT_LEVEL] = {"debug", "info", "warn", "error", "fatal"};
+    const char *logLevelDesc_[BUTT_LEVEL] = {"DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
 };
 }  // namespace zbccl
 

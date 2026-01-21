@@ -30,7 +30,7 @@ ZResult GroupMetaArranger::Initialize(const ZBCCLInitStateExt &extraState) noexc
     auto result = Verify();
     if (result != Z_OK) {
         UnInitialize();
-        ZBCCL_LOG_ERROR("Initialize group meta arranger failed, result " << result);
+        ZBCCL_LOG_ERROR("Initialize group meta arranger failed, result: " << result);
         return result;
     }
 
@@ -52,6 +52,7 @@ ZResult GroupMetaArranger::Verify() noexcept
         return Z_OK;
     }
 
+    ZBCCL_LOG_ERROR("Size of meta space is less than single space multiple group cap");
     return Z_ERROR;
 }
 

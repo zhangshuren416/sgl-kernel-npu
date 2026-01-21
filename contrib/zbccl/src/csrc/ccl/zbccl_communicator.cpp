@@ -17,6 +17,7 @@ namespace zbccl {
 namespace ccl {
 ZBCCLCommPtr ZBCCLComm::gWorldZBCCLComm{nullptr};
 std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
+std::map<std::string, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMapByName_;
 std::mutex ZBCCLComm::gMutex;
 
 ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState)

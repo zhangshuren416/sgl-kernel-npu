@@ -48,7 +48,9 @@ file(GLOB_RECURSE ZBCCL_TEST_CASE_SRCS
 
 message(STATUS "ZBCCL_TEST_CASE_SRCS = ${ZBCCL_TEST_CASE_SRCS}")
 
-add_executable(test_zbccl ${ZBCCL_TEST_CASE_SRCS} $<TARGET_OBJECTS:common_objects>)
+add_executable(test_zbccl ${ZBCCL_TEST_CASE_SRCS}
+        $<TARGET_OBJECTS:common_objects>
+        $<TARGET_OBJECTS:ccl_objects>)
 
 target_compile_options(test_zbccl PRIVATE -fPIC -Wno-float-equal)
 target_link_options(test_zbccl PRIVATE -pie)
