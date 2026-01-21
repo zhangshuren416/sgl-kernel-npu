@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Initialize 'zbccl_bootstrap_options_t' with default values
+  * @brief Initialize 'zbccl_bootstrap_options_t' with default values
  *
  * @param options          [in] options to be initialized
  *

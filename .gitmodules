@@ -1,0 +1,4 @@
+[submodule "contrib/zbccl/test/3rdparty/googletest"]
+	path = contrib/zbccl/test/3rdparty/googletest
+	url = https://github.com/google/googletest.git
+	branch = tags/v1.12.0
