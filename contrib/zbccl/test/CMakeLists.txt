@@ -8,15 +8,14 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-set(ZBCCL_BASE_DIR ${PROJECT_SOURCE_DIR}/contrib/zbccl/)
-set(ZBCCL_SRC_DIR ${PROJECT_SOURCE_DIR}/contrib/zbccl/src)
+set(ZBCCL_TEST_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(ZBCCL_TEST_3RDPARTY_DIR ${ZBCCL_TEST_BASE_DIR}/3rdparty)
+set(ZBCCL_TEST_3RDPARTY_OUTPUT_DIR ${ZBCCL_TEST_BASE_DIR}/output/3rdparty)
 
-# set the library output dir to the python dir for wheel package build
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ZBCCL_BASE_DIR}/python/zbccl/lib)
-
-add_subdirectory(src/csrc)
+link_directories(${ZBCCL_TEST_3RDPARTY_OUTPUT_DIR}/googletest/lib)
 
 if (BUILD_ZBCCL_MODULE_UT)
-    message(STATUS "build test is required")
-    add_subdirectory(test)
+    message(STATUS "ZBCCL_TEST_3RDPARTY_OUTPUT_DIR = ${ZBCCL_TEST_3RDPARTY_OUTPUT_DIR}")
+    add_subdirectory(3rdparty)
+    add_subdirectory(ut)
 endif ()

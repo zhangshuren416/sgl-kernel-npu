@@ -40,30 +40,72 @@ include_directories(
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/aclshmem
 )
 
-file(GLOB_RECURSE ZBCCL_SRC
-        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/*.cpp
+# we seperated those files for ut with different modules
+# PyTorch adaptor
+file(GLOB_RECURSE PYTORCH_ADAPTOR_SRCS
+        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp)
+add_library(pytorch_adaptor_objects OBJECT ${PYTORCH_ADAPTOR_SRCS})
+target_compile_options(pytorch_adaptor_objects PRIVATE -fPIC)
+
+# boostrap objects
+file(GLOB_RECURSE BOOSTRAP_SRCS
+       ${ZBCCL_SRC_DIR}/csrc/bootstrap/*.cpp
+       ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp
+       ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/memfabric/*.cpp)
+add_library(boostrap_objects OBJECT ${BOOSTRAP_SRCS})
+target_compile_options(boostrap_objects PRIVATE -fPIC)
+
+# ccl objects
+file(GLOB_RECURSE CCL_SRCS
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/common/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp)
+add_library(ccl_objects OBJECT ${CCL_SRCS})
+target_compile_options(ccl_objects PRIVATE -fPIC)
+
+# common objects
+file(GLOB_RECURSE COMMON_SRCS
+        ${ZBCCL_SRC_DIR}/csrc/common/*.cpp)
+add_library(common_objects OBJECT ${COMMON_SRCS})
+target_compile_options(common_objects PRIVATE -fPIC)
+
+# memory allocator objects
+file(GLOB_RECURSE ALLOCATOR_SRCS
+        ${ZBCCL_SRC_DIR}/csrc/dma/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp)
+add_library(allocator_objects OBJECT ${ALLOCATOR_SRCS})
+target_compile_options(allocator_objects PRIVATE -fPIC)
+
+# under api objects
+file(GLOB_RECURSE UNDER_API_SRCS
         ${ZBCCL_SRC_DIR}/csrc/under_api/cann/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/under_api/memfabric/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/bootstrap/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/memfabric/*.cpp
-)
+        ${ZBCCL_SRC_DIR}/csrc/under_api/memfabric/*.cpp)
+add_library(under_api_objects OBJECT ${UNDER_API_SRCS})
+target_compile_options(under_api_objects PRIVATE -fPIC)
 
-## build the static and shared library
-add_library(zbccl_objects OBJECT ${ZBCCL_SRC})
-
-target_link_libraries(zbccl_objects PUBLIC zbccl)
+# zbccl objects
+file(GLOB ZBCCL_SRCS
+        ${ZBCCL_SRC_DIR}/csrc/*.cpp)
+add_library(zbccl_objects OBJECT ${ZBCCL_SRCS})
 target_compile_options(zbccl_objects PRIVATE -fPIC)
 
-add_library(zbccl_static STATIC $<TARGET_OBJECTS:zbccl_objects>)
+add_library(zbccl_static STATIC $<TARGET_OBJECTS:pytorch_adaptor_objects>
+                                $<TARGET_OBJECTS:boostrap_objects>
+                                $<TARGET_OBJECTS:ccl_objects>
+                                $<TARGET_OBJECTS:common_objects>
+                                $<TARGET_OBJECTS:allocator_objects>
+                                $<TARGET_OBJECTS:under_api_objects>
+                                $<TARGET_OBJECTS:zbccl_objects>
+                                )
 set_target_properties(zbccl_static PROPERTIES OUTPUT_NAME "zbccl")
 
-add_library(zbccl_shared SHARED $<TARGET_OBJECTS:zbccl_objects>)
+add_library(zbccl_shared SHARED $<TARGET_OBJECTS:pytorch_adaptor_objects>
+                                $<TARGET_OBJECTS:boostrap_objects>
+                                $<TARGET_OBJECTS:ccl_objects>
+                                $<TARGET_OBJECTS:common_objects>
+                                $<TARGET_OBJECTS:allocator_objects>
+                                $<TARGET_OBJECTS:under_api_objects>
+                                $<TARGET_OBJECTS:zbccl_objects>
+                                )
 set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl")
 target_link_libraries(zbccl_shared PUBLIC pthread)
 

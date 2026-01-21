@@ -8,6 +8,7 @@ option(BUILD_DEEPEP_MODULE "build deepep" OFF)
 option(BUILD_KERNELS_MODULE  "build kernels" OFF)
 option(BUILD_CATLASS_MODULE  "build catlass ops within kernels" OFF)
 option(BUILD_ZBCCL_MODULE  "build zbccl library" ON)
+option(BUILD_ZBCCL_MODULE_UT  "build unit test for zbccl library" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
