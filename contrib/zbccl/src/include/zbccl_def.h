@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #define ZBCCL_MAX_RANKS 1024
+#define ZBCCL_COMM_NAME_MAX 128
 
 typedef void *zbccl_comm_t;
 
@@ -96,6 +97,7 @@ typedef struct {
 } zbccl_allocator_options_t;
 
 typedef struct {
+    char *name;                  /* name of the comm object */
     zbccl_backend_t backendType; /* backend type */
     uint32_t flags;              /* optional flags */
     uint16_t isWorldGroup;       /* if this is the world group, 1 means true, 0 means false */
@@ -105,6 +107,7 @@ typedef struct {
 } zbccl_ccl_options_t;
 
 typedef struct {
+    char name[ZBCCL_COMM_NAME_MAX];                    /* name of the comm object */
     zbccl_backend_t backendType;                       /* backend type */
     uint32_t flags;                                    /* optional flags */
     uint16_t isWorldGroup;                             /* if this is the world group, 1 means true, 0 means false */

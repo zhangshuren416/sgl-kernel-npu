@@ -22,29 +22,33 @@ extern "C" {
 
 ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
 {
-    ZBCCL_VALIDATE_RETURN(options != nullptr, "Create zbccl communicator failed as options is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(options != nullptr, "Create communicator failed as options is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(options->name != nullptr, "Create communicator failed as name is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(strlen(options->name) != 0, "Create communicator failed as name is empty", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(
+        strlen(options->name) < ZBCCL_COMM_NAME_MAX,
+        "Create communicator failed as name is too long, which should be less than " << ZBCCL_COMM_NAME_MAX,
+        Z_INVALID_PARAM);
 
     ZBCCL_LOG_INFO("options dump, " << (*options));
 
     auto &state = ZBCCLInitState::Instance();
 
     if (!state.Bootstrapped()) {
-        ZBCCL_LOG_ERROR("Create zbccl communicator failed as not bootstrapped");
+        ZBCCL_LOG_ERROR("Create communicator failed as not bootstrapped");
         return Z_NOT_BOOTSTRAPPED;
     } else if (options->isWorldGroup == 1 && state.ext_.worldSize != options->groupSize) {
-        ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
-                        << options->groupSize << "> is not equal to bootstrap's world size <" << state.ext_.worldSize
-                        << ">");
+        ZBCCL_LOG_ERROR("Create communicator failed as world size "
+                        << options->groupSize << " is not equal to bootstrap's world size " << state.ext_.worldSize);
         return Z_NOT_BOOTSTRAPPED;
     } else if (options->isWorldGroup == 0 && state.ext_.worldSize < options->groupSize) {
-        ZBCCL_LOG_ERROR("Create zbccl communicator failed as world size <"
-                        << options->groupSize << "> is bigger than bootstrap's world size <" << state.ext_.worldSize
-                        << ">");
+        ZBCCL_LOG_ERROR("Create communicator failed as world size "
+                        << options->groupSize << " is bigger than bootstrap's world size " << state.ext_.worldSize);
         return Z_NOT_BOOTSTRAPPED;
     }
 
-    /* create one communicator */
+    /* create one comm */
     auto result = ZBCCLComm::Create(*options, comm, state.ext_);
     if (result != Z_OK) {
         return result;
@@ -56,16 +60,30 @@ ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
     return Z_OK;
 }
 
-ZBCCL_API int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property) {
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+ZBCCL_API int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property)
+{
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Get property as comm is null", Z_INVALID_PARAM);
 
     // TODO
     return Z_OK;
 }
 
+ZBCCL_API zbccl_comm_t zbccl_get_comm_by_name(const char *name)
+{
+    ZBCCL_VALIDATE_RETURN(name != nullptr, "Get communicator failed as name is null", nullptr);
+
+    zbccl_comm_t comm = nullptr;
+    auto result = ZBCCLComm::Lookup(std::string(name), &comm);
+    if (result != Z_OK) {
+        return nullptr;
+    }
+
+    return comm;
+}
+
 ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t comm, uint32_t flags)
 {
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create zbccl communicator failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
 
     /* destroy one */
     auto result = ZBCCLComm::Destroy(comm, flags);

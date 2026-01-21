@@ -41,6 +41,7 @@ enum ZResultErrorCode : ZResult {
     Z_CREATE_COMM_FAILED = -16,
     Z_DL_FUNCTION_UNLOAD = -17,
     Z_CCL_EXEC_FAILED = -18,
+    Z_CCL_NOT_EXIST_BY_NAME = -19,
 };
 
 constexpr uint32_t PATH_MAX_LIMIT = 4096;

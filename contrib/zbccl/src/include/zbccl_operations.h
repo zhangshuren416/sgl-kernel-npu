@@ -37,6 +37,14 @@ int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm);
 int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property);
 
 /**
+ * @brief Get communicator object by name
+ *
+ * @param name                 [in] name of the communicator
+ * @return comm object if successful, null if no such communicator
+ */
+zbccl_comm_t zbccl_get_comm_by_name(const char* name);
+
+/**
  * @brief Destroy zero buffer communicator
  *
  * @param comm                 [in] the communicator to be destroyed

@@ -29,12 +29,14 @@ namespace zbccl {
 using ExternalLog = void (*)(int, const char *);
 
 template <typename T>
-void log_recursive(std::ostream& os, T&& arg) {
+void log_recursive(std::ostream &os, T &&arg)
+{
     os << std::forward<T>(arg);
 }
 
 template <typename... Args>
-void log_all(std::ostream& os, Args&&... args) {
+void log_all(std::ostream &os, Args &&...args)
+{
     (os << ... << std::forward<Args>(args));
 }
 
@@ -78,7 +80,8 @@ public:
         }
     }
 
-    inline ExternalLog GetExternalLogFunction() const {
+    inline ExternalLog GetExternalLogFunction() const
+    {
         return logFunc_;
     }
 
@@ -179,6 +182,14 @@ private:
         ZBCCL_LOG_ERROR(tmpStr.str());         \
     } while (0)
 
+#define ZBCCL_LOG_INFO_AND_SET_LAST_ERROR(msg) \
+    do {                                       \
+        std::stringstream tmpStr;              \
+        tmpStr << msg;                         \
+        zbccl::ZBLastError::Set(tmpStr.str()); \
+        ZBCCL_LOG_INFO(tmpStr.str());          \
+    } while (0)
+
 #define ZBCCL_VALIDATE_RETURN(ARGS, msg, RET)    \
     do {                                         \
         if (__builtin_expect(!(ARGS), 0) != 0) { \
@@ -210,27 +221,27 @@ private:
     } while (0)
 
 #define ZBCCL_CHECK_S(condition, ...)                               \
-do {                                                                \
-    if (!(condition)) {                                             \
-        std::ostringstream oss;                                     \
-        oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] "     \
-            << "Check failed: " #condition ". ";                    \
-        zbccl::log_all(oss, __VA_ARGS__);                           \
-        oss << std::endl;                                           \
-        throw std::runtime_error(oss.str());                        \
-    }                                                               \
-} while (0)
+    do {                                                            \
+        if (!(condition)) {                                         \
+            std::ostringstream oss;                                 \
+            oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] " \
+                << "Check failed: " #condition ". ";                \
+            zbccl::log_all(oss, __VA_ARGS__);                       \
+            oss << std::endl;                                       \
+            throw std::runtime_error(oss.str());                    \
+        }                                                           \
+    } while (0)
 
-#define ZBCCL_ASSERT_S(condition, ...)                             \
-do {                                                               \
-    if (!(condition)) {                                            \
-        std::ostringstream oss;                                    \
-        oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] "    \
-            << "Assertion failed: (" #condition ") ";              \
-        zbccl::log_all(oss, __VA_ARGS__);                          \
-        oss << std::endl;                                          \
-        throw std::runtime_error(oss.str());                       \
-    }                                                              \
-} while (0)
+#define ZBCCL_ASSERT_S(condition, ...)                              \
+    do {                                                            \
+        if (!(condition)) {                                         \
+            std::ostringstream oss;                                 \
+            oss << "[ZBCCL_" << __FILE__ << ":" << __LINE__ << "] " \
+                << "Assertion failed: (" #condition ") ";           \
+            zbccl::log_all(oss, __VA_ARGS__);                       \
+            oss << std::endl;                                       \
+            throw std::runtime_error(oss.str());                    \
+        }                                                           \
+    } while (0)
 
 #endif  // ZBCCL_LOGGER_H

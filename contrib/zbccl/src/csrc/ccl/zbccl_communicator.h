@@ -17,6 +17,7 @@
 namespace zbccl {
 namespace ccl {
 struct ZBCommOptions {
+    std::string name;                        /* name */
     uint16_t worldSize = 0;                  /* the ranks in the world */
     uint16_t groupSize = 0;                  /* the ranks in the group */
     uint16_t myWorldRank = 0;                /* rank id in the world */
@@ -58,6 +59,7 @@ public:
     static ZResult Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState);
     static ZResult Destroy(zbccl_comm_t comm, uint32_t flags);
     static void DestroyAll();
+    static ZResult Lookup(const std::string &name, zbccl_comm_t *comm);
 
 public:
     ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup);
@@ -157,9 +159,11 @@ public:
      *
      * @return true if world group
      */
-    bool IsWorldGroup() const;
+    bool IsWorldGroup() const noexcept;
 
-    const ZBCommMetaInfo &GetMetaInfo() const;
+    const ZBCommMetaInfo &GetMetaInfo() const noexcept;
+
+    const std::string &Name() const noexcept;
 
 protected:
     bool isWorldGroup_ = false; /* if it is world group */
@@ -170,20 +174,26 @@ private:
     static ZBCCLCommPtr CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
     static ZResult DestroyInner(ZBCCLCommPtr &comm);
     static void DestroyAllInner();
+    static ZResult LookupInner(const std::string &name, ZBCCLCommPtr &comm);
 
-    static ZBCCLCommPtr gWorldZBCCLComm;                           /* the world comm, i.e. the first one */
-    static std::mutex gMutex;                                      /* mutex for world comm */
-    static std::map<uintptr_t, ZBCCLCommPtr> gZBCCLCommLookupMap_; /* all comm object except the world comm */
+    static ZBCCLCommPtr gWorldZBCCLComm;                                   /* the world comm, i.e. the first one */
+    static std::mutex gMutex;                                              /* mutex for world comm */
+    static std::map<uintptr_t, ZBCCLCommPtr> gZBCCLCommLookupMap_;         /* all comm object except the world comm */
+    static std::map<std::string, ZBCCLCommPtr> gZBCCLCommLookupMapByName_; /* all comm object except the world comm */
 };
 
-inline bool ZBCCLComm::IsWorldGroup() const
+inline bool ZBCCLComm::IsWorldGroup() const noexcept
 {
     return isWorldGroup_;
 }
 
-inline const ZBCommMetaInfo &ZBCCLComm::GetMetaInfo() const
+inline const ZBCommMetaInfo &ZBCCLComm::GetMetaInfo() const noexcept
 {
     return metaInfo_;
+}
+
+inline const std::string &ZBCCLComm::Name() const noexcept {
+    return metaInfo_.name;
 }
 
 }  // namespace ccl

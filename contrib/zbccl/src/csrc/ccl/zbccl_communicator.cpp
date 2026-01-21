@@ -23,6 +23,9 @@ ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm
 {
     /* translate api options to inner options */
     ZBCommOptions commOptions;
+    ZBCCL_ASSERT_RETURN(options.name != nullptr, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(strlen(options.name) != 0, Z_INVALID_PARAM);
+    commOptions.name = std::string(options.name);
     commOptions.worldSize = extraState.worldSize;
     commOptions.groupSize = options.groupSize;
     commOptions.myWorldRank = extraState.worldRankId;
@@ -76,6 +79,20 @@ void ZBCCLComm::DestroyAll()
     DestroyAllInner();
 }
 
+ZResult ZBCCLComm::Lookup(const std::string &name, zbccl_comm_t *comm)
+{
+    std::lock_guard<std::mutex> guard(gMutex);
+
+    ZBCCLCommPtr tmpComm;
+    auto result = LookupInner(name, tmpComm);
+    if (result != Z_OK) {
+        return result;
+    }
+
+    *comm = tmpComm.Get();
+    return Z_OK;
+}
+
 ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
     : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup)
 {
@@ -88,10 +105,15 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
 
     /* lock is acquired by caller already */
 
+    if (gZBCCLCommLookupMapByName_.find(options.name) == gZBCCLCommLookupMapByName_.end()) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as there is already one named " << options.name);
+        return nullptr;
+    }
+
     if (backendType == ZBCCL_ASCEND_NPU) {
         auto comm = ZMakeRef<ZBCCLCommDefault>(options, isWorldGroup, gWorldZBCCLComm);
         if (comm == nullptr) {
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed, probably out of memory");
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed, probably out of memory");
             return nullptr;
         }
 
@@ -104,13 +126,14 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              */
             gWorldZBCCLComm = comm.Get();
             comm->IncreaseRef();
+            gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
             return comm.Get();
         } else if (isWorldGroup && gWorldZBCCLComm != nullptr) {
             /*
              * if world group already created and return nullptr,
              * return nullptr directly as its already created
              */
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed as world group already created");
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group already created");
             return nullptr;
         } else if (!isWorldGroup && gWorldZBCCLComm == nullptr) {
             /*
@@ -118,13 +141,14 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              * here we need to create world group firstly,
              * return nullptr
              */
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create zbccl communicator failed as world group not created");
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group not created");
             return nullptr;
         } else {
             /*
              * if not world group and world group created
              */
             gZBCCLCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
+            gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
             return comm.Get();
         }
     }
@@ -146,6 +170,7 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 
         if (gWorldZBCCLComm != nullptr) {
             ZBCCL_LOG_INFO("Destroying the world ZBCCLComm");
+            gZBCCLCommLookupMapByName_.erase(gWorldZBCCLComm->Name());
             gWorldZBCCLComm->DecreaseRef();
             gWorldZBCCLComm = nullptr;
         }
@@ -153,7 +178,16 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
     }
 
     /* erase from lookup map directly */
-    gZBCCLCommLookupMap_.erase(reinterpret_cast<uintptr_t>(comm.Get()));
+    auto iter = gZBCCLCommLookupMap_.find(reinterpret_cast<uintptr_t>(comm.Get()));
+    if (iter == gZBCCLCommLookupMap_.end()) {
+        ZBCCL_LOG_INFO("Destroy communicator failed as no such communicator existed");
+        return Z_OK;
+    }
+
+    if (iter->second != nullptr) {
+        gZBCCLCommLookupMapByName_.erase(iter->second->Name());
+        gZBCCLCommLookupMap_.erase(iter);
+    }
 
     return Z_OK;
 }
@@ -164,12 +198,27 @@ void ZBCCLComm::DestroyAllInner()
 
     /* clear all other world comm*/
     gZBCCLCommLookupMap_.clear();
+    gZBCCLCommLookupMapByName_.clear();
 
     /* clear world one */
     if (gWorldZBCCLComm != nullptr) {
         gWorldZBCCLComm->DecreaseRef();
         gWorldZBCCLComm = nullptr;
     }
+}
+
+ZResult ZBCCLComm::LookupInner(const std::string &name, ZBCCLCommPtr &comm)
+{
+    auto iter = gZBCCLCommLookupMapByName_.find(name);
+    if (iter == gZBCCLCommLookupMapByName_.end()) {
+        ZBCCL_LOG_INFO_AND_SET_LAST_ERROR("Communicator named " << name << " not existed");
+        return Z_CCL_NOT_EXIST_BY_NAME;
+    }
+
+    ZBCCL_ASSERT_RETURN(iter->second != nullptr, Z_CCL_NOT_EXIST_BY_NAME);
+
+    comm = iter->second;
+    return Z_OK;
 }
 }  // namespace ccl
 }  // namespace zbccl
