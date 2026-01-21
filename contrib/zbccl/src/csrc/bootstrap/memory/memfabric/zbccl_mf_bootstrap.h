@@ -35,6 +35,10 @@ private:
     uint32_t shmId_ = 0;
     smem_shm_t shmHandle_ = nullptr;
     void *shmGva = nullptr;
+
+    ZResult GetMemFabricLibPath(std::string &path) noexcept;
+    ZResult InitPrecheck() noexcept;
+    ZResult InitMemfabric() noexcept;
 };
 }  // namespace bootstrap
 }  // namespace zbccl

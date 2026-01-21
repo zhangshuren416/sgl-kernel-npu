@@ -22,6 +22,7 @@ extern "C" {
 
 #define ZBCCL_MAX_RANKS 1024
 #define ZBCCL_COMM_NAME_MAX 128
+#define ZBCCL_MAX_IPPORT_LEN 64
 
 typedef void *zbccl_comm_t;
 
@@ -67,17 +68,17 @@ typedef enum {
 } zbccl_bootstrap_type_t;
 
 typedef struct {
-    uint32_t flags;                /* optional, flags*/
-    zbccl_bootstrap_type_t btType; /* bootstrap type */
-    char *ipPort;                  /* tcp://127.0.0.1:9897 */
-    uint16_t worldSize;            /* how many rank in total */
-    uint16_t rankId;               /* my rank id in the world */
-    uint16_t deviceId;             /* device id */
-    uint16_t startConfigServer;    /* optional, if start config store server, 1 means start, 0 means not start */
-    uint64_t deviceMemorySize;     /* memory size can be allocated */
-    uint32_t dataOperationType;    /* optional, data operation type */
-    uint16_t cclMetaSpaceSize;     /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
-    uint16_t cclGroupCap;          /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
+    uint32_t flags;                     /* optional, flags*/
+    zbccl_bootstrap_type_t btType;      /* bootstrap type */
+    char ipPort[ZBCCL_MAX_IPPORT_LEN];  /* tcp://127.0.0.1:9897 */
+    uint16_t worldSize;                 /* how many rank in total */
+    uint16_t rankId;                    /* my rank id in the world */
+    uint16_t deviceId;                  /* device id */
+    uint16_t startConfigServer;         /* optional, if start config store server, 1 means start, 0 means not start */
+    uint64_t deviceMemorySize;          /* memory size can be allocated */
+    uint32_t dataOperationType;         /* optional, data operation type */
+    uint16_t cclMetaSpaceSize;          /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
+    uint16_t cclGroupCap;               /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
 } zbccl_bootstrap_options_t;
 
 typedef struct {

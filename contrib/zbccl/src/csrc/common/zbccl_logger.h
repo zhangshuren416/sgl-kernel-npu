@@ -63,6 +63,11 @@ public:
         return level >= DEBUG_LEVEL && level < BUTT_LEVEL;
     }
 
+    static void DefaultLog(int level, const char *logMsg)
+    {
+        zbccl::OutLogger::Instance().Log(level, logMsg);
+    }
+
     inline void SetLogLevel(LogLevel level)
     {
         logLevel_ = level;

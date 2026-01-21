@@ -42,7 +42,7 @@ int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_bootstrap_outp
  *
  * @param flags            [in] optional flags
  */
-int32_t zbccl_unboostrap(uint32_t flags);
+int32_t zbccl_unbootstrap(uint32_t flags);
 
 #ifdef __cplusplus
 }

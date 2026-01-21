@@ -67,7 +67,7 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     return Z_OK;
 }
 
-ZBCCL_API int32_t zbccl_unboostrap(uint32_t flags)
+ZBCCL_API int32_t zbccl_unbootstrap(uint32_t flags)
 {
     /* check if sma and ccl still there */
     if (ZBCCLInitState::Instance().HasCommunicator()) {

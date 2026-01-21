@@ -3,17 +3,23 @@ from pathlib import Path
 import torch
 import torch_npu
 from enum import Enum
+from typing import Optional
+from zbccl.zbccl import ZBCCLBootstrapType, ZBCCLBootstrapOption, zbccl_bootstrap, zbccl_unbootstrap
 
 CURRENT_DIR = Path(__file__).resolve().parent
 ZBCCL_LIB = list(CURRENT_DIR.glob("zbccl.*.so"))[0]
 
 
-class ZBCCLBootstrapType(Enum):
-    MEMFABRIC = 0,
-    ACLSHMEM = 1,
-
-
-def zbccl_init(physicalMemoryFraction: float, bootstrap: ZBCCLBootstrapType):
+def zbccl_init(world_size: int,
+               rank_id: int,
+               device_mem_size: int,
+               bootstrap_type: ZBCCLBootstrapType = ZBCCLBootstrapType.BOOT_BY_MEMFABRIC,
+               start_config_server: bool = False,
+               data_op_type: int = 0,
+               ccl_meta_space_size: int = 1,
+               ccl_group_cap: int = 128,
+               flags: int = 0,
+               ip_port : str = "tcp://127.0.0.1:6789"):
     '''
     Initialize zbccl library
 
@@ -22,6 +28,18 @@ def zbccl_init(physicalMemoryFraction: float, bootstrap: ZBCCLBootstrapType):
     :return: 0 if
     '''
     # bootstrap
+    opt = ZBCCLBootstrapOption()
+    opt.flags = flags
+    opt.btType = bootstrap_type
+    opt.ipPort = ip_port
+    opt.worldSize = world_size
+    opt.rankId = rank_id
+    opt.startConfigServer = start_config_server
+    opt.deviceMemorySize = device_mem_size
+    opt.dataOperationType = data_op_type
+    opt.cclMetaSpaceSize = ccl_meta_space_size
+    opt.cclGroupCap = ccl_group_cap
+    zbccl_bootstrap(opt)
 
     # init mem allocator
 
@@ -30,7 +48,7 @@ def zbccl_init(physicalMemoryFraction: float, bootstrap: ZBCCLBootstrapType):
     return None
 
 
-def zbccl_uninit():
+def zbccl_uninit(flags: int = 0):
     '''
     Un-initialize zbccl library
     :return:
@@ -41,6 +59,7 @@ def zbccl_uninit():
     # un-init allocator
 
     # un-init bootstrap
+    zbccl_unbootstrap(flags)
 
     return None
 
