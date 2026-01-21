@@ -26,6 +26,12 @@
 #include "dma_common.h"
 #include "zbccl_sma_mm_heap.h"
 
+#ifdef USE_GITCODE_SHMEM
+#include "shmem.h"
+#else
+#include "shmem_api.h"
+#endif
+
 #include <mutex>
 #include <atomic>
 

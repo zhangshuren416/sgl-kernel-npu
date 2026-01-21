@@ -156,7 +156,7 @@ public:
     // [US]force to clean all Events
     void cleanEvents(DeviceSMACachingAllocator* allocator);
 
-    // [US]force to free block on target stream
+    // [US]force to free block and its event on target stream
     void cleanStream(DeviceSMACachingAllocator* allocator, DeviceBlock *block, c10_npu::NPUStream stream);
 
     void emptyCache();

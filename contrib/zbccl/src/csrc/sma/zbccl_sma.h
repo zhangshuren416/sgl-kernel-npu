@@ -16,7 +16,11 @@
 #include "zbccl_sma_device.h"
 #include "zbccl_sma_device_pool.h"
 
-#include "shmem_api.h"  //  need include after zbccl_sma_common.h
+#ifdef USE_GITCODE_SHMEM
+#include "shmem.h"
+#else
+#include "shmem_api.h"
+#endif
 
 namespace zbccl {
 namespace sma {

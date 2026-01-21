@@ -44,6 +44,8 @@ enum ZResultErrorCode : ZResult {
     Z_CCL_NOT_EXIST_BY_NAME = -19,
 };
 
+#define USE_GITCODE_SHMEM
+
 constexpr uint32_t PATH_MAX_LIMIT = 4096;
 constexpr uint32_t RANK_COUNT_MAX_LIMIT = 1024;
 constexpr uint32_t DEVICE_COUNT_MAX_LIMIT = 32;

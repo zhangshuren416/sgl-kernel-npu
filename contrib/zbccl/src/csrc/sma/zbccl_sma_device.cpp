@@ -87,7 +87,7 @@ DeviceBlock *DeviceSMACachingAllocator::alloc_found_block(DeviceAllocParams para
 
     active_blocks_.insert(block);
 
-    ZBCCL_LOG_DEBUG("PTA CachingAllocator malloc: malloc = " << block->size_);
+    ZBCCL_LOG_DEBUG("SMA CachingAllocator malloc: malloc = " << block->size_);
 
     return block;
 }
@@ -665,7 +665,7 @@ void DeviceSMACachingAllocator::free(DeviceBlock *block, uint8_t allocator_type)
         free_block(block, context, allocator_type);
     }
 
-    ZBCCL_LOG_INFO("PTA CachingAllocator free: free = " << orig_block_size << ", allocated = " << total_allocated_memory_);
+    ZBCCL_LOG_INFO("SMA CachingAllocator free: free = " << orig_block_size << ", allocated = " << total_allocated_memory_);
 }
 
 void DeviceSMACachingAllocator::recordStream(DeviceBlock *block, c10_npu::NPUStream stream) {
