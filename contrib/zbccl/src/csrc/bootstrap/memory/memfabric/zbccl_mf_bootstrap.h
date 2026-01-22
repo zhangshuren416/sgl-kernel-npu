@@ -30,15 +30,16 @@ public:
     void UnInitialize() noexcept override;
 
 private:
+    ZResult GetMemFabricLibPath(std::string &path) noexcept;
+    ZResult InitPreCheck() noexcept;
+    ZResult CreateSHMSpace() noexcept;
+
+private:
     /* one bootstrap maps to one shm handle */
     smem_shm_config_t shmConfig_;
     uint32_t shmId_ = 0;
     smem_shm_t shmHandle_ = nullptr;
     void *shmGva = nullptr;
-
-    ZResult GetMemFabricLibPath(std::string &path) noexcept;
-    ZResult InitPrecheck() noexcept;
-    ZResult InitMemfabric() noexcept;
 };
 }  // namespace bootstrap
 }  // namespace zbccl
