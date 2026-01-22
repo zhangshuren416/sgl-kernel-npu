@@ -111,3 +111,7 @@ def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port, is_simulati
     )
 
 
+def zbccl_get_shmem_base_addr():
+    zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
+    zbccl_allocator.zbccl_inner_init_shmem.restype = ctypes.c_void_p
+    return zbccl_allocator.zbccl_inner_init_shmem()
