@@ -46,6 +46,9 @@ TEST_F(TestZBCCLCommGroupMeta, Initialization)
     result = arranger.Initialize(stateExt);
     EXPECT_TRUE(result == Z_OK);
 
+    result = arranger.Initialize(stateExt);
+    EXPECT_TRUE(result == Z_OK);
+
     arranger.UnInitialize();
 
     /* case3: meta space is larger a little bit */

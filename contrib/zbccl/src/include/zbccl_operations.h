@@ -25,7 +25,7 @@ extern "C" {
  * @param comm                 [out] created communicator
  * @return 0 if successful
  */
-int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm);
+int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t *comm);
 
 /**
  * @brief Get property of zero buffer communicator object
@@ -34,7 +34,7 @@ int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm);
  * @param property             [in/out]
  * @return 0 if successful
  */
-int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property);
+int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *property);
 
 /**
  * @brief Get communicator object by name
@@ -42,7 +42,7 @@ int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *propert
  * @param name                 [in] name of the communicator
  * @return comm object if successful, null if no such communicator
  */
-zbccl_comm_t zbccl_get_comm_by_name(const char* name);
+zbccl_comm_t zbccl_comm_get_by_name(const char *name);
 
 /**
  * @brief Destroy zero buffer communicator
@@ -51,7 +51,7 @@ zbccl_comm_t zbccl_get_comm_by_name(const char* name);
  * @param flags                [in] optional flags
  * @return
  */
-int32_t zbccl_destroy(zbccl_comm_t comm, uint32_t flags);
+int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags);
 
 /**
  * @brief Do all reduce operation

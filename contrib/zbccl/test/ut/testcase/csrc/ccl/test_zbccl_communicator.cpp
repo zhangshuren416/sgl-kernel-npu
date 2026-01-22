@@ -11,19 +11,29 @@
  */
 #include <gtest/gtest.h>
 
-#include "zbccl_common_includes.h"
+#include "zbccl_communicator.h"
 
 using namespace zbccl;
+using namespace zbccl::ccl;
 
-int main(int argc, char *argv[])
+class TestZBCCLCommunicator : public testing::Test
 {
-    OutLogger::Instance().SetLogLevel(INFO_LEVEL);
+public:
+    static void SetUpTestCase() {}
 
-    if (::getenv("ENABLE_DEBUG_LOG")) {
-        OutLogger::Instance().SetLogLevel(DEBUG_LEVEL);
-    }
+    static void TearDownTestCase() {}
 
-    testing::InitGoogleTest(&argc, argv);
-    int ret = RUN_ALL_TESTS();
-    return ret;
+    void SetUp() override {}
+
+    void TearDown() override {}
+};
+
+TEST_F(TestZBCCLCommunicator, SizeOf)
+{
+    ZBCCL_LOG_DEBUG("size of ZBCommOptions" << sizeof(ZBCommOptions));
+}
+
+TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
+{
+    ZBCCL_LOG_DEBUG("size of ZBCommOptions" << sizeof(ZBCommOptions));
 }

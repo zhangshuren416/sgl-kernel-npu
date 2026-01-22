@@ -68,17 +68,17 @@ typedef enum {
 } zbccl_bootstrap_type_t;
 
 typedef struct {
-    uint32_t flags;                     /* optional, flags*/
-    zbccl_bootstrap_type_t btType;      /* bootstrap type */
-    char ipPort[ZBCCL_MAX_IPPORT_LEN];  /* tcp://127.0.0.1:9897 */
-    uint16_t worldSize;                 /* how many rank in total */
-    uint16_t rankId;                    /* my rank id in the world */
-    uint16_t deviceId;                  /* device id */
-    uint16_t startConfigServer;         /* optional, if start config store server, 1 means start, 0 means not start */
-    uint64_t deviceMemorySize;          /* memory size can be allocated */
-    uint32_t dataOperationType;         /* optional, data operation type */
-    uint16_t cclMetaSpaceSize;          /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
-    uint16_t cclGroupCap;               /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
+    uint32_t flags;                    /* optional, flags*/
+    zbccl_bootstrap_type_t btType;     /* bootstrap type */
+    char ipPort[ZBCCL_MAX_IPPORT_LEN]; /* tcp://127.0.0.1:9897 */
+    uint16_t worldSize;                /* how many rank in total */
+    uint16_t rankId;                   /* my rank id in the world */
+    uint16_t deviceId;                 /* device id */
+    uint16_t startConfigServer;        /* optional, if start config store server, 1 means start, 0 means not start */
+    uint64_t deviceMemorySize;         /* memory size can be allocated */
+    uint32_t dataOperationType;        /* optional, data operation type */
+    uint16_t cclMetaSpaceSize;         /* optional, in KB, default 1MB, min: 512KB, max: 4MB */
+    uint16_t cclGroupCap;              /* optional, max count of ccl Group, default 128, min: 1, max: 512*/
 } zbccl_bootstrap_options_t;
 
 typedef struct {
@@ -105,7 +105,7 @@ typedef struct {
     uint16_t groupSize;          /* how many rank in total */
     uint16_t groupRankId;        /* my rank id in the world */
     uint16_t symmetricMetaGva;   /* use symmetric memory for meta */
-} zbccl_ccl_options_t;
+} zbccl_comm_options_t;
 
 typedef struct {
     char name[ZBCCL_COMM_NAME_MAX];                    /* name of the comm object */
@@ -124,7 +124,7 @@ typedef struct {
     uint32_t groupIndex;                               /* group index */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS]; /* peer rank id in world */
     void *peerMetaGVA[ZBCCL_MAX_RANKS];                /* peer gva */
-} zbccl_ccl_comm_property_t;
+} zbccl_comm_property_t;
 
 /**
  * Make sure the size of this struct is 64 bytes, which fit to one cacheline to cpu

@@ -20,7 +20,7 @@ using namespace zbccl::ccl;
 extern "C" {
 #endif
 
-ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
+ZBCCL_API int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t *comm)
 {
     ZBCCL_VALIDATE_RETURN(options != nullptr, "Create communicator failed as options is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
@@ -60,7 +60,7 @@ ZBCCL_API int32_t zbccl_create(zbccl_ccl_options_t *options, zbccl_comm_t *comm)
     return Z_OK;
 }
 
-ZBCCL_API int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_t *property)
+ZBCCL_API int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *property)
 {
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Get property as comm is null", Z_INVALID_PARAM);
 
@@ -68,7 +68,7 @@ ZBCCL_API int32_t zbccl_get_property(zbccl_comm_t comm, zbccl_ccl_comm_property_
     return Z_OK;
 }
 
-ZBCCL_API zbccl_comm_t zbccl_get_comm_by_name(const char *name)
+ZBCCL_API zbccl_comm_t zbccl_comm_get_by_name(const char *name)
 {
     ZBCCL_VALIDATE_RETURN(name != nullptr, "Get communicator failed as name is null", nullptr);
 
@@ -81,7 +81,7 @@ ZBCCL_API zbccl_comm_t zbccl_get_comm_by_name(const char *name)
     return comm;
 }
 
-ZBCCL_API int32_t zbccl_destroy(zbccl_comm_t comm, uint32_t flags)
+ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
 {
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
 

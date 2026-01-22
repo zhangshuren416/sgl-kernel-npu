@@ -175,13 +175,13 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
 
     for (size_t i = 0; i < devices.size(); ++i) {
         npuGuard.set_index(devices[i].index());
-        zbccl_ccl_options_t opt;
+        zbccl_comm_options_t opt;
         opt.backendType = ZBCCL_ASCEND_NPU;
         opt.isWorldGroup = 1;
         opt.groupSize = size_;
         opt.groupRankId = rank_;
         opt.symmetricMetaGva = 0;  // TODO
-        auto ret = zbccl_create(&opt, &zbcclComms[i]);
+        auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
         if (ret != Z_OK || zbcclComms[i] == nullptr) {
             ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size=" << size_);
             return Z_CREATE_COMM_FAILED;

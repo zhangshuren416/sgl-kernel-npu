@@ -33,10 +33,10 @@ struct ZBCommOptions {
 
     friend std::ostream &operator<<(std::ostream &os, const ZBCommOptions &options)
     {
-        os << "ZBCommOptions [worldSize: " << options.worldSize << ", groupSize: " << options.groupSize
-           << ", myWorldRank: " << options.myWorldRank << ", myGroupRank: " << options.myGroupRank
-           << ", gva: " << options.gva << ", metaSizeOfDevice: " << options.metaSizeOfDevice
-           << ", myMetaDataGva: " << options.myMetaDataGva
+        os << "ZBCommOptions [name: " << options.name << ", worldSize: " << options.worldSize
+           << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
+           << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva
+           << ", metaSizeOfDevice: " << options.metaSizeOfDevice << ", myMetaDataGva: " << options.myMetaDataGva
            << ", metaSizeForExchangeAddress: " << options.metaSizeForExchangeAddress
            << ", myParamDataGva: " << options.myParamDataGva
            << ", sizeForExchangeParam: " << options.sizeForExchangeParam << ", deviceId: " << options.deviceId
@@ -56,9 +56,39 @@ using ZBCCLCommPtr = ZRef<ZBCCLComm>;
 class ZBCCLComm : public ZReferable
 {
 public:
-    static ZResult Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState);
+    /**
+     * @brief Factory function to create communicator
+     *
+     * @param options      [in] options of communicator
+     * @param comm         [in/out] communicator ptr created
+     * @param extraState   [in] extra state after bootstrap
+     *
+     * @return 0 if successful
+     */
+    static ZResult Create(const zbccl_comm_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState);
+
+    /**
+     * @brief Destroy on communicator
+     *
+     * @param comm         [in] communicator to be destroyed
+     * @param flags        [in] optional flags
+     *
+     * @return 0 if successful
+     */
     static ZResult Destroy(zbccl_comm_t comm, uint32_t flags);
+
+    /**
+     * @brief Destroy all communicators
+     */
     static void DestroyAll();
+
+    /**
+     * @brief Lookup communicator by name
+     *
+     * @param name         [in] name of the communicator
+     * @param comm         [in/out] the communicator ptr found
+     * @return 0 if successful
+     */
     static ZResult Lookup(const std::string &name, zbccl_comm_t *comm);
 
 public:
@@ -161,8 +191,18 @@ public:
      */
     bool IsWorldGroup() const noexcept;
 
+    /**
+     * @brief Meta info of communicator, this will be passed to device in the param area of group meta
+     *
+     * @return meta info
+     */
     const ZBCommMetaInfo &GetMetaInfo() const noexcept;
 
+    /**
+     * @brief Get the name of communicator
+     *
+     * @return name string of communicator
+     */
     const std::string &Name() const noexcept;
 
 protected:
@@ -192,7 +232,8 @@ inline const ZBCommMetaInfo &ZBCCLComm::GetMetaInfo() const noexcept
     return metaInfo_;
 }
 
-inline const std::string &ZBCCLComm::Name() const noexcept {
+inline const std::string &ZBCCLComm::Name() const noexcept
+{
     return metaInfo_.name;
 }
 

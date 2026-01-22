@@ -53,9 +53,9 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_allocator_o
     return os;
 }
 
-static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_options_t &options)
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_comm_options_t &options)
 {
-    os << "zbccl_ccl_options_t [name: " << (options.name != nullptr ? options.name : "")
+    os << "zbccl_comm_options_t [name: " << (options.name != nullptr ? options.name : "")
        << "backendType: " << options.backendType << ", flags: " << options.flags
        << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
        << ", groupRankId: " << options.groupRankId << ", symmetricMetaGva: " << options.symmetricMetaGva << "]";
@@ -63,9 +63,9 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_options
     return os;
 }
 
-static inline std::ostream &operator<<(std::ostream &os, const zbccl_ccl_comm_property_t &property)
+static inline std::ostream &operator<<(std::ostream &os, const zbccl_comm_property_t &property)
 {
-    os << "zbccl_ccl_comm_property_t [backendType: " << property.backendType << ", flags: " << property.flags
+    os << "zbccl_comm_property_t [backendType: " << property.backendType << ", flags: " << property.flags
        << ", isWorldGroup: " << property.isWorldGroup << ", groupSize: " << property.groupSize
        << ", groupRankId: " << property.groupRankId << ", symmetricMetaGva: " << property.symmetricMetaGva
        << ", myGVA: " << property.myGVA << ", myMetaGVA: " << property.myMetaGVA

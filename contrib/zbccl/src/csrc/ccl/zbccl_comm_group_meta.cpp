@@ -18,6 +18,7 @@ std::atomic<uint32_t> GroupMetaArranger::gGroupIndex{0};
 ZResult GroupMetaArranger::Initialize(const ZBCCLInitStateExt &extraState) noexcept
 {
     if (myMetaGVA_ != 0) {
+        ZBCCL_LOG_DEBUG("Group meta arranger already initialized");
         return Z_OK;
     }
 
@@ -34,6 +35,8 @@ ZResult GroupMetaArranger::Initialize(const ZBCCLInitStateExt &extraState) noexc
         return result;
     }
 
+    ZBCCL_LOG_DEBUG("Initialized group meta arranger successfully");
+
     return Z_OK;
 }
 
@@ -43,6 +46,8 @@ void GroupMetaArranger::UnInitialize() noexcept
     totalMetaSpaceSize_ = 0;
     singleMetaSpaceSize_ = 0;
     cclGroupCap_ = 0;
+
+    ZBCCL_LOG_DEBUG("Un-initialized group meta arranger successfully");
 }
 
 ZResult GroupMetaArranger::Verify() noexcept
@@ -52,19 +57,25 @@ ZResult GroupMetaArranger::Verify() noexcept
         return Z_OK;
     }
 
-    ZBCCL_LOG_ERROR("Size of meta space is less than single space multiple group cap");
+    ZBCCL_LOG_ERROR("Size of meta space is less than single space multiple group count cap. Total meta space size: "
+                    << totalMetaSpaceSize_ << " bytes, single group space size: " << singleMetaSpaceSize_
+                    << " bytes, group count cap: " << cclGroupCap_);
     return Z_ERROR;
 }
 
 ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA)
 {
     auto currentIndex = gGroupIndex.load();
-    if (gGroupIndex >= cclGroupCap_) {
+    if (currentIndex >= cclGroupCap_) {
+        ZBCCL_LOG_DEBUG("Get group index failed as out of bound, current index: " << currentIndex << ", cclGroupCap_: "
+                                                                                  << cclGroupCap_);
         return Z_ERROR;
     }
 
     index = currentIndex;
     groupMetaGVA = myMetaGVA_ + singleMetaSpaceSize_ * currentIndex;
+
+    ZBCCL_LOG_DEBUG("Got group index: " << index << ", group meta GVA: " << groupMetaGVA);
 
     return Z_OK;
 }

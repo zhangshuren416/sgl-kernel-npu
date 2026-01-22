@@ -20,7 +20,7 @@ std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
 std::map<std::string, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMapByName_;
 std::mutex ZBCCLComm::gMutex;
 
-ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState)
+ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState)
 {
     /* translate api options to inner options */
     ZBCommOptions commOptions;
@@ -59,6 +59,8 @@ ZResult ZBCCLComm::Create(const zbccl_ccl_options_t &options, zbccl_comm_t *comm
     }
 
     *comm = commInner.Get();
+
+    ZBCCL_LOG_DEBUG("Create a communicator successfully, name: " << commInner->Name());
 
     /* move to next group */
     groupMetaArranger.Move2NextGroup();
@@ -102,7 +104,7 @@ ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCC
 
 ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
 {
-    ZBCCL_LOG_INFO("ZBCommOptions dump: " << options);
+    ZBCCL_LOG_DEBUG("ZBCommOptions dump: " << options);
 
     /* lock is acquired by caller already */
 
