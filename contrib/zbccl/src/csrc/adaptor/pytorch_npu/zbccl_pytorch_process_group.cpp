@@ -183,6 +183,7 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
         opt.groupSize = size_;
         opt.groupRankId = rank_;
         opt.symmetricMetaGva = 0;  // TODO
+        opt.name = curCommKey.c_str();
         auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
         if (ret != Z_OK || zbcclComms[i] == nullptr) {
             ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
