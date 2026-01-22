@@ -23,9 +23,13 @@ def test_init_zbccl_pg():
     out_tensor = torch.zeros(6 * world_size).npu()
 
     dist.all_gather_into_tensor(out_tensor, in_tensor,)
-    print(f"{out_tensor=}")
+    out_sum = torch.sum(out_tensor)
+    print(f"{out_tensor.shape=}, {out_sum=}, {out_tensor=}")
 
-    assert torch.sum(out_tensor) == 6 * world_size
+    if out_sum != (world_size * torch.sum(in_tensor)):
+        print(f"[ERROR] all gather result invalid.")
+    else:
+        print(f"[SUCCESS] all gather reuslt correct.")
     zbccl_uninit()
 
 

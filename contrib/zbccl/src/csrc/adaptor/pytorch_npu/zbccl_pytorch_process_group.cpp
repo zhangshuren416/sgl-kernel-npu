@@ -32,6 +32,7 @@ ProcessGroupZBCCL::WorkZBCCL::WorkZBCCL(const std::vector<at::Device> &devices, 
     : Work(rank, opType), devices_(devices), workStartTime_(std::chrono::steady_clock::now())
 {
     zbcclEndEvents_ = std::make_shared<std::vector<c10_npu::NPUEvent>>(devices.size());
+    zbcclComms_.resize(devices.size());
 }
 
 ProcessGroupZBCCL::WorkZBCCL::~WorkZBCCL() {}
@@ -166,7 +167,6 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
             return Z_OK;
         }
     }
-
     zbcclComms.resize(devices.size());
 
     c10_npu::OptionalNPUGuard npuGuard;
@@ -183,7 +183,7 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
         opt.groupSize = size_;
         opt.groupRankId = rank_;
         opt.symmetricMetaGva = 0;  // TODO
-        opt.name = const_cast<char*>(curCommKey.c_str());
+        opt.name = const_cast<char *>(curCommKey.c_str());
         auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
         if (ret != Z_OK || zbcclComms[i] == nullptr) {
             ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
@@ -195,11 +195,10 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
         streamVal.push_back(c10_npu::getNPUStreamFromPool(devices[i].index()));
     }
 
+    std::lock_guard<std::mutex> lock(mutext_);
     zbcclStreams_.emplace(key, std::move(streamVal));
     zbcclEvents_.emplace(std::piecewise_construct, std::make_tuple(key), std::make_tuple(devices.size()));
-
-    std::lock_guard<std::mutex> lock(mutext_);
-    devZBCCLCommMap_.emplace(key, std::move(zbcclComms));
+    devZBCCLCommMap_.emplace(key, zbcclComms);
     return Z_OK;
 }
 
@@ -214,21 +213,21 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
     std::vector<zbccl_comm_t> zbcclComms;
     ZBCCL_CHECK_S(GetZBCCLComm(key, devices, zbcclComms) == Z_OK, "get zbccl comm failed.");
 
-    auto &zbcclSteams = zbcclStreams_[key];
-    SyncStreams(devices, zbcclEvents_[key], zbcclSteams);
+    auto &zbcclStreams = zbcclStreams_[key];
+    SyncStreams(devices, zbcclEvents_[key], zbcclStreams);
 
     auto work = c10::make_intrusive<ProcessGroupZBCCL::WorkZBCCL>(devices, rank_, opType);
     work->outputs_ = std::make_shared<std::vector<at::Tensor>>(outputs);
 
     c10_npu::OptionalNPUGuard npuGuard;
-    pre(zbcclSteams, work);
+    pre(zbcclStreams, work);
 
     for (const auto i: c10::irange(inputs.size())) {
         npuGuard.set_index(devices[i].index());
-        c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+        c10_npu::NPUStream &zbcclStream = zbcclStreams[i];
 
         // Both `inputs' and `outputs' are created on a worker stream and used in
-        // different zbcclSteams.  Hence, both must record the zbcclStream to
+        // different zbcclStreams.  Hence, both must record the zbcclStream to
         // prevent being freed before the collective finishes.
         //
         // We only record `inputs' here, and leave recording `outputs' to `fn' for
@@ -244,23 +243,20 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
             // to avoid to much task pushed to the stream, leading to stream overflow
             // insert sync point fluxLimit(key, i)
 
-            // c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
-            ZBCCL_LOG_INFO("before call real fn, input:" << typeid(inputs[i]).name() << ", output:" << typeid(outputs[i]).name()
-                << ", stream:" << typeid(zbcclSteams[i]).name() << ", comm:" << typeid(zbcclComms[i]).name());
-            int32_t ret = fn(inputs[i], outputs[i], zbcclSteams[i], zbcclComms[i]);
+            int32_t ret = fn(inputs[i], outputs[i], zbcclStreams[i], zbcclComms[i]);
             ZBCCL_CHECK_S(ret == 0, "zbccl exec failed");
         }
     }
 
-    post(zbcclSteams, work);
+    post(zbcclStreams, work);
     {
-        c10_npu::NPUMultiStreamGuard guard(zbcclSteams);
+        c10_npu::NPUMultiStreamGuard guard(zbcclStreams);
         work->future_ = c10::make_intrusive<at::ivalue::Future>(c10::ListType::create(c10::TensorType::get()), devices);
         work->future_->markCompleted(at::IValue(*work->outputs_));
     }
 
     for (size_t i = 0; i < inputs.size(); ++i) {
-        c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+        c10_npu::NPUStream &zbcclStream = zbcclStreams[i];
         (*(work->zbcclEndEvents_))[i].record(zbcclStream);
         work->zbcclComms_[i] = zbcclComms[i];
     }
