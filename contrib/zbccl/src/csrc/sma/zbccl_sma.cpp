@@ -307,13 +307,15 @@ ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size,
     }
 #endif
 
-    void *shmem_base_addr_ = shmem_malloc(local_mem_size);
     int device = 0;
     c10_npu::GetDevice(&device);
 
-    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
-    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
+    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_) {
+        void *shmem_base_addr_ = shmem_malloc(local_mem_size);
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
             std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size, local_mem_size - meta_size);
+    }
 }
 
 }

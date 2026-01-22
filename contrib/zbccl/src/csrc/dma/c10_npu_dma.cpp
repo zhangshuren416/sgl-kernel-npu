@@ -4097,8 +4097,6 @@ EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size
     }
 #endif
 
-    void *shmem_base_ptr = shmem_malloc(local_mem_size);
-
     static bool registered = false;
     if (!registered) {
         std::atexit(finalize);
@@ -4108,10 +4106,13 @@ EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size
     int device = 0;
     c10_npu::GetDevice(&device);
 
-    c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited = true;
-    c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
+    if (!c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited) {
+        void *shmem_base_ptr = shmem_malloc(local_mem_size);
+        c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited = true;
+        c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
             std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr + meta_size, local_mem_size - meta_size);
-    c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
+        c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
+    }
 }
 
 EXPORT_API void* dma_get_base_addr(int device) {
