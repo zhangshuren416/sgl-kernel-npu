@@ -31,7 +31,7 @@ public:
     inline void DecreaseRef()
     {
         // delete itself if reference count equal to 0
-        if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 0) {
             delete this;
         }
     }
