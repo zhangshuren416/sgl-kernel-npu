@@ -4074,10 +4074,10 @@ int dma_set_attr(int32_t my_pe, int32_t n_pes, uint64_t local_mem_size, const ch
 }
 #endif
 
-EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
+EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port, bool is_simulation) {
     std::cout << "dma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
 #ifdef USE_GITCODE_SHMEM
-    if (shmem_init_status() != 2) {
+    if (shmem_init_status() != 2 && !is_simulation) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
         TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
         shmem_init_attr_t attributes;
@@ -4086,7 +4086,7 @@ EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size
         TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
     }
 #else
-    if (shmem_init_status() != 2) {
+    if (shmem_init_status() != 2 && !is_simulation) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
         TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
         shmem_init_attr_t *attributes;
@@ -4107,7 +4107,12 @@ EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size
     c10_npu::GetDevice(&device);
 
     if (!c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited) {
-        void *shmem_base_ptr = shmem_malloc(local_mem_size);
+        void *shmem_base_ptr;
+        if (!is_simulation) {
+            shmem_base_ptr = shmem_malloc(local_mem_size);
+        } else {
+            shmem_base_ptr = reinterpret_cast<void*>(static_cast<uintptr_t>(1 << 30));
+        }
         c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited = true;
         c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
             std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr + meta_size, local_mem_size - meta_size);

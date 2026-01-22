@@ -35,7 +35,7 @@ if __name__ == '__main__':
     switch_to_allocator()
     torch.npu.set_device(0)
     torch.npu.init()
-    init_shmem(0, 1, 30 * (1024 ** 3), 0, 'tcp://127.0.0.1:3399')
+    init_shmem(0, 1, 30 * (1024 ** 3), 0, 'tcp://127.0.0.1:3399',True)
     record_memory_history("all", sys.maxsize)
 
 

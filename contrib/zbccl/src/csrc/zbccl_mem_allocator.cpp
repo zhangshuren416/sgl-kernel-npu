@@ -100,10 +100,10 @@ ZBCCL_API void *zbccl_get_shmem_base_addr()
 #endif
 }
 
-void zbccl_inner_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port)
+void zbccl_inner_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port, bool is_simulation = false)
 {
 #ifdef USE_C10NPU_DMA
-    dma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port);
+    dma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port, is_simulation);
 #else
     sma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port);
 #endif
