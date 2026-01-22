@@ -31,7 +31,6 @@
 #include "third_party/acl/inc/acl/acl_base.h"
 #include "third_party/acl/inc/acl/acl_rt.h"
 #include "torch_npu/csrc/core/npu/interface/AsyncTaskQueueInterface.h"
-// #include "torch_npu/csrc/core/npu/NPUWorkspaceAllocator.h"
 #include "torch_npu/csrc/core/npu/NPURecovery.h"
 #include "torch_npu/csrc/core/npu/NPUGuard.h"
 #include "torch_npu/csrc/core/npu/NPUBlockHandle.h"
@@ -1444,7 +1443,7 @@ public:
         }
 
         if (!block_found) {
-            if (params.err == ACL_ERROR_RT_MEMORY_ALLOCATION) {
+            if (params.err == zbccl::Z_ERROR_ALLOC) {
                 size_t device_free;
                 size_t device_total;
                 NPU_CHECK_ERROR_MOCK(aclrtGetMemInfo(ACL_HBM_MEM, &device_free, &device_total));
@@ -3924,62 +3923,6 @@ std::mutex *getFreeMutex()
 }
 
 } // namespace dma
-} // namespace c10_npu
-
-namespace c10_npu {
-// uid_ is incremented when a user creates a MemPool,
-// for example: using graph_pool_handle() or c10_npu::MemPool().
-//
-// uuid_ is incremented when NPUGraph creates a MemPool
-// as a result of a user not providing a pool.
-//
-// MempoolId_t of {0, 0} is used to denote when no MemPool has been
-// passed to a function, either by user or NPUGraphs. For example,
-// default value of MempoolId_t for capture_begin function is {0, 0}.
-// That's why uid_ and uuid_ start at 1.
-std::atomic<CaptureId_t> MemPool::uid_{ 1 };
-std::atomic<CaptureId_t> MemPool::uuid_{ 1 };
-
-
-MemPool::MemPool(dma::NPUAllocator *allocator, bool is_user_created)
-    : allocator_(allocator), is_user_created_(is_user_created)
-{
-    if (is_user_created_) {
-        id_ = { 0, uid_++ };
-    } else {
-        id_ = { uuid_++, 0 };
-    }
-}
-
-MempoolId_t MemPool::id()
-{
-    return id_;
-}
-
-dma::NPUAllocator *MemPool::allocator()
-{
-    return allocator_;
-}
-
-// Note that active_mempool_ is a global variable here
-// and not inside MemPoolContext class, because in windows we
-// can't use __declspec(dllexport) and __declspec(thread)
-static thread_local MemPool *active_mempool_ = nullptr;
-
-MemPoolContext::MemPoolContext(MemPool *mempool) : prev_mempool_(active_mempool_)
-{
-    active_mempool_ = mempool;
-}
-
-MemPoolContext::~MemPoolContext()
-{
-    active_mempool_ = prev_mempool_;
-}
-
-MemPool *MemPoolContext::getActiveMemPool()
-{
-    return active_mempool_;
-}
 } // namespace c10_npu
 
 

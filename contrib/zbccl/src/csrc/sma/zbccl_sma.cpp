@@ -123,19 +123,14 @@ ZResult SecondaryMemoryAllocator::EmptyCache(bool check_error) {
         c10_npu::GetDevice(&current_device);
     }
 
-    int count = static_cast<int>(device_allocator_.size());
-    for (int i = 0; i < count; i++)
-        device_allocator_[i]->emptyCache(i, check_error);
-    // FIXME skip using GetUsedDevices
-    // auto used_devices_list = c10_npu::GetUsedDevices();
-    // for (int8_t device_idx : used_devices_list) {
-    //     if (check_error) {
-    //         NPU_CHECK_ERROR_MOCK(c10_npu::SetDevice(device_idx));
-    //     } else {
-    //         NPU_CHECK_WARN_MOCK(c10_npu::SetDevice(device_idx));
-    //     }
-    //     device_allocator[device_idx]->emptyCache(device_idx, check_error, free_physical);
-    // }
+    int device_count = static_cast<int>(device_allocator_.size());
+    for (int device_idx = 0; device_idx < device_count; device_idx++) {
+        if (check_error)
+            ZBCCL_CHECK_S(c10_npu::SetDevice(device_idx) == ACL_SUCCESS, Z_RT_ERROR);
+        else
+            c10_npu::SetDevice(device_idx);
+        device_allocator_[device_idx]->emptyCache(device_idx, check_error);
+    }
     if (check_error) {
         ZBCCL_CHECK_S(c10_npu::MaybeSetDevice(current_device) == ACL_SUCCESS, Z_RT_ERROR);
     } else {

@@ -21,6 +21,7 @@
 #include "torch_npu/csrc/core/npu/NPUMacros.h"
 #include "torch_npu/csrc/core/npu/NPUStream.h"
 // #include "torch_npu/csrc/core/npu/register/OptionsManager.h"
+#include "torch_npu/csrc/core/npu/NPUWorkspaceAllocator.h"
 #include "torch_npu/csrc/distributed/HCCLUtils.hpp"
 
 #include "dma_common.h"
@@ -292,48 +293,6 @@ bool isConfig1GPageSizeEnable();
 } // namespace dma
 } // namespace c10_npu
 
-namespace c10_npu {
-
-// MemPool represents a pool of memory in a caching allocator. Currently,
-// it's just the ID of the pool object maintained in the NPUShmemAllocator.
-//
-// An allocator pointer can be passed to the MemPool to define how the
-// allocations should be done in the pool. For example: using a different
-// system allocator such as ncclMemAlloc.
-struct C10_NPU_API MemPool {
-    MemPool(
-        dma::NPUAllocator* allocator = nullptr,
-        bool is_user_created = true);
-
-    MempoolId_t id();
-    dma::NPUAllocator* allocator();
-
-private:
-    static std::atomic<CaptureId_t> uid_;
-    static std::atomic<CaptureId_t> uuid_;
-    dma::NPUAllocator* allocator_;
-    bool is_user_created_;
-    MempoolId_t id_;
-};
-
-// MemPoolContext holds the currently active pool and stashes the previous
-// pool. On deletion it makes the previous pool active.
-struct C10_NPU_API MemPoolContext {
-    MemPoolContext(MemPool* mempool);
-
-    ~MemPoolContext();
-
-    // getActiveMemPool() can be used to get the currently active pool.
-    // For instance: in NPUShmemAllocator, we can route allocations
-    // to a user provided allocator, by doing:
-
-    static MemPool* getActiveMemPool();
-
-private:
-    MemPool* prev_mempool_;
-};
-
-} // namespace c10_npu
 
 void finalize();
 

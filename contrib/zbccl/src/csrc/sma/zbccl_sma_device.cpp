@@ -625,11 +625,10 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
     }
 
     if (!block_found) {
-        if (params.result_ == Z_NOT_ENOUGH_MEM) {
+        if (params.result_ == Z_ERROR_ALLOC) {
             // TODO fulfill current OOM state to be comparable to original allocator
-            ZBCCL_LOG_ERROR("NPU out of memory. Tried to allocate " << format_size(alloc_size) << " (NPU:" << device
-                                                                    << "); with " << format_size(total_allocated_memory_)
-                                                                    << " total allocated. ");
+            AT_ERROR("NPU out of memory. Tried to allocate ", format_size(alloc_size), " (NPU:", device,
+                     "); with ", format_size(total_allocated_memory_), " total allocated. ");
         }
         ZBCCL_CHECK_S(params.result_ == Z_OK, "check alloc result failed");
     }
