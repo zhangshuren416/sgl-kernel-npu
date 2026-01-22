@@ -60,7 +60,7 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
 
     *comm = commInner.Get();
 
-    ZBCCL_LOG_DEBUG("Create a communicator successfully, name: " << commInner->Name());
+    ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: " << commInner.Get());
 
     /* move to next group */
     groupMetaArranger.Move2NextGroup();
@@ -72,6 +72,8 @@ ZResult ZBCCLComm::Destroy(zbccl_comm_t comm, uint32_t flags)
 {
     std::lock_guard<std::mutex> guard(gMutex);
     ZBCCLCommPtr tmpComm = reinterpret_cast<ZBCCLComm *>(comm);
+
+    ZBCCL_LOG_DEBUG("Try to destroy communicator, input ptr " << comm << ", converted ptr: " << tmpComm.Get());
 
     return ZBCCLComm::DestroyInner(tmpComm);
 }
@@ -96,10 +98,10 @@ ZResult ZBCCLComm::Lookup(const std::string &name, zbccl_comm_t *comm)
     return Z_OK;
 }
 
-ZBCCLComm::ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
-    : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup)
+uint32_t ZBCCLComm::Count()
 {
-    memcpy(&metaInfo_, &options, sizeof(ZBCommOptions));
+    std::lock_guard<std::mutex> guard(gMutex);
+    return gZBCCLCommLookupMapByName_.size();
 }
 
 ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
@@ -128,7 +130,6 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              * 3 increase reference and return
              */
             gWorldZBCCLComm = comm.Get();
-            comm->IncreaseRef();
             gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
             return comm.Get();
         } else if (isWorldGroup && gWorldZBCCLComm != nullptr) {
@@ -152,28 +153,30 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              */
             gZBCCLCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
             gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
-            ZBCCL_LOG_DEBUG("create comm inner success, key:" << options.name << ", isWorldGroup:" << isWorldGroup);
+            ZBCCL_LOG_DEBUG("Created communicator, name: " << options.name << ", isWorldGroup: " << isWorldGroup);
             return comm.Get();
         }
     }
+
+    ZBCCL_LOG_DEBUG("exit");
     return nullptr;
 }
 
 ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 {
-    ZBCCL_VALIDATE_RETURN(comm == nullptr, "invalid param, ZBCCLComm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Invalid param, comm is null", Z_INVALID_PARAM);
 
     /* lock is acquired by caller already */
 
     /* if it is the world one */
     if (comm->isWorldGroup_) {
         if (gZBCCLCommLookupMap_.size() != 0) {
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Destroy other small ZBCCLComm firstly, then destroy the world one");
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Destroy other non world communicator firstly, then destroy the world one");
             return Z_ERROR;
         }
 
         if (gWorldZBCCLComm != nullptr) {
-            ZBCCL_LOG_INFO("Destroying the world ZBCCLComm");
+            ZBCCL_LOG_INFO("Destroying the world communicator");
             gZBCCLCommLookupMapByName_.erase(gWorldZBCCLComm->Name());
             gWorldZBCCLComm->DecreaseRef();
             gWorldZBCCLComm = nullptr;
@@ -209,6 +212,9 @@ void ZBCCLComm::DestroyAllInner()
         gWorldZBCCLComm->DecreaseRef();
         gWorldZBCCLComm = nullptr;
     }
+
+    /* reset  */
+    GroupMetaArranger::Instance().UnInitialize();
 }
 
 ZResult ZBCCLComm::LookupInner(const std::string &name, ZBCCLCommPtr &comm)
@@ -221,6 +227,7 @@ ZResult ZBCCLComm::LookupInner(const std::string &name, ZBCCLCommPtr &comm)
 
     ZBCCL_ASSERT_RETURN(iter->second != nullptr, Z_CCL_NOT_EXIST_BY_NAME);
 
+    ZBCCL_LOG_DEBUG("Found communicator with name: " << name);
     comm = iter->second;
     return Z_OK;
 }

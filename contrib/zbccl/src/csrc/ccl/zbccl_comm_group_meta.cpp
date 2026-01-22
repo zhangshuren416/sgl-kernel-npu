@@ -47,6 +47,9 @@ void GroupMetaArranger::UnInitialize() noexcept
     singleMetaSpaceSize_ = 0;
     cclGroupCap_ = 0;
 
+    /* reset index to 0 */
+    gGroupIndex = 0;
+
     ZBCCL_LOG_DEBUG("Un-initialized group meta arranger successfully");
 }
 
@@ -63,7 +66,7 @@ ZResult GroupMetaArranger::Verify() noexcept
     return Z_ERROR;
 }
 
-ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA)
+ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA) noexcept
 {
     auto currentIndex = gGroupIndex.load();
     if (currentIndex >= cclGroupCap_) {
@@ -80,7 +83,7 @@ ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA
     return Z_OK;
 }
 
-void GroupMetaArranger::Move2NextGroup()
+void GroupMetaArranger::Move2NextGroup() noexcept
 {
     ++gGroupIndex;
 }

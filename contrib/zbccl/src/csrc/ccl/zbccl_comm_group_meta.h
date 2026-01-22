@@ -31,23 +31,60 @@ public:
     GroupMetaArranger() = default;
     ~GroupMetaArranger() = default;
 
+    /**
+     * @brief Initialize arranger
+     *
+     * @param extraState
+     *
+     * @return 0 if successful
+     */
     ZResult Initialize(const ZBCCLInitStateExt &extraState) noexcept;
+
+    /**
+     * @brief Un-initialize arranger, reset anything to 0, include position index (i.e. gGroupIndex)
+     */
     void UnInitialize() noexcept;
 
+    /**
+     * @brief Get total meta space size in bytes of single communicator (i.e. single process group for pytorch)
+     */
     uint64_t GetSingleMetaSpaceSize() const noexcept;
+
+    /**
+     * @brief Get space size for exchanging addresses of tensors, of single communicator
+     */
     uint64_t GetAddressExchangeSpaceSize() const noexcept;
 
-    ZResult CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA);
-    void Move2NextGroup();
+    /**
+     * @brief Get index and space address at current position, here we don't move to next position
+     *
+     * @param index            [in/out]
+     * @param groupMetaGVA     [in/out]
+     *
+     * @return 0 if successful, error if no more position
+     */
+    ZResult CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA) noexcept;
+
+    /**
+     * @brief Move to next position, called created communicator successfully
+     */
+    void Move2NextGroup() noexcept;
+
+    /**
+     * @brief Check if initialized
+     *
+     * @return true if initialized successfully
+     */
+    bool Initialized() const noexcept;
 
 private:
     ZResult Verify() noexcept;
 
 private:
-    uintptr_t myMetaGVA_ = 0;
-    uint64_t totalMetaSpaceSize_ = 0;
-    uint64_t singleMetaSpaceSize_ = 0;
-    uint16_t cclGroupCap_ = 0;
+    uintptr_t myMetaGVA_ = 0;          /* meta GVA of communicator */
+    uint64_t totalMetaSpaceSize_ = 0;  /* total meta space size of all communicators */
+    uint64_t singleMetaSpaceSize_ = 0; /* meta space size of one communicator */
+    uint16_t cclGroupCap_ = 0;         /* max number of communicators */
 
 private:
     static std::atomic<uint32_t> gGroupIndex;
@@ -61,6 +98,11 @@ inline uint64_t GroupMetaArranger::GetSingleMetaSpaceSize() const noexcept
 inline uint64_t GroupMetaArranger::GetAddressExchangeSpaceSize() const noexcept
 {
     return singleMetaSpaceSize_ - OPERATE_PARAM_SIZE;
+}
+
+inline bool GroupMetaArranger::Initialized() const noexcept
+{
+    return myMetaGVA_ != 0;
 }
 }  // namespace ccl
 }  // namespace zbccl

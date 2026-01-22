@@ -13,42 +13,10 @@
 #define ZBCCL_COMMUNICATOR_H
 
 #include "zbccl_common_includes.h"
+#include "zbccl_comm_struct.h"
 
 namespace zbccl {
 namespace ccl {
-struct ZBCommOptions {
-    std::string name;                        /* name */
-    uint16_t worldSize = 0;                  /* the ranks in the world */
-    uint16_t groupSize = 0;                  /* the ranks in the group */
-    uint16_t myWorldRank = 0;                /* rank id in the world */
-    uint16_t myGroupRank = 0;                /* rank id in the group */
-    void *gva = nullptr;                     /* gva of the world */
-    uint64_t metaSizeOfDevice = 0;           /* size of meta */
-    uintptr_t myMetaDataGva = 0;             /* gva of mine */
-    uint64_t metaSizeForExchangeAddress = 0; /* max memory size for exchange operation data addresses */
-    uintptr_t myParamDataGva = 0;            /* gva of for param exchange of operation */
-    uint64_t sizeForExchangeParam = 0;       /* max memory size of passing param from host to device */
-    uint16_t deviceId = 0;                   /* device Id */
-    uint32_t groupIndex = 0;                 /* group index */
-
-    friend std::ostream &operator<<(std::ostream &os, const ZBCommOptions &options)
-    {
-        os << "ZBCommOptions [name: " << options.name << ", worldSize: " << options.worldSize
-           << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
-           << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva
-           << ", metaSizeOfDevice: " << options.metaSizeOfDevice << ", myMetaDataGva: " << options.myMetaDataGva
-           << ", metaSizeForExchangeAddress: " << options.metaSizeForExchangeAddress
-           << ", myParamDataGva: " << options.myParamDataGva
-           << ", sizeForExchangeParam: " << options.sizeForExchangeParam << ", deviceId: " << options.deviceId
-           << ", groupIndex: " << options.groupIndex << "]";
-
-        return os;
-    }
-};
-
-struct ZBCommMetaInfo : ZBCommOptions {
-    uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
-};
 
 class ZBCCLComm;
 using ZBCCLCommPtr = ZRef<ZBCCLComm>;
@@ -91,8 +59,18 @@ public:
      */
     static ZResult Lookup(const std::string &name, zbccl_comm_t *comm);
 
+    /**
+     * @brief Get the count of communicators
+     *
+     * @return Count of existing communicators
+     */
+    static uint32_t Count();
+
 public:
-    ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup);
+    ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
+        : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup), options_(options), metaInfo_(options)
+    {}
+
     ~ZBCCLComm() override = default;
 
     /**
@@ -128,8 +106,8 @@ public:
      *
      * @return 0 if successful
      */
-    virtual int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count,
-                              zbccl_datatype_t data_type, aclrtStream stream) noexcept = 0;
+    virtual int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count, zbccl_datatype_t data_type,
+                              aclrtStream stream) noexcept = 0;
 
     /**
      * @brief Do All2all operation
@@ -206,9 +184,10 @@ public:
     const std::string &Name() const noexcept;
 
 protected:
-    bool isWorldGroup_ = false; /* if it is world group */
-    ZBCommMetaInfo metaInfo_{}; /* meta info */
-    ZBCCLCommPtr worldGroup_;   /* world group */
+    bool isWorldGroup_ = false;        /* if it is world group */
+    ZBCommOptions options_{};          /* options */
+    ZBCommMetaInfo metaInfo_{};        /* meta info, which will be H2D to device, keep it simple */
+    ZBCCLCommPtr worldGroup_{nullptr}; /* world group */
 
 private:
     static ZBCCLCommPtr CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
@@ -234,7 +213,7 @@ inline const ZBCommMetaInfo &ZBCCLComm::GetMetaInfo() const noexcept
 
 inline const std::string &ZBCCLComm::Name() const noexcept
 {
-    return metaInfo_.name;
+    return options_.name;
 }
 
 }  // namespace ccl
