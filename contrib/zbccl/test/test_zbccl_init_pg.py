@@ -3,7 +3,7 @@ import sys
 import torch
 import torch.distributed as dist
 import torch_npu
-from zbccl import zbccl_init, zbccl_uninit
+from zbccl import zbccl_init, zbccl_uninit, zbccl_set_logger_level
 
 torch_npu.npu.config.allow_internal_format = True
 
@@ -12,6 +12,7 @@ def test_init_zbccl_pg():
     world_size = int(os.environ["WORLD_SIZE"] or 2)
     torch.npu.set_device(local_rank)
 
+    zbccl_set_logger_level(0)
     mem_128M = 128 * 1024 * 1024
     zbccl_init(world_size, local_rank, mem_128M)
 

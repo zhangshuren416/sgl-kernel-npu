@@ -28,7 +28,7 @@ BootstrapPtr Bootstrap::Create(const zbccl_bootstrap_options_t &options)
     ZBCCL_VALIDATE_RETURN(bootstrap != nullptr, "create bootstrap object failed, probably out of memory", nullptr);
 
     auto result = bootstrap->Initialize();
-    ZBCCL_VALIDATE_RETURN(result != Z_OK, "create bootstrap object failed, initialization failed", nullptr);
+    ZBCCL_VALIDATE_RETURN(result == Z_OK, "create bootstrap object failed, initialization failed", nullptr);
 
     gBootstrap = bootstrap;
 
@@ -74,17 +74,18 @@ ZResult Bootstrap::Initialize() noexcept
     /* verify basic options */
     auto result = VerifyOptions();
     if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("init bootstrap options invalid, ret=" << result);
         return result;
     }
 
     /* create memory bootstrap */
     result = CreateMemBootstrap();
     if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("create mem bootstrap failed. ret=" << result);
         return result;
     }
 
-    /* maybe need to init other kind of bootstrap */
-
+    ZBCCL_LOG_DEBUG("bootstrap init success.");
     inited_ = true;
     return Z_OK;
 }
@@ -122,13 +123,14 @@ ZResult Bootstrap::CreateMemBootstrap() noexcept
     /* new bootstrap */
     auto memBootstrap = MemBootstrap::Create(memOptions);
     if (memBootstrap == nullptr) {
-        ZBCCL_LOG_ERROR("Create MemoryBootstrap failed");
+        ZBCCL_LOG_ERROR("Create MemoryBootstrap instance failed");
         return Z_ERROR;
     }
 
     /* initialize */
     auto result = memBootstrap->Initialize();
     if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("mem bootstrap init failed, ret=" << result);
         return result;
     }
 
@@ -154,6 +156,7 @@ ZResult Bootstrap::CreateMemBootstrap() noexcept
     output_.smaSizeOfDevice = output_.allocatedDeviceMemorySize - output_.metaSizeOfDevice;
 
     memBootstrap_ = memBootstrap;
+    ZBCCL_LOG_DEBUG("create mem bootstrap success.");
     return Z_OK;
 }
 

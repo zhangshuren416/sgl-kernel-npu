@@ -46,6 +46,7 @@ int32_t ZBCCLCommDefault::AllGather(const void *send_buff, void *recv_buff, size
                                     zbccl_datatype_t data_type, aclrtStream stream) noexcept
 {
     // TODO
+    ZBCCL_LOG_INFO("inner allgather");
     return Z_OK;
 }
 

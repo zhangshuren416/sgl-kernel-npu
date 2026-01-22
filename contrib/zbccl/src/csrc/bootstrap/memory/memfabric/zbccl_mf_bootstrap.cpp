@@ -63,6 +63,7 @@ ZResult MemFabricBoostrap::Initialize() noexcept
         return ret;
     }
 
+    ZBCCL_LOG_DEBUG("init mf bootstrap success.");
     return Z_OK;
 }
 
@@ -116,8 +117,8 @@ ZResult MemFabricBoostrap::InitMemfabric() noexcept
     output_.myGvaDevice = reinterpret_cast<void *>(curGvaOffset);
     output_.memorySizeDevice = options_.totalMemSize;
 
+    ZBCCL_LOG_DEBUG("init mem mf success.");
     initialized_ = true;
-
     return Z_OK;
 }
 

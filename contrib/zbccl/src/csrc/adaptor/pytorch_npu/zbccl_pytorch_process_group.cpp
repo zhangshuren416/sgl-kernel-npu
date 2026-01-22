@@ -175,6 +175,8 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
 
     for (size_t i = 0; i < devices.size(); ++i) {
         npuGuard.set_index(devices[i].index());
+        std::string curCommKey = ZBCCL_BACKEND_NAME + "_" + key + "_dev:" + std::to_string(i);
+
         zbccl_comm_options_t opt;
         opt.backendType = ZBCCL_ASCEND_NPU;
         opt.isWorldGroup = 1;
@@ -183,10 +185,12 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
         opt.symmetricMetaGva = 0;  // TODO
         auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
         if (ret != Z_OK || zbcclComms[i] == nullptr) {
-            ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size=" << size_);
+            ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
+                << size_ << ", key=" << curCommKey);
             return Z_CREATE_COMM_FAILED;
         }
 
+        ZBCCL_LOG_DEBUG("create comm success, rank=" << rank_ << ", size=" << size_ << ", key=" << curCommKey);
         streamVal.push_back(c10_npu::getNPUStreamFromPool(devices[i].index()));
     }
 
@@ -207,7 +211,7 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
     auto key = GetKeyFromDevices(devices);
 
     std::vector<zbccl_comm_t> zbcclComms;
-    ZBCCL_CHECK_S(GetZBCCLComm(key, devices, zbcclComms), "get zbccl comm failed.");
+    ZBCCL_CHECK_S(GetZBCCLComm(key, devices, zbcclComms) == Z_OK, "get zbccl comm failed.");
 
     auto &zbcclSteams = zbcclStreams_[key];
     SyncStreams(devices, zbcclEvents_[key], zbcclSteams);
@@ -239,9 +243,11 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
             // to avoid to much task pushed to the stream, leading to stream overflow
             // insert sync point fluxLimit(key, i)
 
-            c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
-            auto ret = fn(inputs[i], outputs[i], zbcclStream, zbcclComms[i]);
-            TORCH_CHECK(ret == 0, "zbccl exec failed");
+            // c10_npu::NPUStream &zbcclStream = zbcclSteams[i];
+            ZBCCL_LOG_INFO("before call real fn, input:" << typeid(inputs[i]).name() << ", output:" << typeid(outputs[i]).name()
+                << ", stream:" << typeid(zbcclSteams[i]).name() << ", comm:" << typeid(zbcclComms[i]).name());
+            int32_t ret = fn(inputs[i], outputs[i], zbcclSteams[i], zbcclComms[i]);
+            ZBCCL_CHECK_S(ret == 0, "zbccl exec failed");
         }
     }
 
@@ -260,18 +266,6 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
     work->blockingWait_ = blockingWait_;
     work->opTimeout_ = opTimeout_;
     return work;
-}
-
-template<typename Fn>
-c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Tensor> &inputs,
-                                                             std::vector<at::Tensor> &outputs, Fn fn,
-                                                             c10d::OpType opType)
-{
-    return collective(
-        inputs, outputs, fn,
-        [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
-        [](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
-        opType);
 }
 
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tensor> &tensors,
@@ -302,6 +296,7 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
     return collective(
         inputTensors, outputTensors,
         [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream, zbccl_comm_t comm) {
+            ZBCCL_LOG_INFO("inner fn");
             RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({}));
             c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
 
@@ -309,6 +304,7 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
             auto outputDataPtr = output.data_ptr();
             auto numel = GetNumelForZBCCL(input);
             auto zbcclType = GetZBcclDataType(input.scalar_type());
+
             auto ret = zbccl_all_gather(inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream.stream(false));
             return ret;
         },

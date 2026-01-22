@@ -108,7 +108,7 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
 
     /* lock is acquired by caller already */
 
-    if (gZBCCLCommLookupMapByName_.find(options.name) == gZBCCLCommLookupMapByName_.end()) {
+    if (gZBCCLCommLookupMapByName_.find(options.name) != gZBCCLCommLookupMapByName_.end()) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as there is already one named " << options.name);
         return nullptr;
     }
@@ -152,6 +152,7 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              */
             gZBCCLCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
             gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
+            ZBCCL_LOG_DEBUG("create comm inner success, key:" << options.name << ", isWorldGroup:" << isWorldGroup);
             return comm.Get();
         }
     }

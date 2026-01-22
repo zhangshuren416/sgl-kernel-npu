@@ -16,6 +16,7 @@
 #include "zbccl_pytorch_process_group.h"
 #include "zbccl_def.h"
 #include "zbccl_bootstrap.h"
+#include "zbccl.h"
 
 namespace py = pybind11;
 
@@ -56,6 +57,7 @@ void pybind11_bootstrap(py::module_ &m)
 
     m.def("zbccl_bootstrap", &zbccl_bootstrap_wrapper);
     m.def("zbccl_unbootstrap", &zbccl_unbootstrap);
+    m.def("zbccl_set_logger_level", &zbccl_set_logger_level);
 }
 
 PYBIND11_MODULE(zbccl, m) {

@@ -184,13 +184,6 @@ private:
     zbccl_comm_t comm_{nullptr};
 
 private:
-    template <typename Fn>
-    c10::intrusive_ptr<c10d::Work> collective(
-        std::vector<at::Tensor>& input,
-        std::vector<at::Tensor>& output,
-        Fn fn,
-        c10d::OpType opType);
-
     template <typename Fn, typename PreProcess, typename PostProcess>
     c10::intrusive_ptr<c10d::Work> collective(
         std::vector<at::Tensor>& input,
