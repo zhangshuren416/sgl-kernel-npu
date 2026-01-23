@@ -67,10 +67,10 @@ int32_t ZBCCLCommDefault::DispatchNormalNotify(const zbccl_tensor_info_t *sendTo
 }
 
 int32_t ZBCCLCommDefault::DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                               int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
+                                               int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
-                                               const zbccl_tensor_info_t *tokenIndex, zbccl_comm_t comm,
+                                               const zbccl_tensor_info_t *sendTokensIndex, 
                                                aclrtStream stream, int64_t flags) noexcept
 {
     // TODO

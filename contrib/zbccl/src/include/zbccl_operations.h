@@ -135,26 +135,26 @@ int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExp
                                      int64_t flags);
 
 /**
+ * @brief Calculate the layout required for communication
  *
- *
- * @param topkIndex            [in]
- * @param tokens               [in]
- * @param expertNum            [in]
- * @param topkNum              [in]
- * @param tokensPerRank        [in]
- * @param tokensPerExpert      [in]
- * @param isTokenInRank        [in]
- * @param tokenIndex           [in]
- * @param comm                 [in]
- * @param stream               [in]
- * @param flags                [in]
+ * @param topkIndex            [in] topK index info of per token
+ * @param tokens               [in] num of tokens
+ * @param expertNum            [in] num of experts
+ * @param topkNum              [in] num of topK
+ * @param rankNum              [in] num of ranks
+ * @param tokensPerRank        [in/out] the number of tokens to be sent to each rank
+ * @param tokensPerExpert      [in/out] the number of tokens to be sent to each expert
+ * @param isTokenInRank        [in/out] whether a token be sent to a rank
+ * @param sendTokensIndex      [in/out] send index of per token
+ * @param stream               [in] compute stream
+ * @param flags                [in] optional flags, reserved or extend
  * @return
  */
 int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                     int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
+                                     int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
                                      const zbccl_tensor_info_t *tokensPerExpert,
-                                     const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *tokenIndex,
-                                     zbccl_comm_t comm, aclrtStream stream, int64_t flags);
+                                     const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *sendTokensIndex,
+                                     aclrtStream stream, int64_t flags);
 
 /**
  * @brief Dispatch operation in push mode

@@ -165,10 +165,10 @@ ZBCCL_API int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTo
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                               int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
+                                               int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
-                                               const zbccl_tensor_info_t *tokenIndex, zbccl_comm_t comm,
+                                               const zbccl_tensor_info_t *sendTokensIndex,
                                                aclrtStream stream, int64_t flags)
 {
     return Z_OK;
