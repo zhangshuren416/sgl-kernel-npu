@@ -21,6 +21,7 @@
 #include <torch_npu/csrc/core/npu/NPUFunctions.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 #include <torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.h>
+#include <torch_npu/csrc/core/npu/NPUGraphsUtils.h>
 
 #include "zbccl_common_includes.h"
 #include "zbccl_sma_mm_heap.h"

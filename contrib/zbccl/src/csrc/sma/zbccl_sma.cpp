@@ -79,6 +79,12 @@ void SecondaryMemoryAllocator::updateBlockToSafe(const c10::DataPtr &ptr) {
     block->is_safe_ = true;
 }
 
+void SecondaryMemoryAllocator::assertValidDevice(int device) {
+    const auto device_num = device_allocator_.size();
+    ZBCCL_CHECK_S(0 <= device && device < static_cast<int64_t>(device_num), "Invalid device argument ", device,
+                  ": did you call init?");
+}
+
 ZResult SecondaryMemoryAllocator::Initialize(zbccl_allocator_options_t *options, int32_t device_count) noexcept {
     int size = static_cast<int>(device_allocator_.size());
     if (size < device_count) {
@@ -91,8 +97,7 @@ ZResult SecondaryMemoryAllocator::Initialize(zbccl_allocator_options_t *options,
 }
 
 ZResult SecondaryMemoryAllocator::Allocate(void **devPtr, int device, size_t size, aclrtStream stream) noexcept {
-    ZBCCL_ASSERT_S(0 <= device && static_cast<size_t>(device) < device_allocator_.size(),
-        "Allocator not initialized for device ", device, ": did you call init?", Z_INVALID_PARAM);
+    assertValidDevice(device);
     device::DeviceBlock *block = device_allocator_[device]->malloc(device, size, stream);
 
     add_allocated_block(block);
@@ -199,6 +204,24 @@ ZResult SecondaryMemoryAllocator::EraseStream(void *ptr, c10_npu::NPUStream stre
     return Z_OK;
 }
 
+ZResult SecondaryMemoryAllocator::BeginAllocateToPool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+    assertValidDevice(device);
+    device_allocator_[device]->beginAllocateToPool(mempool_id, filter);
+    return Z_OK;
+}
+
+ZResult SecondaryMemoryAllocator::EndAllocateToPool(int device, c10_npu::MempoolId_t mempool_id) {
+    assertValidDevice(device);
+    device_allocator_[device]->endAllocateToPool(mempool_id);
+    return Z_OK;
+}
+
+ZResult SecondaryMemoryAllocator::ReleasePool(int device, c10_npu::MempoolId_t mempool_id) {
+    assertValidDevice(device);
+    device_allocator_[device]->releasePool(mempool_id);
+    return Z_OK;
+}
+
 }  // namespace sma
 }  // namespace zbccl
 
@@ -230,6 +253,18 @@ ZBCCL_API void sma_record_stream(void *ptr, c10_npu::NPUStream stream) {
 
 ZBCCL_API void sma_erase_stream(void *ptr, c10_npu::NPUStream stream) {
     zbccl::sma::SecondaryMemoryAllocator::GetInstance()->EraseStream(ptr, stream);
+}
+
+ZBCCL_API void sma_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->BeginAllocateToPool(device, mempool_id, filter);
+}
+
+ZBCCL_API void sma_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->EndAllocateToPool(device, mempool_id);
+}
+
+ZBCCL_API void sma_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->ReleasePool(device, mempool_id);
 }
 
 ZBCCL_API void* sma_get_base_addr(int device) {

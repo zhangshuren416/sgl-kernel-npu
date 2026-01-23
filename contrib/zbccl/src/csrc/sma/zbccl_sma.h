@@ -46,6 +46,8 @@ private:
     void markAllBlockUnsafe(int device);
     void updateBlockToSafe(const c10::DataPtr &ptr);
 
+    void assertValidDevice(int device);
+
 public:
     std::vector<std::unique_ptr<device::DeviceSMACachingAllocator>> device_allocator_;
 
@@ -117,6 +119,34 @@ public:
      * @return 0 if successful
      */
     ZResult EraseStream(void *ptr, c10_npu::NPUStream stream);
+
+    /**
+     * @brief begin a NPU graph capture on target mem pool
+     *
+     * @param device      [in] mem ptr of stream rely on
+     * @param mempool_id  [in] the id of mem-pool to be allocated by capture stream
+     * @param filter      [in] filter on between capture stream and other stream
+     * @return 0 if successful
+     */
+    ZResult BeginAllocateToPool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
+
+    /**
+     * @brief end a NPU graph capture on target mem pool
+     *
+     * @param device      [in] mem ptr of stream rely on
+     * @param mempool_id  [in] the id of mem-pool to be allocated by capture stream
+     * @return 0 if successful
+     */
+    ZResult EndAllocateToPool(int device, c10_npu::MempoolId_t mempool_id);
+
+    /**
+     * @brief release Private Pool(NPU graph created) in target mem pool
+     *
+     * @param device      [in] mem ptr of stream rely on
+     * @param mempool_id  [in] the id of mem-pool to be allocated by capture stream
+     * @return 0 if successful
+     */
+    ZResult ReleasePool(int device, c10_npu::MempoolId_t mempool_id);
 };
 using SMAPtr = ZRef<SecondaryMemoryAllocator>;
 
@@ -135,6 +165,12 @@ ZBCCL_API void sma_free(void *ptr, size_t size, int device, aclrtStream stream);
 ZBCCL_API void sma_record_stream(void *ptr, c10_npu::NPUStream stream);
 
 ZBCCL_API void sma_erase_stream(void *ptr, c10_npu::NPUStream stream);
+
+ZBCCL_API void sma_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
+
+ZBCCL_API void sma_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id);
+
+ZBCCL_API void sma_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 
 ZBCCL_API void *sma_get_base_addr(int device = -1);
 

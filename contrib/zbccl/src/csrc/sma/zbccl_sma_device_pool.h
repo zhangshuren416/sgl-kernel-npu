@@ -86,11 +86,11 @@ public:
     // following params applied for privatePool(or graphPool) cases
     bool is_private_{false};
     // Number of live graphs using this pool
-    int use_count{ 1 };
+    int use_count_{ 1 };
     // Number of unfreed npuMallocs made for this pool. When use_count and
     // npuMalloc_count drop to zero, we can delete this PrivatePool from
     // graph_pools.
-    int npuMalloc_count{ 0 };
+    int npuMalloc_count_{ 0 };
 
     DeviceBlockPool(bool is_private = false)
             : small_blocks_(DeviceBlockCompareBySize),
@@ -171,6 +171,64 @@ private:
         std::vector<std::unique_ptr<c10_npu::NPUEvent>> event_pool_;
     };
     std::vector<PerDevicePool> pools_;
+};
+
+/**
+ * @brief MempoolIdHash
+ */
+struct MempoolIdHash {
+    std::size_t operator () (const c10_npu::MempoolId_t &mempool_id) const noexcept
+    {
+        return mempool_id.first != 0 ? mempool_id.first : mempool_id.second;
+    }
+};
+
+/**
+ * @brief GraphDeferPools
+ * mainly defer the event and stream process during capture then replay after it
+ * also use new blockPool to cache tensor for each capture stream
+ * friend of DeviceSMACachingAllocator to call free_block in allocator
+ */
+class GraphDeferPools {
+public:
+    // following needed by top level graph API in allocator, we used public for convenience
+
+    // captures_underway tracks if we are diverting some
+    // allocations to a specific pool.
+    // Most of the time it's empty, in which case malloc can avoid calling
+    // aclrtStreamGetCaptureInfo in the hot path.
+    std::vector<std::pair<c10_npu::MempoolId_t, std::function<bool(aclrtStream)>>> captures_underway_;
+
+    // Private pools for NPU graphs
+    ska::flat_hash_map<c10_npu::MempoolId_t, std::unique_ptr<DeviceBlockPool>, MempoolIdHash> graph_pools_;
+
+    // Pools no longer referenced by any graph. Their BlockPools are eligible for
+    // free_blocks. Can't be a vector or deque because we might erase entries in
+    // any order. Could be an std::list, but we don't care much, access and
+    // insert/erase are rare.
+    ska::flat_hash_map<c10_npu::MempoolId_t, DeviceBlockPool *, MempoolIdHash> graph_pools_freeable_;
+
+private:
+    // cache events when graph capture and deferred to insert after no capture
+    std::vector<DeviceBlock *> needs_events_deferred_until_no_capture_;
+
+    // mapping from block to a stream_set, containing streams on which the block
+    // was used while npugraph capturing
+    std::unordered_map<DeviceBlock *, StreamSet> block_to_npugraph_stream_uses_;
+
+public:
+    GraphDeferPools() {}
+
+    // remove stream uses added during npu-graph capture(considered down with capture end)
+    void removeNpuGraphStreamUses(DeviceBlock *block);
+
+    // defer insert events(created by record stream during capture) until no capture
+    void insertEventsDeferredUntilNoCapture(DeviceSMACachingAllocator* allocator,
+                                            const std::shared_ptr<c10::GatheredContext> &context);
+
+    void appendEventsDeferredUntilNoCapture(DeviceBlock *block);
+
+    void insertBlockToNpuGraphStreamUses(DeviceBlock *block, c10_npu::NPUStream stream);
 };
 
 }  // namespace device

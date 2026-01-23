@@ -83,29 +83,12 @@ private:
     size_t allowed_memory_maximum_ = 0;
 
     bool set_fraction_ = false;
+
     // bool record_history = false;
 
-    // captures_underway tracks if we are diverting some
-    // allocations to a specific pool.
-    // Most of the time it's empty, in which case malloc can avoid calling
-    // aclrtStreamGetCaptureInfo in the hot path.
-    //std::vector<std::pair<MempoolId_t, std::function<bool(aclrtStream)>>> captures_underway_;
-
-    // See free() for this thing's purpose
-    //std::vector<DeviceBlock *> needs_events_deferred_until_no_capture_;
-
-    // Private pools for NPU graphs
-    //ska::flat_hash_map<MempoolId_t, std::unique_ptr<DeviceBlockPool>, MempoolIdHash> graph_pools_;
-
-    // Pools no longer referenced by any graph. Their BlockPools are eligible for
-    // free_blocks. Can't be a vector or deque because we might erase entries in
-    // any order. Could be an std::list, but we don't care much, access and
-    // insert/erase are rare.
-    //ska::flat_hash_map<MempoolId_t, DeviceBlockPool*, MempoolIdHash> graph_pools_freeable_;
-
-    // mapping from block to a stream_set, containing streams on which the block
-    // was used while npugraph capturing
-    //std::unordered_map<DeviceBlock *, stream_set> block_to_npugraph_stream_uses_;
+    // for cache&defer actions during and after graph capture
+    friend class ::zbccl::sma::device::GraphDeferPools;
+    GraphDeferPools graph_defers_;
 
     // All following private methods do not acquire the allocator mutex
     // move a founded block from pool into active_list, may get new block which split from found one
@@ -164,20 +147,15 @@ private:
     // check each stream's events, process only one case if queried ended, decrease block event_count_ and free when it down to 0
     void process_events(const std::shared_ptr<c10::GatheredContext> &context);
 
-    //std::vector<DeviceBlock*> get_private_pool_head_blocks(DevicePoolPtr pool) const;
-
-    //void remove_npugraph_stream_uses(DeviceBlock *block);
-
-    //void insert_events_deferred_until_no_capture(const std::shared_ptr<c10::GatheredContext> &context);
-
     // Accumulates sizes of all memory blocks for given device in given pool
     void cache_info_aux(DeviceBlockPool &block_pool, size_t *total, size_t *largest);
 
     static size_t round_size(size_t size);
+
     static size_t get_allocation_size(size_t size);
 
 public:
-    DeviceSMACachingAllocator() : default_pool_(false)
+    DeviceSMACachingAllocator() : default_pool_(false), graph_defers_()
     {}
 
     DeviceBlock *malloc(int device, size_t orig_size, aclrtStream stream, uint8_t allocator_type = 0);
@@ -207,13 +185,13 @@ public:
     void releaseAndFreeEvents();
 
     // Called by NPUGraph::capture_begin
-    // void beginAllocateToPool(MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
+    void beginAllocateToPool(c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
 
     // Called by NPUGraph::capture_end
-    //void endAllocateToPool(MempoolId_t mempool_id);
+    void endAllocateToPool(c10_npu::MempoolId_t mempool_id);
 
     // Called by NPUGraph::reset
-    // void releasePool(MempoolId_t mempool_id);
+    void releasePool(c10_npu::MempoolId_t mempool_id);
 };
 
 }  // namespace device

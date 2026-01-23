@@ -185,6 +185,49 @@ void EventController::cleanStream(DeviceSMACachingAllocator* allocator, DeviceBl
     }
 }
 
+void GraphDeferPools::removeNpuGraphStreamUses(DeviceBlock *block) {
+    // remove stream uses added during npu-graph capture
+    // (i.e., block->stream_uses - block->npu-graph_stream_uses)
+    if (ZBCCL_UNLIKELY(block_to_npugraph_stream_uses_.find(block) != block_to_npugraph_stream_uses_.end())) {
+        StreamSet streams(std::move(block->stream_uses_));
+        ZBCCL_ASSERT_S(block->stream_uses_.empty(), "move stream action failed!");
+        for (auto &stream : streams) {
+            if (block_to_npugraph_stream_uses_[block].find(stream) == block_to_npugraph_stream_uses_[block].end()) {
+                block->stream_uses_.insert(stream);
+            }
+        }
+        block_to_npugraph_stream_uses_.erase(block);
+    }
+}
+
+void GraphDeferPools::insertEventsDeferredUntilNoCapture(DeviceSMACachingAllocator* allocator,
+                                                         const std::shared_ptr<c10::GatheredContext> &context) {
+    if (ZBCCL_UNLIKELY(!needs_events_deferred_until_no_capture_.empty())) {
+        for (auto *block : needs_events_deferred_until_no_capture_) {
+            ZBCCL_ASSERT(!block->stream_uses_.empty());
+            // only streams recorded before npugraph will be used to insert events
+            // since we know all streams recorded during npugraph must have
+            // completed (refer to Section 3.2.8.7.3.1 Cross-stream Dependencies and
+            // Events in CUDA Programming Guide).
+            removeNpuGraphStreamUses(block);
+            allocator->insert_events(block);
+            if (block->event_count_ == 0) {
+                allocator->free_block(block, context);
+            }
+        }
+        needs_events_deferred_until_no_capture_.clear();
+    }
+}
+
+//TODO remove those two into public
+void GraphDeferPools::appendEventsDeferredUntilNoCapture(DeviceBlock *block) {
+    needs_events_deferred_until_no_capture_.push_back(block);
+}
+
+void GraphDeferPools::insertBlockToNpuGraphStreamUses(DeviceBlock *block, c10_npu::NPUStream stream) {
+    block_to_npugraph_stream_uses_[block].insert(stream);
+}
+
 }  // namespace device
 }  // namespace sma
 }  // namespace zbccl

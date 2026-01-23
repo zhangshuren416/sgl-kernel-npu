@@ -96,10 +96,10 @@ std::vector<const DeviceBlock *> DeviceSMACachingAllocator::get_all_blocks() con
     std::vector<const DeviceBlock *> blocks;
     blocks.insert(blocks.end(), default_pool_.small_blocks_.begin(), default_pool_.small_blocks_.end());
     blocks.insert(blocks.end(), default_pool_.large_blocks_.begin(), default_pool_.large_blocks_.end());
-    //for (const auto &gp : graph_pools_) {
-    //    blocks.insert(blocks.end(), gp.second->small_blocks_.begin(), gp.second->small_blocks_.blocks.end());
-    //    blocks.insert(blocks.end(), gp.second->large_blocks_.begin(), gp.second->large_blocks_.blocks.end());
-    //}
+    for (const auto &gp : graph_defers_.graph_pools_) {
+        blocks.insert(blocks.end(), gp.second->small_blocks_.begin(), gp.second->small_blocks_.end());
+        blocks.insert(blocks.end(), gp.second->large_blocks_.begin(), gp.second->large_blocks_.end());
+    }
     blocks.insert(blocks.end(), active_blocks_.begin(), active_blocks_.end());
     return blocks;
 }
@@ -160,20 +160,21 @@ DeviceBlockPool &DeviceSMACachingAllocator::get_pool(size_t size, aclrtStream st
     // capturing. It's only non-empty if some thread has begun and not yet ended
     // a capture, so it's usually 0, and we can short-circuit
     // npuStreamCaptureStatus (which does a TLS lookup).
-    /*
-    if (C10_UNLIKELY(!captures_underway_.empty())) {
-        for (auto &entry : captures_underway) {
+    if (ZBCCL_UNLIKELY(!graph_defers_.captures_underway_.empty())) {
+        for (auto &entry : graph_defers_.captures_underway_) {
             if (entry.second(stream)) {
-                auto it1 = graph_pools.find(entry.first);
-                TORCH_INTERNAL_ASSERT(it1 != graph_pools.end());
+                auto it1 = graph_defers_.graph_pools_.find(entry.first);
+                ZBCCL_ASSERT(it1 != graph_defers_.graph_pools_.end());
                 if (size <= kSmallSize) {
-                    return it1->second->small_blocks;
+                    block_type = BT_SMALL;
                 } else {
-                    return it1->second->large_blocks;
+                    block_type = BT_BIG;
                 }
+                return *(it1->second);
             }
         }
-    }*/
+    }
+
     if (size <= kSmallSize) {
         block_type = BT_SMALL;
     } else {
@@ -310,11 +311,10 @@ bool DeviceSMACachingAllocator::alloc_block(DeviceAllocParams &p, bool isRetry, 
         }
     }
 
-    /*
     if (p.pool_->is_private_) {
         // The block is for a NPU graph's PrivatePool.
-        p.pool_->npuMalloc_count++;
-    }*/
+        p.pool_->npuMalloc_count_++;
+    }
 
     total_allocated_memory_ += size;
     p.block_ = new DeviceBlock(p.device(), p.stream(), size, p.pool_, (char *)ptr, p.block_type_);
@@ -386,12 +386,12 @@ void DeviceSMACachingAllocator::release_block(DeviceBlock *block, const std::sha
     total_allocated_memory_ -= block->size_;
 
     auto *pool = block->pool_;
-    /*
+
     if (pool->is_private_) {
         // The npuFreed block belonged to a NPU graph's PrivatePool.
-        ZBCCL_ASSERT_S(pool->npuMalloc_count_ > 0);
+        ZBCCL_ASSERT(pool->npuMalloc_count_ > 0);
         pool->npuMalloc_count_--;
-    }*/
+    }
     ZBCCL_LOG_DEBUG("DeviceSMACachingAllocator free by: size= " << block->size_);
 
     pool->eraseBlock(block->block_type_, block);
@@ -438,20 +438,19 @@ bool DeviceSMACachingAllocator::release_cached_blocks(bool check_error, const st
 
     // Free all non-split cached blocks, including graph pools which use_count is down to 0
     release_pool(default_pool_, context, false);
-    /*
-    for (auto it = graph_pools_freeable.begin(); it != graph_pools_freeable.end();) {
+    // Free all free-able graph pools
+    for (auto it = graph_defers_.graph_pools_freeable_.begin(); it != graph_defers_.graph_pools_freeable_.end();) {
         // See notifyCaptureDestroy for the strategy here.
-        TORCH_INTERNAL_ASSERT(it->second->use_count == 0);
-        release_blocks(it->second->small_blocks, context, free_physical);
-        release_blocks(it->second->large_blocks, context, free_physical);
-        if (it->second->npuMalloc_count == 0) {
-            auto erase_count = graph_pools.erase(it->first);
-            TORCH_INTERNAL_ASSERT(erase_count == 1);
-            it = graph_pools_freeable.erase(it);
+        ZBCCL_ASSERT(it->second->use_count_ == 0);
+        release_pool(*(it->second), context, true);
+        if (it->second->npuMalloc_count_ == 0) {
+            auto erase_count = graph_defers_.graph_pools_.erase(it->first);
+            ZBCCL_ASSERT(erase_count == 1);
+            it = graph_defers_.graph_pools_freeable_.erase(it);
         } else {
             ++it;
         }
-    }*/
+    }
 
     return true;
 }
@@ -460,8 +459,8 @@ void DeviceSMACachingAllocator::synchronize_and_free_events(bool check_error, co
 {
     // This function syncs, so capture should not be underway. Might as well
     // make sure capture-deferred end of life events get processed too.
-    //ZBCCL_ASSERT_S(captures_underway_.empty());
-    //insert_events_deferred_until_no_capture(context);
+    ZBCCL_ASSERT(graph_defers_.captures_underway_.empty());
+    graph_defers_.insertEventsDeferredUntilNoCapture(this, context);
 
     auto event_pool = get_event_internal();
     event_pool->synchronizeAndFreeEvents(this, check_error, context);
@@ -486,7 +485,7 @@ void DeviceSMACachingAllocator::insert_events(DeviceBlock *block)
 }
 
 void DeviceSMACachingAllocator::process_events(const std::shared_ptr<c10::GatheredContext> &context) {
-    //insert_events_deferred_until_no_capture(context);
+    graph_defers_.insertEventsDeferredUntilNoCapture(this, context);
 
     auto event_pool = get_event_internal();
     event_pool->processEvents(this, context);
@@ -560,8 +559,6 @@ void *DeviceSMACachingAllocator::getBaseAllocation(DeviceBlock *block, size_t *o
     return basePtr;
 }
 
-
-
 DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, aclrtStream stream, uint8_t allocator_type) {
     // done outside the lock because we don't know what locks the recorder needs to have...
     //auto context = maybeGatherContext(RecordContext::STATE);
@@ -573,9 +570,7 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
         ZBCCL_CHECK_S(c10_npu::GetDevice(&device) == ACL_SUCCESS, "c10_npu func check failed!");
     }
 
-    process_events(context);
-    /*
-    if (C10_LIKELY(captures_underway_.empty())) {
+    if (ZBCCL_LIKELY(graph_defers_.captures_underway_.empty())) {
         // Processes end-of-life events for outstanding allocations used on
         // multiple streams (checks if their NPU-side uses are complete and
         // recycles their memory if so)
@@ -587,7 +582,7 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
         //    capture. Cross-stream memory use is uncommon, so the deferral's
         //    effect on memory use during capture should be small.
         process_events(context);
-    }*/
+    }
     auto size = round_size(orig_size);
     DeviceBlockType block_type;
     auto &pool = get_pool(size, stream, block_type);
@@ -610,8 +605,7 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
                        alloc_block(params, false, context, lock));
     }
 
-    // if (!block_found && ZBCCL_UNLIKELY(captures_underway_.empty())) {
-    if (!block_found) {
+    if (!block_found && ZBCCL_UNLIKELY(graph_defers_.captures_underway_.empty())) {
         ZBCCL_LOG_WARN(
                 "Get a block from the existing pool failed. Try to free cached blocks and reallocate. This warning log can be ignored.");
         // Free all non-split cached blocks and retry alloc.
@@ -649,17 +643,15 @@ void DeviceSMACachingAllocator::free(DeviceBlock *block, uint8_t allocator_type)
     //auto orig_block_type = block->block_type_;
 
     if (!block->stream_uses_.empty() && c10_npu::NpuSysCtrl::GetInstance().GetInitFlag()) {
-        /*
-        if (C10_UNLIKELY(!captures_underway.empty())) {
+        if (ZBCCL_UNLIKELY(!graph_defers_.captures_underway_.empty())) {
             // It's forbidden to npuEventQuery an event recorded during NPU graph
             // capture. We conservatively defer recording end-of-life events until
             // the next call to process_events() (which won't happen until no
             // captures are underway)
-            needs_events_deferred_until_no_capture.push_back(block);
+            graph_defers_.appendEventsDeferredUntilNoCapture(block);
         } else {
             insert_events(block);
-        }*/
-        insert_events(block);
+        }
     } else {
         free_block(block, context, allocator_type);
     }
@@ -670,10 +662,10 @@ void DeviceSMACachingAllocator::free(DeviceBlock *block, uint8_t allocator_type)
 void DeviceSMACachingAllocator::recordStream(DeviceBlock *block, c10_npu::NPUStream stream) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     block->stream_uses_.insert(stream);
-    /*
-    if (C10_UNLIKELY(!captures_underway.empty())) {
-        block_to_npugraph_stream_uses[block].insert(stream);
-    }*/
+
+    if (C10_UNLIKELY(!graph_defers_.captures_underway_.empty())) {
+        graph_defers_.insertBlockToNpuGraphStreamUses(block, stream);
+    }
 }
 
 // this func is a non-standard func since Pytorch do not have this API, and erase without query is a wrong action
@@ -705,11 +697,66 @@ void DeviceSMACachingAllocator::emptyCache(int device, bool check_error) {
 void DeviceSMACachingAllocator::cacheInfo(size_t *total, size_t *largest) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     cache_info_aux(default_pool_, total, largest);
-    /*
-    for (const auto &gp : graph_pools) {
-        cache_info_aux(gp.second->large_blocks, total, largest);
-        cache_info_aux(gp.second->small_blocks, total, largest);
-    }*/
+
+    for (const auto &gp : graph_defers_.graph_pools_) {
+        cache_info_aux(*(gp.second), total, largest);
+    }
+}
+
+void DeviceSMACachingAllocator::beginAllocateToPool(c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto it = graph_defers_.graph_pools_.find(mempool_id);
+    if (it == graph_defers_.graph_pools_.end()) {
+        // mempool_id does not reference an existing pool. Make a new private pool for this capture.
+        graph_defers_.graph_pools_.emplace(mempool_id, std::make_unique<DeviceBlockPool>(true));
+    } else {
+        // mempool_id references an existing pool, which the current capture will
+        // share. Check this pool is live (at least one other capture already
+        // references it).
+        ZBCCL_ASSERT(it->second->use_count_ > 0);
+        it->second->use_count_++;
+    }
+    for (auto it2 = graph_defers_.captures_underway_.begin(); it2 != graph_defers_.captures_underway_.end(); ++it2) {
+        ZBCCL_CHECK_S(it2->first != mempool_id, "beginAllocateToPool: already recording to mempool_id");
+    }
+    graph_defers_.captures_underway_.emplace_back(mempool_id, std::move(filter));
+}
+
+void DeviceSMACachingAllocator::endAllocateToPool(c10_npu::MempoolId_t mempool_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    for (auto it = graph_defers_.captures_underway_.begin(); it != graph_defers_.captures_underway_.end(); ++it) {
+        if (it->first == mempool_id) {
+            graph_defers_.captures_underway_.erase(it);
+            return;
+        }
+    }
+    ZBCCL_CHECK_S(false, "endAllocatePool: not currently recording to mempool_id");
+}
+
+void DeviceSMACachingAllocator::releasePool(c10_npu::MempoolId_t mempool_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    // The instantiated npugraphExec_t has been destroyed. We can't blindly
+    // delete and npuFree the mempool its capture used, because
+    //  1. other graph(s) might share the same pool
+    //  2. the user might still hold references to output tensors allocated
+    //  during capture.
+    // To handle 1 and 2, we track the number of graphs using this particular
+    // mempool. When the count reaches 0, we tell free_cached_blocks it may now
+    // npuFree blocks from this graph's pool when it discovers they're unused
+    // (unsplit).
+    auto it = graph_defers_.graph_pools_.find(mempool_id);
+    ZBCCL_ASSERT(it != graph_defers_.graph_pools_.end());
+    auto uc = --(it->second->use_count_);
+    ZBCCL_ASSERT(uc >= 0);
+    if (uc == 0) {
+        // Allows free_cached_blocks to begin npuFreeing this pool's memory,
+        // and makes sure this pool wasn't somehow made freeable already.
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+        bool inserted = graph_defers_.graph_pools_freeable_.insert({ mempool_id, it->second.get() }).second;
+        ZBCCL_ASSERT(inserted);
+    }
 }
 
 }  // namespace device
