@@ -28,11 +28,12 @@ ZResult AllGather(const void *sendBuff, void *recvBuff, size_t sendCount, zbccl_
     uint64_t fftsAddr = shmemx_get_ffts_config();
     int dataTypeInt = static_cast<int>(dataType);
 
-    void *myParamDataGva = reinterpret_cast<void *>(metaInfo.myParamDataGva());
-    ZBCCL_CHECK_S(AclrtMemcpy(metaInfo.myParamDataGva, sizeof(ZBCommMetaInfo), &metaInfo, sizeof(ZBCommMetaInfo), 
-                              ACL_MEMCPY_HOST_TO_DEVICE) == Z_OK, Z_RT_ERROR);
+    uint8_t* metaAddr = reinterpret_cast<uint8_t *>(metaInfo.myMetaDataGva);
+    uint16_t rank = metaInfo.myGroupRank;
+    uint16_t groupSize = metaInfo.groupSize;
 
-    ACLRT_LAUNCH_KERNEL(allgather)(blockDim, stream, sendBuff, recvBuff, myParamDataGva, sendCount, dataTypeInt, fftsAddr);
+    ACLRT_LAUNCH_KERNEL(allgather)(blockDim, stream, sendBuff, recvBuff, metaAddr, sendCount, 
+                                   dataTypeInt, fftsAddr, groupSize, rank);
     return Z_OK;
 }
 } // namespace zccl

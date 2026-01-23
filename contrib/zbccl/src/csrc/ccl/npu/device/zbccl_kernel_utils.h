@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details.
 #include "shmem_api.h"
 
 constexpr int64_t FLAG_SIZE = 16;
+constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 
 __aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank, uint64_t flagMagic)
 {
@@ -50,7 +51,7 @@ __aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t grou
 }
 
 template<typename T>
-__aicore__ inline void CpGM2GM(GlobalTensor<T> outputGT, GlobalTensor<T> inputGT, uint64_t count)
+__aicore__ inline void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTensor<T> inputGT, uint64_t count)
 {
     uint32_t copyUbSize = UB_DMA_MAX_SIZE / 2;
     uint32_t copyUbNum = copyUbSize / sizeof(T);
