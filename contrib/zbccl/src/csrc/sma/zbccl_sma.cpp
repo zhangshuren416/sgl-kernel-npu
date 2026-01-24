@@ -345,6 +345,7 @@ ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size,
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
             std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size, local_mem_size - meta_size);
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->shmem_base_addr_ = shmem_base_addr_;
     }
 }
 
