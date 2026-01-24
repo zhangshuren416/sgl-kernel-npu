@@ -14,12 +14,19 @@ See the Mulan PSL v2 for more details.
 #ifndef ZBCCL_KERNEL_UTILS_H
 #define ZBCCL_KERNEL_UTILS_H
 #include "kernel_operator.h"
-#include "shmem_api.h"
 
 constexpr int64_t FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 
-__aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank, uint64_t flagMagic)
+__aicore__ __inline__ __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
+{
+    uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
+    uint64_t dstPtr = curPtr + (dstPe - curPe) * localMemSize;
+    return reinterpret_cast<__gm__ void *>(dstPtr);
+}
+
+__aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
+                                  uint64_t flagMagic, uint64_t localDeviceMemSize)
 {
     const int64_t aivNum = AscendC::GetBlockNum();
     const int64_t aivIndex = AscendC::GetBlockIdx();
@@ -39,10 +46,10 @@ __aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t grou
 
     if (aivIndex < groupSize) {
         // write addr
-        auto ptr = shmem_ptr((__gm__ uint64_t *)metaGM, aivIndex);
+        auto ptr = zbccl_ptr((__gm__ uint64_t *)metaGM, myGroupRank, aivIndex, localDeviceMemSize);
         metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2);
         AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
-        AscendC::DataCopyPad(metaAddrTensor[addrOffset], inputBuff, copyParams);    
+        AscendC::DataCopyPad(metaAddrTensor[addrOffset], inputBuff, copyParams);
 
         //write flag
         AscendC::PipeBarrier<PIPE_ALL>();

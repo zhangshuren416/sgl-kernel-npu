@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_communicator_default.h"
+#include "zbccl_op_allgather.h"
 
 namespace zbccl {
 namespace ccl {
@@ -45,9 +46,7 @@ int32_t ZBCCLCommDefault::ReduceScatter(const void *send_buff, void *recv_buff, 
 int32_t ZBCCLCommDefault::AllGather(const void *send_buff, void *recv_buff, size_t send_count,
                                     zbccl_datatype_t data_type, aclrtStream stream) noexcept
 {
-    // TODO
-    ZBCCL_LOG_INFO("inner allgather");
-    return Z_OK;
+    return ZBCCL_OP_AllGather(send_buff, recv_buff, send_count, data_type, stream, GetMetaInfo());
 }
 
 int32_t ZBCCLCommDefault::All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,

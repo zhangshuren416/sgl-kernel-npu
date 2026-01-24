@@ -27,6 +27,7 @@ struct ZBCCLInitStateExt {
     uint64_t metaSizeOfDevice = 0;      /* size of device memory for SMA */
     void *mySMAGva = nullptr;           /* gva of sma of this rank */
     uint64_t smaSizeOfDevice = 0;       /* size of device memory for SMA */
+    uint64_t localDeviceMemSize = 0;    /* local device mem size */
 };
 
 class ZBCCLInitState

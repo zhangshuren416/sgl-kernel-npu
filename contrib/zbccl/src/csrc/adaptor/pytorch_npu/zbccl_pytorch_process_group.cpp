@@ -293,7 +293,6 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
     return collective(
         inputTensors, outputTensors,
         [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream, zbccl_comm_t comm) {
-            ZBCCL_LOG_INFO("inner fn");
             RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({}));
             c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
 

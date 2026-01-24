@@ -12,6 +12,7 @@
 #include "zbccl_communicator.h"
 #include "zbccl_comm_group_meta.h"
 #include "zbccl_communicator_default.h"
+#include "rt_ffts.h"
 
 namespace zbccl {
 namespace ccl {
@@ -34,10 +35,17 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
     commOptions.gva = extraState.gvaDevice;
     commOptions.deviceId = extraState.deviceId;
 
+    uint32_t len;
+    auto result = rtGetC2cCtrlAddr(&commOptions.fftsConfig, &len);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result=" << result);
+        return Z_FFTS_INIT_FAILED;
+    }
+
     std::lock_guard<std::mutex> guard(gMutex);
     /* init group meta arranger, already prevent initialize multiple time */
     auto &groupMetaArranger = GroupMetaArranger::Instance();
-    auto result = groupMetaArranger.Initialize(extraState);
+    result = groupMetaArranger.Initialize(extraState);
     if (result != Z_OK) {
         return result;
     }
@@ -46,6 +54,7 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
     commOptions.metaSizeOfDevice = groupMetaArranger.GetSingleMetaSpaceSize();
     commOptions.metaSizeForExchangeAddress = groupMetaArranger.GetAddressExchangeSpaceSize();
     commOptions.sizeForExchangeParam = GroupMetaArranger::OPERATE_PARAM_SIZE;
+    commOptions.localDeviceMemSize = ZBCCLInitState::Instance().ext_.localDeviceMemSize;
 
     /* get current index and myMetaGva */
     result = groupMetaArranger.CurrentGroup(commOptions.groupIndex, commOptions.myMetaDataGva);

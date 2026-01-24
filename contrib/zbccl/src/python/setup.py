@@ -12,10 +12,12 @@ import os
 import glob
 from pathlib import Path
 import sysconfig
+import subprocess
+import shutil
 
 import setuptools
 from setuptools import setup
-from torch.utils import cpp_extension
+from torch.utils.cpp_extension import CppExtension, BuildExtension
 
 import torch
 import torch_npu
@@ -58,13 +60,14 @@ shmem_home = Path(_find_sheme_home()).resolve()
 python_include_dir = Path(_find_python_include()).resolve()
 torch_dir = Path(os.path.dirname(torch.__file__)).resolve()
 torch_npu_dir = Path(os.path.dirname(torch_npu.__file__)).resolve()
-repo_root = Path(__file__).resolve().parents[4]  # sgl-kernel-npu/
+repo_root = Path(__file__).parent.parent.parent.parent.parent  # sgl-kernel-npu/
 zbccl_root = repo_root / "contrib/zbccl/"
 
 # allocator compile inputs
 include_dirs = [
     f"{python_include_dir}",
     f"{ascend_home}/include",
+    f"{ascend_home}/include/experiment/runtime/runtime/",
     f"{shmem_home}/shmem/include",
     f"{torch_npu_dir}/include",
     f"{torch_dir}/",
@@ -97,24 +100,19 @@ library_dirs = [
     f"{torch_npu_dir}/lib",
     f"{shmem_home}/shmem/lib",
     sysconfig.get_config_var("LIBDIR"),
+    f"{repo_root}/build/lib/",
+    f"{repo_root}/build/contrib/zbccl/src/csrc/",
 ]
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
 sources = (glob.glob(str(csrc_dir / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "ccl" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "ccl" / "npu" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "common" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "under_api" / "cann" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "under_api" / "memfabric" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "bootstrap" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "memfabric" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "bootstrap" / "memory" / "aclshmem" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
 libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python"]
+
+extra_objects = [f"{repo_root}/output/libzbccl_kernel.a", f"{repo_root}/output/libzbccl.a"]
 
 logger.warning(f"Using ASCEND_TOOLKIT_HOME at: {ascend_home}")
 logger.warning(f"Using SHMEM_HOME_PATH at: {shmem_home}")
@@ -122,6 +120,7 @@ logger.warning(f"{include_dirs=}")
 logger.warning(f"{sources=}")
 logger.warning(f"{library_dirs=}")
 logger.warning(f"{libraries=}")
+logger.warning(f"{extra_objects=}")
 
 extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wno-unused-function",
                       "-Wunused-value", "-Wcast-align",
@@ -131,17 +130,72 @@ extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-functi
                       "-ftrapv"]  # "-fvisibility=hidden"
 common_macros = []
 
+class CustomBuildExtension(BuildExtension):
+    def build_base_zbccl(self):
+        # make dir
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = Path(cur_dir).parent.parent.parent.parent
+        build_dir = os.path.join(f"{root_dir}", "build")
+        output_dir = os.path.join(f"{root_dir}", "output")
+        shutil.rmtree(build_dir, ignore_errors=True)
+        shutil.rmtree(output_dir, ignore_errors=True)
+        os.makedirs(build_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"make build dir:{build_dir}, output dir:{output_dir}")
+
+        # cmake
+        cmake_cmd = [
+            "cmake",
+            "..",
+            "-DSOC_VERSION=Ascend910_9382",
+            "-DBUILD_ZBCCL_MODULE_UT=OFF",
+            "-DCMAKE_BUILD_TYPE=DEBUG",
+            "-DDISABLE_ADAPTOR_COMPILE=ON",
+            "-DDISABLE_ALLOCATOR_COMPILE=ON"
+        ]
+        result = subprocess.run(cmake_cmd, cwd=build_dir)
+        if result.returncode != 0:
+            print(f"python cmake exec failed ret code {result.returncode}, msg {result.stderr}")
+            raise RuntimeError("cmake exec failed")
+        else:
+            print("python cmake exec success")
+
+        # make
+        make_cmd = [
+            "make",
+            "-j9"
+        ]
+        result = subprocess.run(make_cmd, cwd=build_dir)
+        if result.returncode != 0:
+            print(f"python make exec failed ret code {result.returncode}, msg {result.stderr}")
+            raise RuntimeError("make exec failed")
+        else:
+            print("python make exec success")
+
+        # copy
+        static_output = glob.glob(f"{repo_root}/**/*.a", recursive=True)
+        for x in static_output:
+            static_name = os.path.basename(x)
+            dst = f"{output_dir}/{static_name}"
+            shutil.copy2(x, dst)
+            print(f"copy {x} to {dst}")
+
+    def run(self):
+        self.build_base_zbccl()
+        super().run()
+
+
 setup(
     name="zbccl",
     version="0.0.1",
     ext_modules=[
-        cpp_extension.CppExtension(
+        CppExtension(
             name="zbccl.zbccl",  # TORCH_EXTENSION_NAME
             sources=sources,
             include_dirs=include_dirs,
             library_dirs=library_dirs,
-            # CUDA -> ACL
             libraries=libraries,
+            extra_objects=extra_objects,
             define_macros=[
                 *common_macros,
             ],
@@ -153,5 +207,5 @@ setup(
     packages=setuptools.find_packages(
         include=["zbccl", "zbccl.*"]
     ),
-    cmdclass={'build_ext': cpp_extension.BuildExtension}
+    cmdclass={'build_ext': CustomBuildExtension},
 )

@@ -14,7 +14,6 @@
 
 #include "dl_cann_api.h"
 #include "zbccl_common_includes.h"
-#include "shmem_api.h"
 #include "aclrtlaunch_ZeroBuffReduceScatter.h"
 
 namespace zbccl {
@@ -29,7 +28,7 @@ int32_t ZBCCLReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_d
     uint32_t reduceOpNum = static_cast<uint32_t>(reduceOp);
 
     // Prepare FFTS address
-    uint64_t fftsAddr = shmemx_get_ffts_config();
+    uint64_t fftsAddr = metaInfo.fftsConfig;
     // fixme set output empty in kernel
     AclrtMemset(out, recvNumel, 0, recvNumel);
     uint16_t rank = metaInfo.myGroupRank;
@@ -39,7 +38,7 @@ int32_t ZBCCLReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_d
     /* launch the kernel function via ACLRT_LAUNCH_KERNEL */
     ACLRT_LAUNCH_KERNEL(ZeroBuffReduceScatter)(blockDim, stream, inp, out, metaAddr,
                                             fftsAddr, dataTypeNum, recvNumel, rank, groupSize, reduceOpNum);
-    
+
     return 0;
 }
 

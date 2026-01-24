@@ -21,19 +21,19 @@
 namespace zbccl {
 namespace ccl {
 
-ZResult AllGather(const void *sendBuff, void *recvBuff, size_t sendCount, zbccl_datatype_t dataType, aclrtStream stream, 
-    ZBCommMetaInfo metaInfo)
+ZResult ZBCCL_OP_AllGather(const void *sendBuff, void *recvBuff, size_t sendCount,
+                           zbccl_datatype_t dataType, aclrtStream stream, const ZBCommMetaInfo &metaInfo)
 {
     int32_t blockDim = 24;
-    uint64_t fftsAddr = shmemx_get_ffts_config();
     int dataTypeInt = static_cast<int>(dataType);
-
     uint8_t* metaAddr = reinterpret_cast<uint8_t *>(metaInfo.myMetaDataGva);
     uint16_t rank = metaInfo.myGroupRank;
     uint16_t groupSize = metaInfo.groupSize;
+    uint64_t fftsAddr = metaInfo.fftsConfig;
+    uint64_t localDeviceMemSize = metaInfo.localDeviceMemSize;
 
-    ACLRT_LAUNCH_KERNEL(allgather)(blockDim, stream, sendBuff, recvBuff, metaAddr, sendCount, 
-                                   dataTypeInt, fftsAddr, groupSize, rank);
+    ACLRT_LAUNCH_KERNEL(allgather)(blockDim, stream, const_cast<void *>(sendBuff), recvBuff, metaAddr, sendCount,
+                                   dataTypeInt, fftsAddr, groupSize, rank, localDeviceMemSize);
     return Z_OK;
 }
 } // namespace zccl

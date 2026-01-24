@@ -45,7 +45,7 @@ def zbccl_init(world_size: int,
 
     # init ccl
 
-    return None
+    return True
 
 
 def zbccl_uninit(flags: int = 0):
@@ -61,7 +61,7 @@ def zbccl_uninit(flags: int = 0):
     # un-init bootstrap
     zbccl_unbootstrap(flags)
 
-    return None
+    return True
 
 
 def switch_to_allocator():

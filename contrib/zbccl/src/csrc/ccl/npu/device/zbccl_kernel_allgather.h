@@ -14,7 +14,6 @@ See the Mulan PSL v2 for more details.
 #ifndef ZBCCL_KERNEL_ALLGATHER_H
 #define ZBCCL_KERNEL_ALLGATHER_H
 #include "kernel_operator.h"
-#include "shmem_api.h"
 #include "zbccl_def.h"
 #include "zbccl_kernel_utils.h"
 
@@ -25,23 +24,23 @@ public:
     __aicore__ inline AllGatherKernel() {}
 
     template<typename T>
-    __aicore__ inline void Process(GM_ADDR input, GM_ADDR output, GM_ADDR metaGM, uint64_t elements, 
-        uint16_t groupSize, uint16_t myGroupRank)
+    __aicore__ inline void Process(GM_ADDR input, GM_ADDR output, GM_ADDR metaGM, uint64_t elements,
+        uint16_t groupSize, uint16_t myGroupRank, uint64_t localDeviceMemSize)
     {
 #ifdef DAV_C220_VEC
-        shmem_barrier_all();
+        // shmem_barrier_all();
         uint64_t flagMagic = 1024;
         uint16_t groupSize = commMeta->groupSize;
         uint16_t myGroupRank = commMeta->myGroupRank;
-        ExchangeInputAddr(inputGM, metaGM, groupSize, myGroupRank, flagMagic);
+        ExchangeInputAddr(inputGM, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize);
 
         const int64_t aivNum = AscendC::GetBlockNum();
         const int64_t aivIndex = AscendC::GetBlockIdx();
-    
+
         // data move parameters
-        const int64_t corePerRank = aivNum / groupSize; // 4 
-        const int64_t coreRankIdx = aivIndex % corePerRank; // 0,1,2,3 
-        const int64_t x = aivIndex / corePerRank; //0,1 
+        const int64_t corePerRank = aivNum / groupSize; // 4
+        const int64_t coreRankIdx = aivIndex % corePerRank; // 0,1,2,3
+        const int64_t x = aivIndex / corePerRank; //0,1
 
         uint64_t flag = 0;
         AscendC::LocalTensor<uint64_t> flagBuff(AscendC::TPosition::VECIN, 2*64 + 32, 1);
@@ -67,7 +66,7 @@ public:
         AscendC::GlobalTensor<T> outputGT;
         outputGT.SetGlobalBuffer((__gm__ T *)outputGM, elements * groupSize);
 
-        uint32_t numPerCore = elements / corePerRank; 
+        uint32_t numPerCore = elements / corePerRank;
         uint32_t outputOffset = x * elements + coreRankIdx * numPerCore;
         uint32_t inputOffset = coreRankIdx * numPerCore;
         if (coreRankIdx == corePerRank - 1) {

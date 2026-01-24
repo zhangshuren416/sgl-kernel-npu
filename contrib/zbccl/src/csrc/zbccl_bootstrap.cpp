@@ -63,6 +63,7 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     state.ext_.metaSizeOfDevice = output->metaSizeOfDevice;
     state.ext_.mySMAGva = output->mySMAGva;
     state.ext_.smaSizeOfDevice = output->smaSizeOfDevice;
+    state.ext_.localDeviceMemSize = output->allocatedDeviceMemorySize;
 
     return Z_OK;
 }

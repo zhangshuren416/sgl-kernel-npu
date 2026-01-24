@@ -14,23 +14,29 @@ def test_init_zbccl_pg():
 
     zbccl_set_logger_level(0)
     mem_128M = 128 * 1024 * 1024
-    zbccl_init(world_size, local_rank, mem_128M)
+    if not zbccl_init(world_size, local_rank, mem_128M):
+        print("zbccl_init failed.")
+        return
 
-    dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
+    group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl success on rank {local_rank=} {world_size=}")
+    try:
+        in_tensor = torch.ones(6).npu()
+        out_tensor = torch.zeros(6 * world_size).npu()
 
-    in_tensor = torch.ones(6).npu()
-    out_tensor = torch.zeros(6 * world_size).npu()
+        dist.all_gather_into_tensor(out_tensor, in_tensor,)
+        out_sum = torch.sum(out_tensor)
+        print(f"{out_tensor.shape=}, {out_sum=}, {out_tensor=}")
 
-    dist.all_gather_into_tensor(out_tensor, in_tensor,)
-    out_sum = torch.sum(out_tensor)
-    print(f"{out_tensor.shape=}, {out_sum=}, {out_tensor=}")
+        if out_sum != (world_size * torch.sum(in_tensor)):
+            print(f"[ERROR] all gather result invalid.")
+        else:
+            print(f"[SUCCESS] all gather reuslt correct.")
+    finally:
+        dist.destroy_process_group(group)
 
-    if out_sum != (world_size * torch.sum(in_tensor)):
-        print(f"[ERROR] all gather result invalid.")
-    else:
-        print(f"[SUCCESS] all gather reuslt correct.")
-    zbccl_uninit()
+    if not zbccl_uninit():
+        print("zbccl uninit failed.")
 
 
 if __name__ == "__main__":

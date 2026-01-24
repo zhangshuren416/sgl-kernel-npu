@@ -13,6 +13,8 @@ message(STATUS "ACLSHMEM PATH = $ENV{SHMEM_HOME_PATH}")
 include_directories(
         $ENV{SHMEM_HOME_PATH}/shmem/include
         ${ASCEND_HOME_PATH}/include
+        ${ASCEND_HOME_PATH}/include/experiment/runtime/runtime/
+        ${ASCEND_HOME_PATH}/include/experiment/msprof/
         ${TORCH_DIR}/include/torch/csrc/api/include
         ${TORCH_DIR}/include
         ${TORCH_DIR}/include/torch/csrc/distributed
@@ -40,12 +42,17 @@ include_directories(
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/aclshmem
 )
 
+add_subdirectory(ccl/npu/device/)
+
 # we seperated those files for ut with different modules
-# PyTorch adaptor
-file(GLOB_RECURSE PYTORCH_ADAPTOR_SRCS
-        ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp)
-add_library(pytorch_adaptor_objects OBJECT ${PYTORCH_ADAPTOR_SRCS})
-target_compile_options(pytorch_adaptor_objects PRIVATE -fPIC)
+
+if (NOT DEFINED DISABLE_ADAPTOR_COMPILE)
+        # PyTorch adaptor
+        file(GLOB_RECURSE PYTORCH_ADAPTOR_SRCS
+                ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp)
+        add_library(pytorch_adaptor_objects OBJECT ${PYTORCH_ADAPTOR_SRCS})
+        target_compile_options(pytorch_adaptor_objects PRIVATE -fPIC)
+endif()
 
 # boostrap objects
 file(GLOB_RECURSE BOOSTRAP_SRCS
@@ -60,6 +67,7 @@ file(GLOB CCL_SRCS
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp)
 add_library(ccl_objects OBJECT ${CCL_SRCS})
+target_link_libraries(ccl_objects PRIVATE zbccl_kernel)
 target_compile_options(ccl_objects PRIVATE -fPIC)
 
 # common objects
@@ -68,12 +76,14 @@ file(GLOB_RECURSE COMMON_SRCS
 add_library(common_objects OBJECT ${COMMON_SRCS})
 target_compile_options(common_objects PRIVATE -fPIC)
 
-# memory allocator objects
-file(GLOB_RECURSE ALLOCATOR_SRCS
-        ${ZBCCL_SRC_DIR}/csrc/dma/*.cpp
-        ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp)
-add_library(allocator_objects OBJECT ${ALLOCATOR_SRCS})
-target_compile_options(allocator_objects PRIVATE -fPIC)
+if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+        # memory allocator objects
+        file(GLOB_RECURSE ALLOCATOR_SRCS
+                ${ZBCCL_SRC_DIR}/csrc/dma/*.cpp
+                ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp)
+        add_library(allocator_objects OBJECT ${ALLOCATOR_SRCS})
+        target_compile_options(allocator_objects PRIVATE -fPIC)
+endif()
 
 # under api objects
 file(GLOB_RECURSE UNDER_API_SRCS
@@ -88,24 +98,35 @@ file(GLOB ZBCCL_SRCS
 add_library(zbccl_objects OBJECT ${ZBCCL_SRCS})
 target_compile_options(zbccl_objects PRIVATE -fPIC)
 
-add_library(zbccl_static STATIC $<TARGET_OBJECTS:pytorch_adaptor_objects>
-                                $<TARGET_OBJECTS:boostrap_objects>
+# static lib
+add_library(zbccl_static STATIC $<TARGET_OBJECTS:boostrap_objects>
                                 $<TARGET_OBJECTS:ccl_objects>
                                 $<TARGET_OBJECTS:common_objects>
-                                $<TARGET_OBJECTS:allocator_objects>
                                 $<TARGET_OBJECTS:under_api_objects>
                                 $<TARGET_OBJECTS:zbccl_objects>
                                 )
+if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+        target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:allocator_objects>)
+endif()
+if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
+        target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
+endif()
 set_target_properties(zbccl_static PROPERTIES OUTPUT_NAME "zbccl")
 
-add_library(zbccl_shared SHARED $<TARGET_OBJECTS:pytorch_adaptor_objects>
-                                $<TARGET_OBJECTS:boostrap_objects>
+# shared lib
+add_library(zbccl_shared SHARED $<TARGET_OBJECTS:boostrap_objects>
                                 $<TARGET_OBJECTS:ccl_objects>
                                 $<TARGET_OBJECTS:common_objects>
-                                $<TARGET_OBJECTS:allocator_objects>
                                 $<TARGET_OBJECTS:under_api_objects>
                                 $<TARGET_OBJECTS:zbccl_objects>
                                 )
+if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+        target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:allocator_objects>)
+endif()
+
+if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
+        target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
+endif()
 set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl")
 target_link_libraries(zbccl_shared PUBLIC pthread)
 

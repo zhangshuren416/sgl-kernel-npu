@@ -14,7 +14,7 @@
 
 #include <cstdint>
 #include "kernel_operator.h"
-#include "shmem_api.h"
+#include "shmem.h"
 #include "zbccl_def.h"
 
 #define AICORE_FORCE_INLINE __attribute__((always_inline)) __aicore__ __inline__

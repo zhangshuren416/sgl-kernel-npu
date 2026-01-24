@@ -28,6 +28,8 @@ struct ZBCommOptions {
     uint64_t sizeForExchangeParam = 0;       /* max memory size of passing param from host to device */
     uint16_t deviceId = 0;                   /* device Id */
     uint32_t groupIndex = 0;                 /* group index */
+    uint64_t fftsConfig = 0;                 /* ffts config for operator in inner option*/
+    uint64_t localDeviceMemSize = 0;         /* local device memory size */
 
     friend std::ostream &operator<<(std::ostream &os, const ZBCommOptions &options)
     {
@@ -58,7 +60,9 @@ struct ZBCommMetaInfo {
     uint64_t metaSizeForExchangeAddress = 0;                /* max memory size for exchange operation data addresses */
     uintptr_t myParamDataGva = 0;                           /* gva of for param exchange of operation */
     uint64_t sizeForExchangeParam = 0;                      /* max memory size of passing param from host to device */
+    uint64_t fftsConfig;                                    /* copy from ZBCommOptions.fftsConfig */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
+    uint64_t localDeviceMemSize;                            /* copy from ZBCommOptions.localDeviceMemSize */
 
     ZBCommMetaInfo() = default;
     ZBCommMetaInfo(const ZBCommOptions &options)
@@ -73,6 +77,8 @@ struct ZBCommMetaInfo {
         metaSizeForExchangeAddress = options.metaSizeForExchangeAddress;
         myParamDataGva = options.myParamDataGva;
         sizeForExchangeParam = options.sizeForExchangeParam;
+        fftsConfig = options.fftsConfig;
+        localDeviceMemSize = options.localDeviceMemSize;
     }
 
     friend std::ostream &operator<<(std::ostream &os, const ZBCommMetaInfo &options)
