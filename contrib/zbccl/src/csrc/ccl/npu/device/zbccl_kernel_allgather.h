@@ -32,7 +32,7 @@ public:
         uint64_t flagMagic = 1024;
         uint16_t groupSize = commMeta->groupSize;
         uint16_t myGroupRank = commMeta->myGroupRank;
-        ExchangeInputAddr(inputGM, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize);
+        ExchangeInputAddr(input, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize);
 
         const int64_t aivNum = AscendC::GetBlockNum();
         const int64_t aivIndex = AscendC::GetBlockIdx();
@@ -64,7 +64,7 @@ public:
 
         AscendC::LocalTensor<uint64_t> input_addr_buff(AscendC::TPosition::VECIN, 3*64 + 32, 1);
         AscendC::GlobalTensor<T> outputGT;
-        outputGT.SetGlobalBuffer((__gm__ T *)outputGM, elements * groupSize);
+        outputGT.SetGlobalBuffer((__gm__ T *)output, elements * groupSize);
 
         uint32_t numPerCore = elements / corePerRank;
         uint32_t outputOffset = x * elements + coreRankIdx * numPerCore;
