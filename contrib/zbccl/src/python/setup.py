@@ -100,19 +100,16 @@ library_dirs = [
     f"{torch_npu_dir}/lib",
     f"{shmem_home}/shmem/lib",
     sysconfig.get_config_var("LIBDIR"),
-    f"{repo_root}/build/lib/",
-    f"{repo_root}/build/contrib/zbccl/src/csrc/",
+    f"{repo_root}/output/",
 ]
 
 csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
-sources = (glob.glob(str(csrc_dir / "*.cpp")) + \
+sources = ([f"{csrc_dir}/zbccl_pybind.cpp"] + \
            glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
-libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python"]
-
-extra_objects = [f"{repo_root}/output/libzbccl_kernel.a", f"{repo_root}/output/libzbccl.a"]
+libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python", "zbccl_core", "zbccl_kernel"]
 
 logger.warning(f"Using ASCEND_TOOLKIT_HOME at: {ascend_home}")
 logger.warning(f"Using SHMEM_HOME_PATH at: {shmem_home}")
@@ -120,7 +117,6 @@ logger.warning(f"{include_dirs=}")
 logger.warning(f"{sources=}")
 logger.warning(f"{library_dirs=}")
 logger.warning(f"{libraries=}")
-logger.warning(f"{extra_objects=}")
 
 extra_compile_args = ["-std=c++17", "-hno-unused-parameter", "-lno-unused-function", "-Wno-unused-function",
                       "-Wunused-value", "-Wcast-align",
@@ -163,7 +159,7 @@ class CustomBuildExtension(BuildExtension):
         # make
         make_cmd = [
             "make",
-            "-j9"
+            "-j3"
         ]
         result = subprocess.run(make_cmd, cwd=build_dir)
         if result.returncode != 0:
@@ -195,7 +191,6 @@ setup(
             include_dirs=include_dirs,
             library_dirs=library_dirs,
             libraries=libraries,
-            extra_objects=extra_objects,
             define_macros=[
                 *common_macros,
             ],

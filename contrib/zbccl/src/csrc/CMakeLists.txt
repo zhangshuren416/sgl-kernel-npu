@@ -67,7 +67,7 @@ file(GLOB CCL_SRCS
         ${ZBCCL_SRC_DIR}/csrc/ccl/*.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/*.cpp)
 add_library(ccl_objects OBJECT ${CCL_SRCS})
-target_link_libraries(ccl_objects PRIVATE zbccl_kernel)
+target_link_libraries(ccl_objects PRIVATE zbccl_kernel) # link not work on object, only for compile pass
 target_compile_options(ccl_objects PRIVATE -fPIC)
 
 # common objects
@@ -105,13 +105,14 @@ add_library(zbccl_static STATIC $<TARGET_OBJECTS:boostrap_objects>
                                 $<TARGET_OBJECTS:under_api_objects>
                                 $<TARGET_OBJECTS:zbccl_objects>
                                 )
+target_link_libraries(zbccl_static PRIVATE zbccl_kernel)
 if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
         target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:allocator_objects>)
 endif()
 if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
         target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
 endif()
-set_target_properties(zbccl_static PROPERTIES OUTPUT_NAME "zbccl")
+set_target_properties(zbccl_static PROPERTIES OUTPUT_NAME "zbccl_core")
 
 # shared lib
 add_library(zbccl_shared SHARED $<TARGET_OBJECTS:boostrap_objects>
@@ -120,6 +121,7 @@ add_library(zbccl_shared SHARED $<TARGET_OBJECTS:boostrap_objects>
                                 $<TARGET_OBJECTS:under_api_objects>
                                 $<TARGET_OBJECTS:zbccl_objects>
                                 )
+target_link_libraries(zbccl_shared PRIVATE zbccl_kernel)
 if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
         target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:allocator_objects>)
 endif()
@@ -127,7 +129,7 @@ endif()
 if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
         target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
 endif()
-set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl")
+set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl_core")
 target_link_libraries(zbccl_shared PUBLIC pthread)
 
 #install
