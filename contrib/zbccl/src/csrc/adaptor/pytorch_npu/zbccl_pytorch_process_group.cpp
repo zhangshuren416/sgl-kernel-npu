@@ -55,9 +55,9 @@ void ProcessGroupZBCCL::WorkZBCCL::synchronizeInternal(std::chrono::milliseconds
 {
     for (const auto i: c10::irange(devices_.size())) {
         auto currentStream = c10_npu::getCurrentNPUStream(devices_[i].index());
-        // Block the current stream on the LCCL stream
+        // Block the current stream on the zbccl stream
         (*zbcclEndEvents_)[i].block(currentStream);
-        ZBCCL_LOG_INFO("Event: block lccl work is successfully executed, event=" << (*zbcclEndEvents_)[i].event());
+        ZBCCL_LOG_INFO("Event: block zbccl work is successfully executed, event=" << (*zbcclEndEvents_)[i].event());
     }
 
     // In case of blocking, wait for the operation to complete.

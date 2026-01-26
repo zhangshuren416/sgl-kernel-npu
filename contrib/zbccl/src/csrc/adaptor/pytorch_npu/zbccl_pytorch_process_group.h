@@ -53,12 +53,12 @@ public:
     class WorkZBCCL : public c10d::Work, public std::enable_shared_from_this<WorkZBCCL>
     {
     public:
-        // Constructor takes a list of NPU devices to adapt framework, But LCCL support one device only!!!
+        // Constructor takes a list of NPU devices to adapt framework, But zbccl support one device only!!!
         explicit WorkZBCCL(const std::vector<at::Device> &devices, int rank, c10d::OpType opType);
 
         ~WorkZBCCL() override;
-        // Checks if request has completed. In this specific case of LCCL, it checks
-        // if the LCCL operation has completed on the NPU in its own LCCL stream.
+        // Checks if request has completed. In this specific case of zbccl, it checks
+        // if the zbccl operation has completed on the NPU in its own zbccl stream.
         // Non-blocking operation.
         bool isCompleted() override;
 
@@ -69,26 +69,26 @@ public:
         // Get a Future object that will be marked as completed internally.
         c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
 
-        // Let current stream wait on the completing of the LCCL work
+        // Let current stream wait on the completing of the zbccl work
         // Throws on exceptions. Blocking operation, which will wait for work completion.
         void synchronize() override;
 
-        // Helper function that checks if the LCCL have finished execution on the NPUs
+        // Helper function that checks if the zbccl have finished execution on the NPUs
         bool finishedNPUExecution();
 
         std::vector<at::Tensor> result() override;
 
     protected:
-        // The cached list of NPU devices to operate on. LCCL support one device per rank only
+        // The cached list of NPU devices to operate on. zbccl support one device per rank only
         std::vector<at::Device> devices_;
 
-        // The LCCL communicators used for this work item.
+        // The zbccl communicators used for this work item.
         std::vector<zbccl_comm_t> zbcclComms_;
 
         // multiple runtime devices. These start npu events are needed by desync debugging if enabled.
         // std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclStartEvents_;
 
-        // The end npu events of LCCL operator tracking this work item on multiple npu devices.
+        // The end npu events of zbccl operator tracking this work item on multiple npu devices.
         std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclEndEvents_;
 
         // Clone of blockingWait_ from ProcessGroupZBCCL.
@@ -104,17 +104,17 @@ public:
         // Helper function for synchronize
         void synchronizeInternal(std::chrono::milliseconds timeout);
 
-        // Checks for LCCL errors and sets an appropriate exception_ptr.
+        // Checks for zbccl errors and sets an appropriate exception_ptr.
         void checkAndSetException() const;
 
-        // Checks for LCCL errors and throws an appropriate exception.
+        // Checks for zbccl errors and throws an appropriate exception.
         void checkAndThrowException() const;
 
         // Just checks whether NPU execution has completed, without modifying
         // exception_ptr.
         bool finishedNPUExecutionInternal() const;
 
-        // Store a reference to LCCL collective's outputs, used by result and to
+        // Store a reference to zbccl collective's outputs, used by result and to
         // give a more descriptive message when representing the Work as a string.
         std::shared_ptr<std::vector<at::Tensor>> outputs_;
 
