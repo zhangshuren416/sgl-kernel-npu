@@ -137,7 +137,9 @@ typedef struct {
 } zbccl_tensor_info_t;
 
 typedef enum {
-    QUANT_BF16_2_INT8 = 0, /* from bf16 to int8*/
+    NO_QUANT = 0,
+
+    QUANT_BF16_2_INT8 = 1, /* from bf16 to int8*/
 
     QUANT_BUTT
 } zbccl_quant_mode_t;

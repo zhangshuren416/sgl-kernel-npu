@@ -114,18 +114,18 @@ int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_t data_cou
                          uint64_t stride_count, uint8_t repeat, zbccl_comm_t comm, aclrtStream stream);
 
 /**
- * @brief
+ * @brief Calculate the number of tokens sent to each rank and other info
  *
- * @param sendTokensPerExpert  [in]
- * @param sendCount            [in]
- * @param topKNum              [in]
- * @param recvBuff             [in]
- * @param totalRecvTokens      [in]
- * @param recvTokensPerExpert  [in]
- * @param pushTargetOffset     [in]
- * @param comm                 [in]
- * @param stream               [in]
- * @param flags                [in]
+ * @param sendTokensPerExpert  [in] the number of tokens to be sent to each expert
+ * @param sendCount            [in] send data count
+ * @param topKNum              [in] num of topK
+ * @param recvBuff             [in] receive data
+ * @param totalRecvTokens      [in/out] total recv token num
+ * @param recvTokensPerExpert  [in/out] the number of tokens received by each expert
+ * @param pushTargetOffset     [in/out] the token offset sent by different ranks to each expert
+ * @param comm                 [in] zbccl communication handle
+ * @param stream               [in] stream
+ * @param flags                [in] optional flags, reserved or extend
  * @return
  */
 int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
@@ -161,8 +161,8 @@ int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64
  *
  * @param srcTokens            [in] tensor info of source tokens to be dispatched
  * @param topkIndex            [in] topK index info of per token
- * @param sendTokensIndex      [in]
- * @param pushTargetOffset     [in]
+ * @param sendTokensIndex      [in] send index of per token
+ * @param pushTargetOffset     [in] the token offset sent by different ranks to each expert
  * @param expertNum            [in] number of export to be dispatch
  * @param quantMode            [in] quant mode
  * @param destTokens           [in/out] tensor info of destination tokens
@@ -181,16 +181,16 @@ int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_
 /**
  * @brief Combine operation in pull mode
  *
- * @param srcTokens            [in]
- * @param srcTokensPerEp       [in]
- * @param topKWeight           [in]
- * @param topkIndex            [in]
- * @param sendTokensIndex      [in]
- * @param expertNum            [in]
- * @param destTokens           [in]
- * @param comm                 [in]
- * @param stream               [in]
- * @param flags                [in]
+ * @param srcTokens            [in] tensor info of tokens be dispatched
+ * @param srcTokensPerEp       [in] the number of tokens received by each expert from different ranks (prefix sum form)
+ * @param topKWeight           [in] the weights of the topK experts for each token
+ * @param topkIndex            [in] topK index info of per token
+ * @param sendTokensIndex      [in] send index of per token
+ * @param expertNum            [in] moe expert number
+ * @param destTokens           [in/out] tensor info of destination tokens
+ * @param comm                 [in] zbccl communication handle
+ * @param stream               [in] stream
+ * @param flags                [in] optional flags, reserved or extend
  * @return
  */
 int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,

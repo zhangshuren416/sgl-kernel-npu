@@ -60,27 +60,26 @@ public:
 
     bool is_internode_available() const;
 
+    int get_num_rdma_ranks() const;
+
+    int get_rdma_rank() const;
+
     std::tuple<torch::Tensor, std::optional<torch::Tensor>, torch::Tensor, torch::Tensor, std::optional<EventHandle>>
     get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std::optional<EventHandle> &previous_event,
                         bool async, bool allocate_on_comm_stream);
     
     std::tuple<at::Tensor, std::optional<at::Tensor>, std::optional<at::Tensor>, std::optional<at::Tensor>,
-               std::vector<int>, at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor,
-               std::optional<EventHandle>>
+           std::vector<int>, at::Tensor, std::optional<EventHandle>>
     intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> &x_scales,
                        const std::optional<at::Tensor> &topk_idx, const std::optional<at::Tensor> &topk_weights,
                        const std::optional<at::Tensor> &num_tokens_per_rank, const at::Tensor &is_token_in_rank,
-                       const std::optional<at::Tensor> &num_tokens_per_expert, int cached_num_recv_tokens,
-                       const std::optional<at::Tensor> &cached_rank_prefix_matrix,
-                       const std::optional<at::Tensor> &cached_channel_prefix_matrix,
-                       const std::optional<at::Tensor> &dispatch_wait_recv_cost_stats, int expert_alignment,
+                       const std::optional<at::Tensor> &num_tokens_per_expert,
                        int num_worst_tokens, const Config &config, std::optional<EventHandle> &previous_event,
                        bool async, bool allocate_on_comm_stream, bool use_quant);
 
     std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> intranode_combine(
         const torch::Tensor &x, const torch::Tensor &topk_idx, const std::optional<torch::Tensor> &topk_weights,
-        const torch::Tensor &src_idx, const torch::Tensor &send_head, const torch::Tensor &put_offset,
-        const std::optional<at::Tensor> &combine_send_cost_stats);
+        const torch::Tensor &put_offset);
 
     std::tuple<at::Tensor, std::optional<at::Tensor>, at::Tensor, at::Tensor, at::Tensor, std::optional<EventHandle>,
                std::optional<std::function<void()>>>
