@@ -95,6 +95,7 @@ target_compile_options(under_api_objects PRIVATE -fPIC)
 # zbccl objects
 file(GLOB ZBCCL_SRCS
         ${ZBCCL_SRC_DIR}/csrc/*.cpp)
+list(FILTER ZBCCL_SRCS EXCLUDE REGEX "zbccl_pybind\\.cpp")
 add_library(zbccl_objects OBJECT ${ZBCCL_SRCS})
 target_compile_options(zbccl_objects PRIVATE -fPIC)
 

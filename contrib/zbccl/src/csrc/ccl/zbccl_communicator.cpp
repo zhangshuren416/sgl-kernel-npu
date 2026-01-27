@@ -12,7 +12,6 @@
 #include "zbccl_communicator.h"
 #include "zbccl_comm_group_meta.h"
 #include "zbccl_communicator_default.h"
-#include "rt_ffts.h"
 
 namespace zbccl {
 namespace ccl {
@@ -35,17 +34,10 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
     commOptions.gva = extraState.gvaDevice;
     commOptions.deviceId = extraState.deviceId;
 
-    uint32_t len;
-    auto result = rtGetC2cCtrlAddr(&commOptions.fftsConfig, &len);
-    if (result != Z_OK) {
-        ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result=" << result);
-        return Z_FFTS_INIT_FAILED;
-    }
-
     std::lock_guard<std::mutex> guard(gMutex);
     /* init group meta arranger, already prevent initialize multiple time */
     auto &groupMetaArranger = GroupMetaArranger::Instance();
-    result = groupMetaArranger.Initialize(extraState);
+    auto result = groupMetaArranger.Initialize(extraState);
     if (result != Z_OK) {
         return result;
     }
@@ -130,6 +122,10 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
             ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed, probably out of memory");
             return nullptr;
         }
+        if (comm->Initialize()) {
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Init communicator failed.");
+            return nullptr;
+        }
 
         if (isWorldGroup && gWorldZBCCLComm == nullptr) {
             /*
@@ -167,7 +163,7 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
         }
     }
 
-    ZBCCL_LOG_DEBUG("exit");
+    ZBCCL_LOG_DEBUG("Comm createInner exit with error");
     return nullptr;
 }
 

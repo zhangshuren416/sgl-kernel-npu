@@ -11,6 +11,7 @@
  */
 #include "zbccl_communicator_default.h"
 #include "zbccl_op_allgather.h"
+#include "rt_ffts.h"
 
 namespace zbccl {
 namespace ccl {
@@ -20,7 +21,12 @@ ZBCCLCommDefault::ZBCCLCommDefault(const ZBCommOptions &options, bool isWorldGro
 
 ZResult ZBCCLCommDefault::Initialize() noexcept
 {
-    // TODO
+    uint32_t len;
+    auto result = rtGetC2cCtrlAddr(&metaInfo_.fftsConfig, &len);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result=" << result);
+        return Z_FFTS_INIT_FAILED;
+    }
     return Z_OK;
 }
 
@@ -69,7 +75,7 @@ int32_t ZBCCLCommDefault::DispatchNormalLayout(const zbccl_tensor_info_t *topkIn
                                                int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
-                                               const zbccl_tensor_info_t *sendTokensIndex, 
+                                               const zbccl_tensor_info_t *sendTokensIndex,
                                                aclrtStream stream, int64_t flags) noexcept
 {
     // TODO
