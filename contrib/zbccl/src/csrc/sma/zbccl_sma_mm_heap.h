@@ -22,6 +22,7 @@
 #include <iostream>
 
 #include "zbccl_common_includes.h"
+#include "zbccl_sma_common.h"
 
 namespace zbccl {
 namespace sma {
@@ -80,14 +81,76 @@ private:
     std::set<MemoryRange, RangeSizeFirstComparator> size_idle_tree_;
 };
 
+class CustomMemoryHeap {
+public:
+    CustomMemoryHeap(void *base, uint64_t size) : base_(static_cast<uint8_t*>(base)), size_(size) {};
+
+    virtual ~CustomMemoryHeap() noexcept = default;
+
+public:
+    virtual void *alignedAllocate(uint64_t alignment, uint64_t size) noexcept = 0;
+
+    virtual size_t reservedTotalSize() noexcept = 0;
+
+    virtual int32_t release(void *address) noexcept = 0;
+
+    virtual bool allocatedSize(void *address, uint64_t &size) const noexcept = 0;
+
+    inline bool isInitialized() const noexcept { return initialized_; }
+
+    // to be deprecated
+    inline uint8_t *getBaseAddr() const noexcept { return base_; }
+
+protected:
+    bool initialized_{false};
+
+    uint8_t *const base_;
+    const uint64_t size_;
+};
+
+class DualMemoryHeap : public CustomMemoryHeap {
+public:
+    DualMemoryHeap(void *base, uint64_t size);
+
+    ~DualMemoryHeap() noexcept override = default;
+
+public:
+    void *alignedAllocate(uint64_t alignment, uint64_t size) noexcept override;
+
+    size_t reservedTotalSize() noexcept override;
+
+    int32_t release(void *address) noexcept override;
+
+    bool allocatedSize(void *address, uint64_t &size) const noexcept override;
+
+private:
+    constexpr static uint64_t SMALL_SIZE{kSmallHeapSize};       // small heap total size 512M
+    constexpr static uint64_t SMALL_ALLOC{kSmallSize};          // small heap cover under 1M alloc
+    constexpr static bool ENABLE_CROSS{true};                   // whether enable small alloc overflow to large heap
+
+    const uint64_t size_small_;
+    const uint64_t size_large_;
+    MemoryHeap small_;
+    MemoryHeap large_;
+
+};
+
 }  // namespace heap
 
+// Heap API remains for dma
 ZBCCL_API int HeapAlignedAllocate(void **devPtr, size_t size,
-                                  std::shared_ptr <heap::MemoryHeap> shmem_pool);
+                                  std::shared_ptr<heap::MemoryHeap> shmem_pool);
 
-ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr <heap::MemoryHeap> shmem_pool);
+ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr<heap::MemoryHeap> shmem_pool);
 
-ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool);
+ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr<heap::MemoryHeap> shmem_pool);
+
+ZBCCL_API int CustomHeapAlignedAllocate(void **devPtr, size_t size,
+                                        std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
+
+ZBCCL_API int CustomHeapRelease(void *devPtr, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
+
+ZBCCL_API int CustomReservedTotalSize(size_t &size, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
 
 }  // namespace sma
 }  // namespace zbccl

@@ -296,8 +296,8 @@ bool DeviceSMACachingAllocator::alloc_block(DeviceAllocParams &p, bool isRetry, 
         return false;
     } else {
         // TODO add active_pool is_private check before this
-        if (mem_heap_inited_) {
-            p.result_ = zbccl::sma::HeapAlignedAllocate(&ptr, size, mem_heap_pool_);
+        if (mem_heap_pool_ && mem_heap_pool_->isInitialized()) {
+            p.result_ = zbccl::sma::CustomHeapAlignedAllocate(&ptr, size, mem_heap_pool_);
             if (p.result_ == Z_OK) {
                 shmem_addrs_.insert(ptr);
             }
@@ -378,7 +378,7 @@ bool DeviceSMACachingAllocator::release_available_cached_blocks(const DeviceAllo
 
 void DeviceSMACachingAllocator::release_block(DeviceBlock *block, const std::shared_ptr<c10::GatheredContext> &context) {
     if (shmem_addrs_.count((void *)block->ptr_)) {
-        ZBCCL_CHECK_S(zbccl::sma::HeapRelease((void *)block->ptr_, mem_heap_pool_) == ACL_SUCCESS, "shmem heap free failed");
+        ZBCCL_CHECK_S(zbccl::sma::CustomHeapRelease((void *)block->ptr_, mem_heap_pool_) == ACL_SUCCESS, "shmem heap free failed");
     } else {
         ZBCCL_LOG_ERROR("sma miss this ptr, using aclRT instead(this may be a undefined behavior)");
         // aclrtFree((void *)block->ptr_);
@@ -680,7 +680,7 @@ void DeviceSMACachingAllocator::eraseStream(DeviceBlock *block, c10_npu::NPUStre
 void DeviceSMACachingAllocator::setMemoryFraction(double fraction)
 {
     size_t device_total;
-    zbccl::sma::ReservedTotalSize(device_total, mem_heap_pool_);
+    zbccl::sma::CustomReservedTotalSize(device_total, mem_heap_pool_);
     allowed_memory_maximum_ = static_cast<size_t>(fraction * device_total);
     set_fraction_ = true;
 }

@@ -15,6 +15,7 @@
 #include "zbccl_sma_common.h"
 #include "zbccl_sma_config.h"
 #include "zbccl_sma_device_pool.h"
+#include "zbccl_sma_mm_heap.h"
 
 using ZEvent = std::unique_ptr<c10_npu::NPUEvent, std::function<void(c10_npu::NPUEvent *)>>;
 
@@ -53,12 +54,6 @@ namespace device {
 class EventController;
 
 class DeviceSMACachingAllocator {
-public:
-    // TODO: move this(shm-vmm heap class for shmem) into private
-    std::shared_ptr<heap::MemoryHeap> mem_heap_pool_{nullptr};
-    bool mem_heap_inited_ = false;
-    void *shmem_base_addr_ = nullptr;
-
 private:
     // lock around all operations
     mutable std::recursive_mutex mutex_;
@@ -68,6 +63,9 @@ private:
 
     // allocated or in use by a stream
     ska::flat_hash_set<DeviceBlock *> active_blocks_;
+
+    // mem heap for shmem
+    std::shared_ptr<heap::DualMemoryHeap> mem_heap_pool_{nullptr};
 
     // TODO: merge into DeviceStats later(addrs allocated by shmem)
     ska::flat_hash_set<void *> shmem_addrs_;
@@ -192,6 +190,19 @@ public:
 
     // Called by NPUGraph::reset
     void releasePool(c10_npu::MempoolId_t mempool_id);
+
+    // heap funcs
+    inline void setMemHeapPool(void *base, uint64_t size) {
+        mem_heap_pool_ = std::make_shared<zbccl::sma::heap::DualMemoryHeap>(base, size);
+    };
+    inline bool isHeapInited() {
+        if (mem_heap_pool_ != nullptr)
+            return mem_heap_pool_->isInitialized();
+        else
+            return false;
+    };
+    inline void *getHeapBase() { return mem_heap_pool_->getBaseAddr();};
+    inline uint64_t getHeapSize() { return mem_heap_pool_->reservedTotalSize();};
 };
 
 }  // namespace device

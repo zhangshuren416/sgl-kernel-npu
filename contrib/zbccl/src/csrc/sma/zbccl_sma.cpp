@@ -273,7 +273,7 @@ ZBCCL_API void *sma_get_base_addr(int device) {
         c10_npu::GetDevice(&device_i);
     else
         device_i = device;
-    return zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->shmem_base_addr_;
+    return zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapBase();
 }
 
 aclshmemx_uniqueid_t sma_default_flag_uid;
@@ -327,13 +327,12 @@ ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size,
     int device = 0;
     c10_npu::GetDevice(&device);
 
-    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_) {
+    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
         void *shmem_base_addr_ = shmem_malloc(local_mem_size);
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
-                std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size,
-                                                               local_mem_size - meta_size);
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->shmem_base_addr_ = shmem_base_addr_;
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->setMemHeapPool
+            (shmem_base_addr_ + meta_size, local_mem_size - meta_size);
+    } else {
+        ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
     }
 }
 
@@ -341,15 +340,11 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
     int device = 0;
     c10_npu::GetDevice(&device);
 
-    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_) {
+    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
         void *shmem_base_addr_ = base_ptr;
         //ZBCCL_CHECK_S(!is_simulation, "[E]sma currently do not support simulation on this init.");
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
-                std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_, local_mem_size);
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->shmem_base_addr_ = shmem_base_addr_;
-    }
-    else {
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->setMemHeapPool(shmem_base_addr_, local_mem_size);
+    } else {
         ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
     }
 }

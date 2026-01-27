@@ -32,11 +32,6 @@ public:
     }
 
     /*
-    static bool expandable_segments()
-    {
-        return instance().expandable_segments_;
-    }
-
     static size_t base_addr_aligned_size()
     {
         return instance().base_addr_aligned_size_;
@@ -61,14 +56,12 @@ public:
 private:
     size_t max_split_size_;
     double garbage_collection_threshold_;
-    // bool expandable_segments_;
     // size_t base_addr_aligned_size_ = kAlignRoundLarge;
     size_t segment_size_mb_;
 
     SMAConfig():
         max_split_size_(std::numeric_limits<size_t>::max()),
         garbage_collection_threshold_(0),
-        // expandable_segments_(false),
         // base_addr_aligned_size_(kAlignRoundLarge),
         segment_size_mb_(0)
     {}

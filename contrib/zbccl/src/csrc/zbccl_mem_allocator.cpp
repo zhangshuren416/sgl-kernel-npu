@@ -13,6 +13,9 @@
 #include "c10_npu_dma.h"
 #include "zbccl_sma.h"
 
+#define USE_C10NPU_DMA  // else USE_ZBCCL_SMA
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -97,6 +100,7 @@ ZBCCL_API void *zbccl_get_shmem_base_addr()
 #ifdef USE_C10NPU_DMA
     return dma_get_base_addr();
 #else
+    ZBCCL_LOG_WARN("sma base addr no longer stands for meta if inited from bootstrap, will be deprecated soon");
     return sma_get_base_addr();
 #endif
 }

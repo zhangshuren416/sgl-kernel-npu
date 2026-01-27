@@ -24,7 +24,6 @@
 #include <torch_npu/csrc/core/npu/NPUGraphsUtils.h>
 
 #include "zbccl_common_includes.h"
-#include "zbccl_sma_mm_heap.h"
 
 namespace zbccl {
 namespace sma {
@@ -54,6 +53,7 @@ constexpr size_t kMiddleAlloc = 10485760;             // allocations between 1 a
 constexpr size_t kRoundLarge = 2097152;               // round up large allocs to 2 MiB
 // constexpr size_t kAlignRoundLarge = 16384;            // align large allocs head addr to 16 KB
 constexpr size_t kMB = 1024 * 1024;                   // 1 MB
+constexpr size_t kSmallHeapSize = 512 * kMB;          // 512MB for small heap in dualHeap allocator
 
 }  // namespace sma
 }  // namespace zbccl
