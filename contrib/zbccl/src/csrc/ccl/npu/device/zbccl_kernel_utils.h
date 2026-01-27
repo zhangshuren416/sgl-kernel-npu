@@ -25,7 +25,7 @@ __aicore__ __inline__ __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int ds
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
-__aicore__ void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
+__aicore__ inline void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
                                   uint64_t flagMagic, uint64_t localDeviceMemSize)
 {
     const int64_t aivNum = AscendC::GetBlockNum();

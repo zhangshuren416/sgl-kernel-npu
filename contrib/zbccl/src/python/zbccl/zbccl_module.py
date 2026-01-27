@@ -27,6 +27,10 @@ def zbccl_init(world_size: int,
     :param bootstrap: gva memory bootstrap backend
     :return: 0 if
     '''
+    # init mem allocator, switch before set_device
+    switch_to_allocator()
+    torch.npu.set_device(rank_id)
+
     # bootstrap
     opt = ZBCCLBootstrapOption()
     opt.flags = flags
@@ -40,8 +44,6 @@ def zbccl_init(world_size: int,
     opt.cclMetaSpaceSize = ccl_meta_space_size
     opt.cclGroupCap = ccl_group_cap
     zbccl_bootstrap(opt)
-
-    # init mem allocator
 
     # init ccl
 

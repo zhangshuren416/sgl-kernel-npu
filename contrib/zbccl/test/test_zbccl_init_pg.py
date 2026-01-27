@@ -10,16 +10,17 @@ torch_npu.npu.config.allow_internal_format = True
 def test_init_zbccl_pg():
     local_rank = int(os.environ["LOCAL_RANK"])
     world_size = int(os.environ["WORLD_SIZE"] or 2)
-    torch.npu.set_device(local_rank)
 
     zbccl_set_logger_level(0)
     mem_128M = 128 * 1024 * 1024
     if not zbccl_init(world_size, local_rank, mem_128M):
-        print("zbccl_init failed.")
+        print(f"zbccl_init failed on rank {local_rank}.")
         return
+    else:
+        print(f"zbccl_init success on rank {local_rank}")
 
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
-    print(f"init zbccl success on rank {local_rank=} {world_size=}")
+    print(f"init zbccl group success on rank {local_rank=} {world_size=}")
     try:
         in_tensor = torch.ones(6).npu()
         out_tensor = torch.zeros(6 * world_size).npu()
