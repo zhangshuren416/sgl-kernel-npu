@@ -11,19 +11,20 @@
  */
 #include "zbccl_communicator.h"
 #include "zbccl_comm_group_meta.h"
-#include "zbccl_communicator_default.h"
+#include "zbccl_npu_communicator_default.h"
 
 namespace zbccl {
 namespace ccl {
-ZBCCLCommPtr ZBCCLComm::gWorldZBCCLComm{nullptr};
-std::map<uintptr_t, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMap_;
-std::map<std::string, ZBCCLCommPtr> ZBCCLComm::gZBCCLCommLookupMapByName_;
-std::mutex ZBCCLComm::gMutex;
+CommunicatorPtr Communicator::gWorldZBCCLComm{nullptr};
+std::map<uintptr_t, CommunicatorPtr> Communicator::gCommLookupMap_;
+std::map<std::string, CommunicatorPtr> Communicator::gCommLookupMapByName_;
+std::mutex Communicator::gMutex;
 
-ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *comm, const ZBCCLInitStateExt &extraState)
+ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *comm,
+                             const ZBCCLInitStateExt &extraState)
 {
     /* translate api options to inner options */
-    ZBCommOptions commOptions;
+    CommGroupOptions commOptions;
     ZBCCL_ASSERT_RETURN(options.name != nullptr, Z_INVALID_PARAM);
     ZBCCL_ASSERT_RETURN(strlen(options.name) != 0, Z_INVALID_PARAM);
     commOptions.name = std::string(options.name);
@@ -43,15 +44,16 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
     }
 
     /* set size of spaces */
-    commOptions.metaSizeOfDevice = groupMetaArranger.GetSingleMetaSpaceSize();
-    commOptions.metaSizeForExchangeAddress = groupMetaArranger.GetAddressExchangeSpaceSize();
-    commOptions.sizeForExchangeParam = GroupMetaArranger::OPERATE_PARAM_SIZE;
+    commOptions.metaSize = groupMetaArranger.GetSingleMetaSpaceSize();
+    commOptions.sizeForCommGroupInfo = groupMetaArranger.GetCommGroupInfoSpaceSize();
+    commOptions.sizeForParam = groupMetaArranger.GetParamSpaceSize();
+    commOptions.sizeForExchangeAddress = groupMetaArranger.GetAddressExchangeSpaceSize();
     commOptions.localDeviceMemSize = ZBCCLInitState::Instance().ext_.localDeviceMemSize;
 
     /* get current index and myMetaGva */
-    result = groupMetaArranger.CurrentGroup(commOptions.groupIndex, commOptions.myMetaDataGva);
+    result = groupMetaArranger.CurrentGroup(commOptions.groupIndex, commOptions.myMetaGva, commOptions.myParamDataGva,
+                                            commOptions.myAddressExchangeGva);
     ZBCCL_VALIDATE_RETURN(result == Z_OK, "Get meta range for group failed, probably out of range", result);
-    commOptions.myParamDataGva = commOptions.myMetaDataGva + commOptions.metaSizeForExchangeAddress;
 
     /* create comm object */
     auto commInner = CreateInner(options.backendType, commOptions, options.isWorldGroup);
@@ -69,27 +71,27 @@ ZResult ZBCCLComm::Create(const zbccl_comm_options_t &options, zbccl_comm_t *com
     return Z_OK;
 }
 
-ZResult ZBCCLComm::Destroy(zbccl_comm_t comm, uint32_t flags)
+ZResult Communicator::Destroy(zbccl_comm_t comm, uint32_t flags)
 {
     std::lock_guard<std::mutex> guard(gMutex);
-    ZBCCLCommPtr tmpComm = reinterpret_cast<ZBCCLComm *>(comm);
+    CommunicatorPtr tmpComm = reinterpret_cast<Communicator *>(comm);
 
     ZBCCL_LOG_DEBUG("Try to destroy communicator, input ptr " << comm << ", converted ptr: " << tmpComm.Get());
 
-    return ZBCCLComm::DestroyInner(tmpComm);
+    return Communicator::DestroyInner(tmpComm);
 }
 
-void ZBCCLComm::DestroyAll()
+void Communicator::DestroyAll()
 {
     std::lock_guard<std::mutex> guard(gMutex);
     DestroyAllInner();
 }
 
-ZResult ZBCCLComm::Lookup(const std::string &name, zbccl_comm_t *comm)
+ZResult Communicator::Lookup(const std::string &name, zbccl_comm_t *comm)
 {
     std::lock_guard<std::mutex> guard(gMutex);
 
-    ZBCCLCommPtr tmpComm;
+    CommunicatorPtr tmpComm;
     auto result = LookupInner(name, tmpComm);
     if (result != Z_OK) {
         return result;
@@ -99,25 +101,26 @@ ZResult ZBCCLComm::Lookup(const std::string &name, zbccl_comm_t *comm)
     return Z_OK;
 }
 
-uint32_t ZBCCLComm::Count()
+uint32_t Communicator::Count()
 {
     std::lock_guard<std::mutex> guard(gMutex);
-    return gZBCCLCommLookupMapByName_.size();
+    return gCommLookupMapByName_.size();
 }
 
-ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup)
+CommunicatorPtr Communicator::CreateInner(zbccl_backend_t backendType, const CommGroupOptions &options,
+                                          bool isWorldGroup)
 {
-    ZBCCL_LOG_DEBUG("ZBCommOptions dump: " << options);
+    ZBCCL_LOG_DEBUG("CommGroupInfo dump: " << options);
 
     /* lock is acquired by caller already */
 
-    if (gZBCCLCommLookupMapByName_.find(options.name) != gZBCCLCommLookupMapByName_.end()) {
+    if (gCommLookupMapByName_.find(options.name) != gCommLookupMapByName_.end()) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as there is already one named " << options.name);
         return nullptr;
     }
 
     if (backendType == ZBCCL_ASCEND_NPU) {
-        auto comm = ZMakeRef<ZBCCLCommDefault>(options, isWorldGroup, gWorldZBCCLComm);
+        auto comm = ZMakeRef<NpuCommunicatorDefault>(options, isWorldGroup, gWorldZBCCLComm);
         if (comm == nullptr) {
             ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed, probably out of memory");
             return nullptr;
@@ -135,7 +138,7 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
              * 3 increase reference and return
              */
             gWorldZBCCLComm = comm.Get();
-            gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
+            gCommLookupMapByName_.emplace(options.name, comm.Get());
             return comm.Get();
         } else if (isWorldGroup && gWorldZBCCLComm != nullptr) {
             /*
@@ -156,8 +159,8 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
             /*
              * if not world group and world group created
              */
-            gZBCCLCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
-            gZBCCLCommLookupMapByName_.emplace(options.name, comm.Get());
+            gCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
+            gCommLookupMapByName_.emplace(options.name, comm.Get());
             ZBCCL_LOG_DEBUG("Created communicator, name: " << options.name << ", isWorldGroup: " << isWorldGroup);
             return comm.Get();
         }
@@ -167,7 +170,7 @@ ZBCCLCommPtr ZBCCLComm::CreateInner(zbccl_backend_t backendType, const ZBCommOpt
     return nullptr;
 }
 
-ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
+ZResult Communicator::DestroyInner(CommunicatorPtr &comm)
 {
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Invalid param, comm is null", Z_INVALID_PARAM);
 
@@ -175,14 +178,14 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
 
     /* if it is the world one */
     if (comm->isWorldGroup_) {
-        if (gZBCCLCommLookupMap_.size() != 0) {
+        if (gCommLookupMap_.size() != 0) {
             ZBCCL_LOG_AND_SET_LAST_ERROR("Destroy other non world communicator firstly, then destroy the world one");
             return Z_ERROR;
         }
 
         if (gWorldZBCCLComm != nullptr) {
             ZBCCL_LOG_INFO("Destroying the world communicator");
-            gZBCCLCommLookupMapByName_.erase(gWorldZBCCLComm->Name());
+            gCommLookupMapByName_.erase(gWorldZBCCLComm->Name());
             gWorldZBCCLComm->DecreaseRef();
             gWorldZBCCLComm = nullptr;
         }
@@ -190,27 +193,27 @@ ZResult ZBCCLComm::DestroyInner(zbccl::ccl::ZBCCLCommPtr &comm)
     }
 
     /* erase from lookup map directly */
-    auto iter = gZBCCLCommLookupMap_.find(reinterpret_cast<uintptr_t>(comm.Get()));
-    if (iter == gZBCCLCommLookupMap_.end()) {
+    auto iter = gCommLookupMap_.find(reinterpret_cast<uintptr_t>(comm.Get()));
+    if (iter == gCommLookupMap_.end()) {
         ZBCCL_LOG_INFO("Destroy communicator failed as no such communicator existed");
         return Z_OK;
     }
 
     if (iter->second != nullptr) {
-        gZBCCLCommLookupMapByName_.erase(iter->second->Name());
-        gZBCCLCommLookupMap_.erase(iter);
+        gCommLookupMapByName_.erase(iter->second->Name());
+        gCommLookupMap_.erase(iter);
     }
 
     return Z_OK;
 }
 
-void ZBCCLComm::DestroyAllInner()
+void Communicator::DestroyAllInner()
 {
     /* lock is acquired by caller already */
 
     /* clear all other world comm*/
-    gZBCCLCommLookupMap_.clear();
-    gZBCCLCommLookupMapByName_.clear();
+    gCommLookupMap_.clear();
+    gCommLookupMapByName_.clear();
 
     /* clear world one */
     if (gWorldZBCCLComm != nullptr) {
@@ -222,10 +225,10 @@ void ZBCCLComm::DestroyAllInner()
     GroupMetaArranger::Instance().UnInitialize();
 }
 
-ZResult ZBCCLComm::LookupInner(const std::string &name, ZBCCLCommPtr &comm)
+ZResult Communicator::LookupInner(const std::string &name, CommunicatorPtr &comm)
 {
-    auto iter = gZBCCLCommLookupMapByName_.find(name);
-    if (iter == gZBCCLCommLookupMapByName_.end()) {
+    auto iter = gCommLookupMapByName_.find(name);
+    if (iter == gCommLookupMapByName_.end()) {
         ZBCCL_LOG_INFO_AND_SET_LAST_ERROR("Communicator named " << name << " not existed");
         return Z_CCL_NOT_EXIST_BY_NAME;
     }

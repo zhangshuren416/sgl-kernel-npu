@@ -49,7 +49,7 @@ ZBCCL_API int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t 
     }
 
     /* create one comm */
-    auto result = ZBCCLComm::Create(*options, comm, state.ext_);
+    auto result = Communicator::Create(*options, comm, state.ext_);
     if (result != Z_OK) {
         return result;
     }
@@ -73,7 +73,7 @@ ZBCCL_API zbccl_comm_t zbccl_comm_get_by_name(const char *name)
     ZBCCL_VALIDATE_RETURN(name != nullptr, "Get communicator failed as name is null", nullptr);
 
     zbccl_comm_t comm = nullptr;
-    auto result = ZBCCLComm::Lookup(std::string(name), &comm);
+    auto result = Communicator::Lookup(std::string(name), &comm);
     if (result != Z_OK) {
         return nullptr;
     }
@@ -86,7 +86,7 @@ ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
 
     /* destroy one */
-    auto result = ZBCCLComm::Destroy(comm, flags);
+    auto result = Communicator::Destroy(comm, flags);
     if (result != Z_OK) {
         return result;
     }
@@ -110,7 +110,7 @@ ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllReduce failed, comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
-    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->AllReduce(send_buff, recv_buff, count, data_type, op, stream);
 }
 
@@ -129,7 +129,7 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "ReduceScatter failed, comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
-    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->ReduceScatter(send_buff, recv_buff, recv_count, data_type, op, stream);
 }
 
@@ -145,7 +145,7 @@ ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllGather failed, comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
-    auto innerComm = reinterpret_cast<ZBCCLComm *>(comm);
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->AllGather(send_buff, recv_buff, send_count, data_type, stream);
 }
 
@@ -165,11 +165,12 @@ ZBCCL_API int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTo
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                               int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
+                                               int64_t topkNum, int64_t rankNum,
+                                               const zbccl_tensor_info_t *tokensPerRank,
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
-                                               const zbccl_tensor_info_t *sendTokensIndex,
-                                               aclrtStream stream, int64_t flags)
+                                               const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
+                                               int64_t flags)
 {
     return Z_OK;
 }

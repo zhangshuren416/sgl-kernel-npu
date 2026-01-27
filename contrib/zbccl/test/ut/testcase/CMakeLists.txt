@@ -54,7 +54,7 @@ add_executable(test_zbccl ${ZBCCL_TEST_CASE_SRCS}
 
 target_compile_options(test_zbccl PRIVATE -fPIC -Wno-float-equal)
 target_link_options(test_zbccl PRIVATE -pie)
-target_link_libraries(test_zbccl PUBLIC gtest)
+target_link_libraries(test_zbccl PUBLIC gtest ascendcl runtime)
 
 install(TARGETS test_zbccl
         RUNTIME DESTINATION ${ZBCCL_TEST_BASE_DIR}/output

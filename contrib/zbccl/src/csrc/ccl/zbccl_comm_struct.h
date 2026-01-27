@@ -14,82 +14,80 @@
 
 namespace zbccl {
 namespace ccl {
-struct ZBCommOptions {
-    std::string name;                        /* name */
-    uint16_t worldSize = 0;                  /* the ranks in the world */
-    uint16_t groupSize = 0;                  /* the ranks in the group */
-    uint16_t myWorldRank = 0;                /* rank id in the world */
-    uint16_t myGroupRank = 0;                /* rank id in the group */
-    void *gva = nullptr;                     /* gva of the world */
-    uint64_t metaSizeOfDevice = 0;           /* size of meta */
-    uintptr_t myMetaDataGva = 0;             /* gva of mine */
-    uint64_t metaSizeForExchangeAddress = 0; /* max memory size for exchange operation data addresses */
-    uintptr_t myParamDataGva = 0;            /* gva of for param exchange of operation */
-    uint64_t sizeForExchangeParam = 0;       /* max memory size of passing param from host to device */
-    uint16_t deviceId = 0;                   /* device Id */
-    uint32_t groupIndex = 0;                 /* group index */
-    uint64_t fftsConfig = 0;                 /* ffts config for operator in inner option*/
-    uint64_t localDeviceMemSize = 0;         /* local device memory size */
+struct CommGroupOptions {
+    std::string name;                    /* name of group */
+    uint16_t worldSize = 0;              /* the ranks in the world */
+    uint16_t groupSize = 0;              /* the ranks in the group */
+    uint16_t myWorldRank = 0;            /* rank id in the world */
+    uint16_t myGroupRank = 0;            /* rank id in the group */
+    void *gva = nullptr;                 /* gva of the world */
+    uint64_t metaSize = 0;               /* size of meta */
+    uintptr_t myMetaGva = 0;             /* gva of mine */
+    uintptr_t myParamDataGva = 0;        /* gva of for param exchange of operation */
+    uintptr_t myAddressExchangeGva = 0;  /* gva of for param exchange of operation */
+    uint64_t sizeForCommGroupInfo = 0;   /* max memory size of passing param from host to device */
+    uint64_t sizeForParam = 0;           /* max memory size of passing param from host to device */
+    uint64_t sizeForExchangeAddress = 0; /* max memory size for exchange operation data addresses */
+    uint16_t deviceId = 0;               /* device Id */
+    uint32_t groupIndex = 0;             /* group index */
+    uint64_t fftsConfig = 0;             /* ffts config for operator in inner option*/
+    uint64_t localDeviceMemSize = 0;     /* local device memory size */
 
-    friend std::ostream &operator<<(std::ostream &os, const ZBCommOptions &options)
+    friend std::ostream &operator<<(std::ostream &os, const CommGroupOptions &options)
     {
-        os << "ZBCommOptions [name: " << options.name << ", worldSize: " << options.worldSize
+        os << "CommGroupOptions [name: " << options.name << ", worldSize: " << options.worldSize
            << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
-           << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva
-           << ", metaSizeOfDevice: " << options.metaSizeOfDevice << ", myMetaDataGva: " << options.myMetaDataGva
-           << ", metaSizeForExchangeAddress: " << options.metaSizeForExchangeAddress
-           << ", myParamDataGva: " << options.myParamDataGva
-           << ", sizeForExchangeParam: " << options.sizeForExchangeParam << ", deviceId: " << options.deviceId
-           << ", groupIndex: " << options.groupIndex << "]";
+           << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva << ", metaSize: " << options.metaSize
+           << ", myMetaGva: " << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
+           << ", myAddressExchangeGva: " << options.myAddressExchangeGva
+           << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
+           << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", deviceId: " << options.deviceId
+           << ", groupIndex: " << options.groupIndex << ", fftsConfig: " << options.fftsConfig
+           << ", localDeviceMemSize: " << options.localDeviceMemSize << "]";
 
         return os;
     }
 };
 
 /**
- * @brief meta info of this communicator, this struct will be copy to device, keep it simple
+ * @brief group info of this communicator, this struct will be copy to device, keep it simple
  */
-struct ZBCommMetaInfo {
-    uint16_t worldSize = 0;                                 /* the ranks in the world */
+struct CommGroupInfo {
     uint16_t groupSize = 0;                                 /* the ranks in the group */
-    uint16_t myWorldRank = 0;                               /* rank id in the world */
     uint16_t myGroupRank = 0;                               /* rank id in the group */
-    void *gva = nullptr;                                    /* gva of the world */
-    uint64_t metaSizeOfDevice = 0;                          /* size of meta */
-    uintptr_t myMetaDataGva = 0;                            /* gva of mine */
-    uint64_t metaSizeForExchangeAddress = 0;                /* max memory size for exchange operation data addresses */
+    uintptr_t myMetaGva = 0;                                /* gva of mine */
     uintptr_t myParamDataGva = 0;                           /* gva of for param exchange of operation */
-    uint64_t sizeForExchangeParam = 0;                      /* max memory size of passing param from host to device */
-    uint64_t fftsConfig;                                    /* copy from ZBCommOptions.fftsConfig */
+    uintptr_t myAddressExchangeGva = 0;                     /* gva of for param exchange of operation */
+    uint64_t sizeForCommGroupInfo = 0;                      /* max memory size of passing param from host to device */
+    uint64_t sizeForParam = 0;                              /* max memory size of passing param from host to device */
+    uint64_t sizeForExchangeAddress = 0;                    /* max memory size for exchange operation data addresses */
+    uint64_t fftsConfig;                                    /* copy from CommGroupOptions.fftsConfig */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
-    uint64_t localDeviceMemSize;                            /* copy from ZBCommOptions.localDeviceMemSize */
+    uint64_t localDeviceMemSize;                            /* copy from CommGroupOptions.localDeviceMemSize */
 
-    ZBCommMetaInfo() = default;
-    ZBCommMetaInfo(const ZBCommOptions &options)
+    CommGroupInfo() = default;
+    CommGroupInfo(const CommGroupOptions &options)
     {
-        worldSize = options.worldSize;
         groupSize = options.groupSize;
-        myWorldRank = options.myWorldRank;
         myGroupRank = options.myGroupRank;
-        gva = options.gva;
-        metaSizeOfDevice = options.metaSizeOfDevice;
-        myMetaDataGva = options.myMetaDataGva;
-        metaSizeForExchangeAddress = options.metaSizeForExchangeAddress;
+        myMetaGva = options.myMetaGva;
         myParamDataGva = options.myParamDataGva;
-        sizeForExchangeParam = options.sizeForExchangeParam;
+        myAddressExchangeGva = options.myAddressExchangeGva;
+        sizeForCommGroupInfo = options.sizeForCommGroupInfo;
+        sizeForParam = options.sizeForParam;
+        sizeForExchangeAddress = options.sizeForExchangeAddress;
         fftsConfig = options.fftsConfig;
         localDeviceMemSize = options.localDeviceMemSize;
     }
 
-    friend std::ostream &operator<<(std::ostream &os, const ZBCommMetaInfo &options)
+    friend std::ostream &operator<<(std::ostream &os, const CommGroupInfo &options)
     {
-        os << "ZBCommMetaInfo [worldSize: " << options.worldSize << ", groupSize: " << options.groupSize
-           << ", myWorldRank: " << options.myWorldRank << ", myGroupRank: " << options.myGroupRank
-           << ", gva: " << options.gva << ", metaSizeOfDevice: " << options.metaSizeOfDevice
-           << ", myMetaDataGva: " << options.myMetaDataGva
-           << ", metaSizeForExchangeAddress: " << options.metaSizeForExchangeAddress
-           << ", myParamDataGva: " << options.myParamDataGva
-           << ", sizeForExchangeParam: " << options.sizeForExchangeParam << ", peerGroupRank2WorldRank: [";
+        os << "CommGroupInfo [groupSize: " << options.groupSize << ", myGroupRank: " << options.myGroupRank
+           << ", myMetaGva: " << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
+           << ", myAddressExchangeGva: " << options.myAddressExchangeGva
+           << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
+           << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", fftsConfig: " << options.fftsConfig
+           << ", localDeviceMemSize: " << options.localDeviceMemSize << ", peerGroupRank2WorldRank: [";
 
         for (auto i = 0; i < ZBCCL_MAX_RANKS; ++i) {
             if (options.peerGroupRank2WorldRank[i] != 0) {

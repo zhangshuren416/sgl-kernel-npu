@@ -18,10 +18,10 @@
 namespace zbccl {
 namespace ccl {
 
-class ZBCCLComm;
-using ZBCCLCommPtr = ZRef<ZBCCLComm>;
+class Communicator;
+using CommunicatorPtr = ZRef<Communicator>;
 
-class ZBCCLComm : public ZReferable
+class Communicator : public ZReferable
 {
 public:
     /**
@@ -67,11 +67,11 @@ public:
     static uint32_t Count();
 
 public:
-    ZBCCLComm(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup)
-        : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup), options_(options), metaInfo_(options)
+    Communicator(const CommGroupOptions &options, bool isWorldGroup, const CommunicatorPtr &worldGroup)
+        : isWorldGroup_(isWorldGroup), worldGroup_(worldGroup), options_(options), groupInfo_(options)
     {}
 
-    ~ZBCCLComm() override = default;
+    ~Communicator() override = default;
 
     /**
      * @brief Initialize communicator
@@ -170,11 +170,11 @@ public:
     bool IsWorldGroup() const noexcept;
 
     /**
-     * @brief Meta info of communicator, this will be passed to device in the param area of group meta
+     * @brief Group info of communicator, this will be passed to device in the param area of group meta
      *
      * @return meta info
      */
-    const ZBCommMetaInfo &GetMetaInfo() const noexcept;
+    const CommGroupInfo &GetMetaInfo() const noexcept;
 
     /**
      * @brief Get the name of communicator
@@ -184,34 +184,34 @@ public:
     const std::string &Name() const noexcept;
 
 protected:
-    bool isWorldGroup_ = false;        /* if it is world group */
-    ZBCommOptions options_{};          /* options */
-    ZBCommMetaInfo metaInfo_{};        /* meta info, which will be H2D to device, keep it simple */
-    ZBCCLCommPtr worldGroup_{nullptr}; /* world group */
+    bool isWorldGroup_ = false;           /* if it is world group */
+    CommGroupOptions options_{};          /* options */
+    CommGroupInfo groupInfo_{};           /* meta info, which will be H2D to device, keep it simple */
+    CommunicatorPtr worldGroup_{nullptr}; /* world group */
 
 private:
-    static ZBCCLCommPtr CreateInner(zbccl_backend_t backendType, const ZBCommOptions &options, bool isWorldGroup);
-    static ZResult DestroyInner(ZBCCLCommPtr &comm);
+    static CommunicatorPtr CreateInner(zbccl_backend_t backendType, const CommGroupOptions &options, bool isWorldGroup);
+    static ZResult DestroyInner(CommunicatorPtr &comm);
     static void DestroyAllInner();
-    static ZResult LookupInner(const std::string &name, ZBCCLCommPtr &comm);
+    static ZResult LookupInner(const std::string &name, CommunicatorPtr &comm);
 
-    static ZBCCLCommPtr gWorldZBCCLComm;                                   /* the world comm, i.e. the first one */
-    static std::mutex gMutex;                                              /* mutex for world comm */
-    static std::map<uintptr_t, ZBCCLCommPtr> gZBCCLCommLookupMap_;         /* all comm object except the world comm */
-    static std::map<std::string, ZBCCLCommPtr> gZBCCLCommLookupMapByName_; /* all comm object except the world comm */
+    static CommunicatorPtr gWorldZBCCLComm;                              /* the world comm, i.e. the first one */
+    static std::mutex gMutex;                                            /* mutex for world comm */
+    static std::map<uintptr_t, CommunicatorPtr> gCommLookupMap_;         /* all comm object except the world comm */
+    static std::map<std::string, CommunicatorPtr> gCommLookupMapByName_; /* all comm object except the world comm */
 };
 
-inline bool ZBCCLComm::IsWorldGroup() const noexcept
+inline bool Communicator::IsWorldGroup() const noexcept
 {
     return isWorldGroup_;
 }
 
-inline const ZBCommMetaInfo &ZBCCLComm::GetMetaInfo() const noexcept
+inline const CommGroupInfo &Communicator::GetMetaInfo() const noexcept
 {
-    return metaInfo_;
+    return groupInfo_;
 }
 
-inline const std::string &ZBCCLComm::Name() const noexcept
+inline const std::string &Communicator::Name() const noexcept
 {
     return options_.name;
 }

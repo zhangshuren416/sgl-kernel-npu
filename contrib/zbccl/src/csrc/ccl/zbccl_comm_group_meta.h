@@ -13,6 +13,7 @@
 #define ZBCCL_COMM_GROUP_META_H
 
 #include "zbccl_common_includes.h"
+#include "zbccl_comm_struct.h"
 
 namespace zbccl {
 namespace ccl {
@@ -51,6 +52,17 @@ public:
     uint64_t GetSingleMetaSpaceSize() const noexcept;
 
     /**
+     * @brief Get size of comm group info of single communicator
+     */
+    uint64_t GetCommGroupInfoSpaceSize() const noexcept;
+
+    /**
+     * @brief Get space size for param exchange of single communicator
+     * @return
+     */
+    uint64_t GetParamSpaceSize() const noexcept;
+
+    /**
      * @brief Get space size for exchanging addresses of tensors, of single communicator
      */
     uint64_t GetAddressExchangeSpaceSize() const noexcept;
@@ -58,12 +70,15 @@ public:
     /**
      * @brief Get index and space address at current position, here we don't move to next position
      *
-     * @param index            [in/out]
-     * @param groupMetaGVA     [in/out]
+     * @param index                [in/out]
+     * @param groupMetaGVA         [in/out]
+     * @param paramGVA             [in/out]
+     * @param addressExchangeGVA   [in/out]
      *
      * @return 0 if successful, error if no more position
      */
-    ZResult CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA) noexcept;
+    ZResult CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
+                         uintptr_t &addressExchangeGVA) noexcept;
 
     /**
      * @brief Move to next position, called created communicator successfully
@@ -93,6 +108,16 @@ private:
 inline uint64_t GroupMetaArranger::GetSingleMetaSpaceSize() const noexcept
 {
     return singleMetaSpaceSize_;
+}
+
+inline uint64_t GroupMetaArranger::GetCommGroupInfoSpaceSize() const noexcept
+{
+    return sizeof(CommGroupInfo);
+}
+
+inline uint64_t GroupMetaArranger::GetParamSpaceSize() const noexcept
+{
+    return OPERATE_PARAM_SIZE - sizeof(CommGroupInfo);
 }
 
 inline uint64_t GroupMetaArranger::GetAddressExchangeSpaceSize() const noexcept

@@ -66,7 +66,8 @@ ZResult GroupMetaArranger::Verify() noexcept
     return Z_ERROR;
 }
 
-ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA) noexcept
+ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
+                                        uintptr_t &addressExchangeGVA) noexcept
 {
     auto currentIndex = gGroupIndex.load();
     if (currentIndex >= cclGroupCap_) {
@@ -77,8 +78,11 @@ ZResult GroupMetaArranger::CurrentGroup(uint32_t &index, uintptr_t &groupMetaGVA
 
     index = currentIndex;
     groupMetaGVA = myMetaGVA_ + singleMetaSpaceSize_ * currentIndex;
+    paramGVA = groupMetaGVA + GetCommGroupInfoSpaceSize();
+    addressExchangeGVA = groupMetaGVA + OPERATE_PARAM_SIZE;
 
-    ZBCCL_LOG_DEBUG("Got group index: " << index << ", group meta GVA: " << groupMetaGVA);
+    ZBCCL_LOG_DEBUG("Got group index: " << index << ", group meta GVA: " << groupMetaGVA << ", paramGVA: " << paramGVA
+                                        << ", addressExchangeGVA： " << addressExchangeGVA);
 
     return Z_OK;
 }

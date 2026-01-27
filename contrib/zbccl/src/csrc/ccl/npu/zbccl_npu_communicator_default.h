@@ -17,11 +17,11 @@
 namespace zbccl {
 namespace ccl {
 
-class ZBCCLCommDefault : public ZBCCLComm
+class NpuCommunicatorDefault : public Communicator
 {
 public:
-    ZBCCLCommDefault(const ZBCommOptions &options, bool isWorldGroup, const ZBCCLCommPtr &worldGroup);
-    ~ZBCCLCommDefault() override
+    NpuCommunicatorDefault(const CommGroupOptions &options, bool isWorldGroup, const CommunicatorPtr &worldGroup);
+    ~NpuCommunicatorDefault() override
     {
         UnInitialize();
     }
@@ -36,8 +36,8 @@ public:
     int32_t ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
                           zbccl_reduce_op_t op, aclrtStream stream) noexcept override;
 
-    int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count,
-                      zbccl_datatype_t data_type, aclrtStream stream) noexcept override;
+    int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count, zbccl_datatype_t data_type,
+                      aclrtStream stream) noexcept override;
 
     int32_t All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
                     uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept;
@@ -69,7 +69,7 @@ private:
     void *kernelMetaH2DArea_ = nullptr;       /* dram space for exchange the meta of zbccl operators */
     void *kernelMetaH2DAreaDevice_ = nullptr; /* the device ptr of kernelMetaH2DArea */
 };
-using ZBCCLCommDefaultPtr = ZRef<ZBCCLCommDefault>;
+using ZBCCLCommDefaultPtr = ZRef<NpuCommunicatorDefault>;
 }  // namespace ccl
 }  // namespace zbccl
 

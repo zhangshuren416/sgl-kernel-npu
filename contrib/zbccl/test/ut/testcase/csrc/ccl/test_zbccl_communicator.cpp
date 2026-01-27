@@ -49,9 +49,9 @@ public:
 
 TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
 {
-    ZBCCL_LOG_DEBUG("size of ZBCommOptions: " << sizeof(ZBCommOptions));
+    ZBCCL_LOG_DEBUG("size of CommGroupOptions: " << sizeof(CommGroupOptions));
 
-    ZBCCLComm::DestroyAll();
+    Communicator::DestroyAll();
 
     zbccl_comm_options_t commOptApi;
 
@@ -59,13 +59,13 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     static std::string name;
     commOptApi.name = const_cast<char *>(name.c_str());
     zbccl_comm_t communicator = nullptr;
-    auto result = ZBCCLComm::Create(commOptApi, &communicator, stateExt_);
+    auto result = Communicator::Create(commOptApi, &communicator, stateExt_);
     EXPECT_TRUE(result != Z_OK);
 
     /* case2: name is nullptr */
     commOptApi.name = nullptr;
     communicator = nullptr;
-    result = ZBCCLComm::Create(commOptApi, &communicator, stateExt_);
+    result = Communicator::Create(commOptApi, &communicator, stateExt_);
     EXPECT_TRUE(result != Z_OK);
 
     /* case3: create non-world group firstly */
@@ -76,7 +76,7 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     commOptApi.isWorldGroup = false;
     commOptApi.groupSize = 1;
     commOptApi.groupRankId = 0;
-    result = ZBCCLComm::Create(commOptApi, &communicator, stateExt_);
+    result = Communicator::Create(commOptApi, &communicator, stateExt_);
     EXPECT_TRUE(result != Z_OK);
 
     /* case3: create world group firstly */
@@ -85,12 +85,12 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     commOptApi.backendType = ZBCCL_ASCEND_NPU;
     commOptApi.isWorldGroup = true;
 
-    result = ZBCCLComm::Create(commOptApi, &communicator, stateExt_);
+    result = Communicator::Create(commOptApi, &communicator, stateExt_);
     EXPECT_TRUE(result == Z_OK);
-    EXPECT_TRUE(ZBCCLComm::Count() == 1);
+    EXPECT_TRUE(Communicator::Count() == 1);
 
     zbccl_comm_t outComm = nullptr;
-    result = ZBCCLComm::Lookup("moeep", &outComm);
+    result = Communicator::Lookup("moeep", &outComm);
     EXPECT_TRUE(result == Z_OK);
     EXPECT_TRUE(outComm != nullptr);
 
@@ -98,26 +98,26 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     commOptApi.isWorldGroup = false;
     name = "tp1";
     commOptApi.name = const_cast<char *>(name.c_str());
-    result = ZBCCLComm::Create(commOptApi, &communicatorTp1, stateExt_);
+    result = Communicator::Create(commOptApi, &communicatorTp1, stateExt_);
     EXPECT_TRUE(result == Z_OK);
     EXPECT_TRUE(communicatorTp1 != nullptr);
-    EXPECT_TRUE(ZBCCLComm::Count() == 2);
+    EXPECT_TRUE(Communicator::Count() == 2);
 
-    result = ZBCCLComm::Destroy(communicator, 0);
+    result = Communicator::Destroy(communicator, 0);
     EXPECT_TRUE(result != Z_OK);
-    EXPECT_TRUE(ZBCCLComm::Count() == 2);
+    EXPECT_TRUE(Communicator::Count() == 2);
 
-    result = ZBCCLComm::Destroy(communicatorTp1, 0);
+    result = Communicator::Destroy(communicatorTp1, 0);
     EXPECT_TRUE(result == Z_OK);
-    EXPECT_TRUE(ZBCCLComm::Count() == 1);
+    EXPECT_TRUE(Communicator::Count() == 1);
 
-    result = ZBCCLComm::Destroy(communicator, 0);
+    result = Communicator::Destroy(communicator, 0);
     EXPECT_TRUE(result == Z_OK);
-    EXPECT_TRUE(ZBCCLComm::Count() == 0);
+    EXPECT_TRUE(Communicator::Count() == 0);
 
     EXPECT_TRUE(GroupMetaArranger::Instance().Initialized() == true);
 
-    ZBCCLComm::DestroyAll();
+    Communicator::DestroyAll();
 
     EXPECT_TRUE(GroupMetaArranger::Instance().Initialized() == false);
 }
