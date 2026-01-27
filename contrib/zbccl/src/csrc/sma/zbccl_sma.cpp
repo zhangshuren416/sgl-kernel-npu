@@ -267,7 +267,7 @@ ZBCCL_API void sma_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
     zbccl::sma::SecondaryMemoryAllocator::GetInstance()->ReleasePool(device, mempool_id);
 }
 
-ZBCCL_API void* sma_get_base_addr(int device) {
+ZBCCL_API void *sma_get_base_addr(int device) {
     int device_i = 0;
     if (device < 0)
         c10_npu::GetDevice(&device_i);
@@ -276,7 +276,6 @@ ZBCCL_API void* sma_get_base_addr(int device) {
     return zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->shmem_base_addr_;
 }
 
-#ifdef USE_GITCODE_SHMEM
 aclshmemx_uniqueid_t sma_default_flag_uid;
 static char sma_g_ipport[ACLSHMEM_MAX_IP_PORT_LEN] = {0};
 
@@ -312,11 +311,10 @@ int sma_set_attr(int32_t my_pe, int32_t n_pes, uint64_t local_mem_size, const ch
     uid_args->n_pes = n_pes;
     return shmem_error_code_t::ACLSHMEM_SUCCESS;
 }
-#endif
 
 ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
-    std::cout << "sma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
-#ifdef USE_GITCODE_SHMEM
+    std::cout << "sma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " "
+              << ip_port << std::endl;
     if (shmem_init_status() != 2) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
         ZBCCL_ASSERT_S(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
@@ -325,17 +323,6 @@ ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size,
         status = shmem_init_attr(ACLSHMEMX_INIT_WITH_DEFAULT, &attributes);
         ZBCCL_ASSERT_S(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
     }
-#else
-    if (shmem_init_status() != 2) {
-        auto status = shmem_set_conf_store_tls(false, nullptr, 0);
-        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
-        shmem_init_attr_t *attributes;
-        status = shmem_set_attr(my_rank, n_ranks, local_mem_size, ip_port, &attributes);
-        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.");
-        status = shmem_init_attr(attributes);
-        ZBCCL_ASSERT_S(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
-    }
-#endif
 
     int device = 0;
     c10_npu::GetDevice(&device);
@@ -344,8 +331,26 @@ ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size,
         void *shmem_base_addr_ = shmem_malloc(local_mem_size);
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
-            std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size, local_mem_size - meta_size);
+                std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_ + meta_size,
+                                                               local_mem_size - meta_size);
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->shmem_base_addr_ = shmem_base_addr_;
+    }
+}
+
+ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
+    int device = 0;
+    c10_npu::GetDevice(&device);
+
+    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_) {
+        void *shmem_base_addr_ = base_ptr;
+        //ZBCCL_CHECK_S(!is_simulation, "[E]sma currently do not support simulation on this init.");
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_inited_ = true;
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->mem_heap_pool_ =
+                std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_addr_, local_mem_size);
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->shmem_base_addr_ = shmem_base_addr_;
+    }
+    else {
+        ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
     }
 }
 

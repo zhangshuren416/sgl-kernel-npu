@@ -3978,8 +3978,6 @@ EXPORT_API void dma_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
 }
 
 // TODO merge this un-official to inner py func
-
-#ifdef USE_GITCODE_SHMEM
 aclshmemx_uniqueid_t dma_default_flag_uid;
 static char dma_g_ipport[ACLSHMEM_MAX_IP_PORT_LEN] = {0};
 
@@ -4015,11 +4013,9 @@ int dma_set_attr(int32_t my_pe, int32_t n_pes, uint64_t local_mem_size, const ch
     uid_args->n_pes = n_pes;
     return shmem_error_code_t::ACLSHMEM_SUCCESS;
 }
-#endif
 
 EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port, bool is_simulation) {
     std::cout << "dma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " " << ip_port << std::endl;
-#ifdef USE_GITCODE_SHMEM
     if (shmem_init_status() != 2 && !is_simulation) {
         auto status = shmem_set_conf_store_tls(false, nullptr, 0);
         TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
@@ -4028,17 +4024,6 @@ EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size
         status = shmem_init_attr(ACLSHMEMX_INIT_WITH_DEFAULT, &attributes);
         TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
     }
-#else
-    if (shmem_init_status() != 2 && !is_simulation) {
-        auto status = shmem_set_conf_store_tls(false, nullptr, 0);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
-        shmem_init_attr_t *attributes;
-        status = shmem_set_attr(my_rank, n_ranks, local_mem_size, ip_port, &attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_set_attr error.");
-        status = shmem_init_attr(attributes);
-        TORCH_INTERNAL_ASSERT(status == shmem_error_code_t::SHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
-    }
-#endif
 
     static bool registered = false;
     if (!registered) {
@@ -4070,6 +4055,23 @@ EXPORT_API void* dma_get_base_addr(int device) {
     else
         device_i = device;
     return c10_npu::dma::caching_allocator.device_allocator[device_i]->shmem_base_addr;
+}
+
+EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_simulation) {
+    int device = 0;
+    c10_npu::GetDevice(&device);
+
+    if (!c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited) {
+        void *shmem_base_ptr = base_ptr;
+        TORCH_INTERNAL_ASSERT(!is_simulation, "[E]dma currently do not support simulation on this init.");
+        c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited = true;
+        c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
+                std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr, local_mem_size);
+        c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
+    }
+    else {
+        ASCEND_LOGW("re-entrance into dma init, skip this time init");
+    }
 }
 
 }

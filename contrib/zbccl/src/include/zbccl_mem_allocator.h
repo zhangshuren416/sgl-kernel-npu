@@ -15,6 +15,8 @@
 #include "zbccl_def.h"
 #include "zbccl_defines.h"
 
+#define USE_C10NPU_DMA  // else USE_ZBCCL_SMA
+
 #ifdef __cplusplus
 extern "C" {
 #endif

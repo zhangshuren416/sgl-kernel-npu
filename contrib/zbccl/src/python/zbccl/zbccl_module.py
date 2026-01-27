@@ -89,6 +89,7 @@ def switch_to_allocator():
 
 
 def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port, is_simulation=False):
+    print("init_shmem is deprecated, using zbccl_init instead")
     zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
     # 设置函数原型
     zbccl_allocator.zbccl_inner_init_shmem.argtypes = [
@@ -112,6 +113,7 @@ def init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port, is_simulati
 
 
 def zbccl_get_shmem_base_addr():
+    print("zbccl_get_shmem_base_addr is deprecated, using zbccl_init instead")
     zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
     zbccl_allocator.zbccl_get_shmem_base_addr.restype = ctypes.c_void_p
     return zbccl_allocator.zbccl_get_shmem_base_addr()

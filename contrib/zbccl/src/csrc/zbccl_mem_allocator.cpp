@@ -13,16 +13,17 @@
 #include "c10_npu_dma.h"
 #include "zbccl_sma.h"
 
-#define USE_C10NPU_DMA  // else USE_ZBCCL_SMA
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 ZBCCL_API int32_t zbccl_sma_init(zbccl_allocator_options_t *options, int32_t flags)
 {
-    // call zbccl_init wil create zbccl_allocator_options_t, then init zbccl::sma
-    // currently we use dma and its direct init from init_shmem
+#ifdef USE_C10NPU_DMA
+    dma_init_heap(options->myGva, options->size);
+#else
+    sma_init_heap(options->myGva, options->size);
+#endif
     return zbccl::ZResultErrorCode::Z_OK;
 }
 

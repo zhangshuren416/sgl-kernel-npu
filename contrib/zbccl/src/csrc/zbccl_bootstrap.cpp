@@ -12,6 +12,7 @@
 #include "zbccl_common_includes.h"
 #include "zbccl_bootstrap_default.h"
 #include "zbccl_init_state.h"
+#include "zbccl_mem_allocator.h"
 
 using namespace zbccl;
 using namespace zbccl::bootstrap;
@@ -64,6 +65,14 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     state.ext_.mySMAGva = output->mySMAGva;
     state.ext_.smaSizeOfDevice = output->smaSizeOfDevice;
     state.ext_.localDeviceMemSize = output->allocatedDeviceMemorySize;
+
+    /* set allocator state */
+    zbccl_allocator_options_t alloc_state;
+    alloc_state.gva = output->deviceGva;
+    alloc_state.myGva = output->mySMAGva;
+    alloc_state.size = output->allocatedDeviceMemorySize;
+    // flag currently is just a placeholder
+    ZBCCL_VALIDATE_RETURN(zbccl_sma_init(&alloc_state, 0) == Z_OK, "sma init failed", Z_INVALID_PARAM);
 
     return Z_OK;
 }

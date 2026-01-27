@@ -22,7 +22,7 @@ include_directories(
         ${TORCH_DIR}/include/c10/util
         ${TORCH_NPU_DIR}/include
         ${PYBIND11_DIR}/include
-        ${CPYTHON_DIR}
+        ${CPYTHON_DIR}/
         ${ZBCCL_BASE_DIR}
         ${ZBCCL_BASE_DIR}/third_party/ska
         ${ZBCCL_BASE_DIR}/third_party/mstx
