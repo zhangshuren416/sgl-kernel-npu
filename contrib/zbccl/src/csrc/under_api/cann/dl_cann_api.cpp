@@ -17,7 +17,7 @@ namespace zbccl {
 namespace underapi {
 bool DlCannApi::gLoaded = false;
 std::mutex DlCannApi::gMutex;
-void *DlCannApi::rtHandle;
+void *DlCannApi::gAclHandle;
 const char *DlCannApi::gAscendAclLibName = "libascendcl.so";
 
 aclrtGetSocNameFunc DlCannApi::pAclrtGetSocName = nullptr;
@@ -33,6 +33,7 @@ aclrtMemcpyFunc DlCannApi::pAclrtMemcpy = nullptr;
 aclrtMemcpyAsyncFunc DlCannApi::pAclrtMemcpyAsync = nullptr;
 aclrtMemsetFunc DlCannApi::pAclrtMemset = nullptr;
 rtGetLogicDevIdByUserDevIdFunc DlCannApi::pRtGetLogicDevIdByUserDevId = nullptr;
+rtGetC2cCtrlAddrFunc DlCannApi::pRtGetC2cCtrlAddr = nullptr;
 
 ZResult DlCannApi::LoadLibrary(const std::string &libDirPath)
 {
@@ -48,26 +49,27 @@ ZResult DlCannApi::LoadLibrary(const std::string &libDirPath)
     }
 
     /* dlopen library */
-    rtHandle = dlopen(realPath.c_str(), RTLD_NOW | RTLD_NODELETE);
-    if (rtHandle == nullptr) {
+    gAclHandle = dlopen(realPath.c_str(), RTLD_NOW | RTLD_NODELETE);
+    if (gAclHandle == nullptr) {
         ZBCCL_LOG_ERROR("Failed to open library [" << realPath << "], error: " << dlerror());
         return Z_DL_OPEN_LIB_FAILED;
     }
 
     /* load sym */
-    DL_LOAD_SYM(pAclrtGetSocName, aclrtGetSocNameFunc, rtHandle, "aclrtGetSocName");
-    DL_LOAD_SYM(pRtGetDeviceInfo, rtGetDeviceInfoFunc, rtHandle, "rtGetDeviceInfo");
-    DL_LOAD_SYM(pAclrtGetDevice, aclrtGetDeviceFunc, rtHandle, "aclrtGetDevice");
-    DL_LOAD_SYM(pAclrtSetDevice, aclrtSetDeviceFunc, rtHandle, "aclrtSetDevice");
-    DL_LOAD_SYM(pAclrtSynchronizeStream, aclrtSynchronizeStreamFunc, rtHandle, "aclrtSynchronizeStream");
-    DL_LOAD_SYM(pAclrtMalloc, aclrtMallocFunc, rtHandle, "aclrtMalloc");
-    DL_LOAD_SYM(pAclrtFree, aclrtFreeFunc, rtHandle, "aclrtFree");
-    DL_LOAD_SYM(pAclrtMallocHost, aclrtMallocHostFunc, rtHandle, "aclrtMallocHost");
-    DL_LOAD_SYM(pAclrtFreeHost, aclrtFreeHostFunc, rtHandle, "aclrtFreeHost");
-    DL_LOAD_SYM(pAclrtMemcpy, aclrtMemcpyFunc, rtHandle, "aclrtMemcpy");
-    DL_LOAD_SYM(pAclrtMemcpyAsync, aclrtMemcpyAsyncFunc, rtHandle, "aclrtMemcpyAsync");
-    DL_LOAD_SYM(pAclrtMemset, aclrtMemsetFunc, rtHandle, "aclrtMemset");
-    DL_LOAD_SYM(pRtGetLogicDevIdByUserDevId, rtGetLogicDevIdByUserDevIdFunc, rtHandle, "rtGetLogicDevIdByUserDevId");
+    DL_LOAD_SYM(pAclrtGetSocName, aclrtGetSocNameFunc, gAclHandle, "aclrtGetSocName");
+    DL_LOAD_SYM(pRtGetDeviceInfo, rtGetDeviceInfoFunc, gAclHandle, "rtGetDeviceInfo");
+    DL_LOAD_SYM(pAclrtGetDevice, aclrtGetDeviceFunc, gAclHandle, "aclrtGetDevice");
+    DL_LOAD_SYM(pAclrtSetDevice, aclrtSetDeviceFunc, gAclHandle, "aclrtSetDevice");
+    DL_LOAD_SYM(pAclrtSynchronizeStream, aclrtSynchronizeStreamFunc, gAclHandle, "aclrtSynchronizeStream");
+    DL_LOAD_SYM(pAclrtMalloc, aclrtMallocFunc, gAclHandle, "aclrtMalloc");
+    DL_LOAD_SYM(pAclrtFree, aclrtFreeFunc, gAclHandle, "aclrtFree");
+    DL_LOAD_SYM(pAclrtMallocHost, aclrtMallocHostFunc, gAclHandle, "aclrtMallocHost");
+    DL_LOAD_SYM(pAclrtFreeHost, aclrtFreeHostFunc, gAclHandle, "aclrtFreeHost");
+    DL_LOAD_SYM(pAclrtMemcpy, aclrtMemcpyFunc, gAclHandle, "aclrtMemcpy");
+    DL_LOAD_SYM(pAclrtMemcpyAsync, aclrtMemcpyAsyncFunc, gAclHandle, "aclrtMemcpyAsync");
+    DL_LOAD_SYM(pAclrtMemset, aclrtMemsetFunc, gAclHandle, "aclrtMemset");
+    DL_LOAD_SYM(pRtGetLogicDevIdByUserDevId, rtGetLogicDevIdByUserDevIdFunc, gAclHandle, "rtGetLogicDevIdByUserDevId");
+    DL_LOAD_SYM(pRtGetC2cCtrlAddr, rtGetC2cCtrlAddrFunc, gAclHandle, "rtGetC2cCtrlAddr");
 
     gLoaded = true;
 
@@ -94,10 +96,11 @@ void DlCannApi::CleanupLibrary()
     pAclrtMemcpyAsync = nullptr;
     pAclrtMemset = nullptr;
     pRtGetLogicDevIdByUserDevId = nullptr;
+    pRtGetC2cCtrlAddr = nullptr;
 
-    if (rtHandle != nullptr) {
-        dlclose(rtHandle);
-        rtHandle = nullptr;
+    if (gAclHandle != nullptr) {
+        dlclose(gAclHandle);
+        gAclHandle = nullptr;
     }
     gLoaded = false;
 }

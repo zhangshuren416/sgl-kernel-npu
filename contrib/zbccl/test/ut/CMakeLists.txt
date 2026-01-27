@@ -8,4 +8,5 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
+add_subdirectory(mock)
 add_subdirectory(testcase)

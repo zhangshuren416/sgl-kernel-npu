@@ -71,7 +71,7 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     /* case3: create non-world group firstly */
     name = "moeep";
     commOptApi.name = const_cast<char *>(name.c_str());
-    commOptApi.backendType = ZBCCL_ASCEND_NPU;
+    commOptApi.backendType = ZBCCL_BACK_BUTT;
     /* not the world one */
     commOptApi.isWorldGroup = false;
     commOptApi.groupSize = 1;
@@ -82,7 +82,7 @@ TEST_F(TestZBCCLCommunicator, CommunicatorCreate)
     /* case3: create world group firstly */
     name = "moeep";
     commOptApi.name = const_cast<char *>(name.c_str());
-    commOptApi.backendType = ZBCCL_ASCEND_NPU;
+    commOptApi.backendType = ZBCCL_BACK_BUTT;
     commOptApi.isWorldGroup = true;
 
     result = Communicator::Create(commOptApi, &communicator, stateExt_);

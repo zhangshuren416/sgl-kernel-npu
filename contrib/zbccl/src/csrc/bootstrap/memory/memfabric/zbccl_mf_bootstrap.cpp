@@ -11,6 +11,7 @@
  */
 #include "zbccl_mf_bootstrap.h"
 #include "dl_mf_api.h"
+#include "dl_cann_api.h"
 #include "third_party/acl/inc/acl/acl_rt.h"
 
 namespace zbccl {
@@ -37,11 +38,25 @@ ZResult MemFabricBoostrap::InitPreCheck() noexcept
         return result;
     }
 
-    /* dl open mf library which should be placed under LD_LIBRARY_PATH */
+    /* dl open mf library */
     result = DlMfApi::LoadLibrary(memFabricLibPath);
     if (result != Z_OK) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Load library of MemFabric failed @ "
                                      << memFabricLibPath << ", error: " << DlMfApi::SmemGetLastErrMsg());
+        return Z_LOAD_BOOTSTRAP_LIBRARY_FAILED;
+    }
+
+    std::string ascendLibPath = "";
+    result = GetMemFabricLibPath(ascendLibPath);
+    if (result != Z_OK || ascendLibPath.empty()) {
+        return result;
+    }
+
+    /* dlopen ascend library */
+    result = DlCannApi::LoadLibrary(ascendLibPath);
+    if (result != Z_OK) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Load library of ascendcl failed @ " << ascendLibPath << ", error: " << result);
+        DlMfApi::CleanupLibrary();
         return Z_LOAD_BOOTSTRAP_LIBRARY_FAILED;
     }
 
@@ -134,6 +149,23 @@ ZResult MemFabricBoostrap::GetMemFabricLibPath(std::string &path) noexcept
     path = std::string(memFabricHome).append("/aarch64-linux/lib64/");
     if (!zbccl::Func::Realpath(path)) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Path with MEMFABRIC_HYBRID_HOME_PATH is invalid");
+        return Z_INIT_BOOTSTRAP_FAILED;
+    }
+
+    return Z_OK;
+}
+
+ZResult MemFabricBoostrap::GetAscendLibPath(std::string &path) noexcept
+{
+    char *ascendHome = std::getenv("ASCEND_HOME_PATH");
+    if (ascendHome == nullptr) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("ENV ASCEND_HOME_PATH is not set, set this ENV properly");
+        return Z_INIT_BOOTSTRAP_FAILED;
+    }
+
+    path = std::string(ascendHome).append("/lib64");
+    if (!zbccl::Func::Realpath(path)) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Path with ASCEND_HOME_PATH is invalid");
         return Z_INIT_BOOTSTRAP_FAILED;
     }
 

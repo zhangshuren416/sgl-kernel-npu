@@ -133,8 +133,12 @@ endif()
 set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl_core")
 target_link_libraries(zbccl_shared PUBLIC pthread)
 
+set(TARGET_INSTALL_DIR ${ZBCCL_BASE_DIR}/output/)
+
 #install
-file(GLOB HEADER_FILES ${ZBCCL_BASE_DIR}/include/*.h)
+file(GLOB HEADER_FILES ${ZBCCL_BASE_DIR}/src/include/*.h)
+
+message(STATUS "header files = ${HEADER_FILES}")
 
 #install head files
 install(FILES ${HEADER_FILES} DESTINATION ${TARGET_INSTALL_DIR}/zbccl/include)

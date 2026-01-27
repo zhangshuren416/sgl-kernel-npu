@@ -11,11 +11,14 @@
  */
 #include "zbccl_npu_communicator_default.h"
 #include "zbccl_npu_op_allgather.h"
-#include "rt_ffts.h"
+#include "dl_cann_api.h"
 #include "acl/acl.h"
 
 namespace zbccl {
 namespace ccl {
+
+using namespace underapi;
+
 NpuCommunicatorDefault::NpuCommunicatorDefault(const CommGroupOptions &options, bool isWorldGroup,
                                                const CommunicatorPtr &worldGroup)
     : Communicator(options, isWorldGroup, worldGroup)
@@ -25,7 +28,7 @@ ZResult NpuCommunicatorDefault::Initialize() noexcept
 {
     /* get ffts address */
     uint32_t len = 0;
-    auto result = rtGetC2cCtrlAddr(&groupInfo_.fftsConfig, &len);
+    auto result = DlCannApi::RtGetC2cCtrlAddr(&groupInfo_.fftsConfig, &len);
     if (result != Z_OK) {
         ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result: " << result);
         return Z_FFTS_INIT_FAILED;
@@ -33,8 +36,13 @@ ZResult NpuCommunicatorDefault::Initialize() noexcept
 
     /* copy group info to meta area of communicator from host to device */
     ZBCCL_ASSERT_RETURN(sizeof(CommGroupInfo) == groupInfo_.sizeForCommGroupInfo, Z_ERROR);
-    aclrtMemcpy(reinterpret_cast<void *>(groupInfo_.myMetaGva), sizeof(CommGroupInfo), &groupInfo_,
-                sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
+    result = DlCannApi::AclrtMemcpy(reinterpret_cast<void *>(groupInfo_.myMetaGva), sizeof(CommGroupInfo), &groupInfo_,
+                                     sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result: " << result);
+        return Z_FFTS_INIT_FAILED;
+    }
+
     return Z_OK;
 }
 

@@ -12,10 +12,11 @@
 #include "zbccl_communicator.h"
 #include "zbccl_comm_group_meta.h"
 #include "zbccl_npu_communicator_default.h"
+#include "zbccl_communicator_dummy.h"
 
 namespace zbccl {
 namespace ccl {
-CommunicatorPtr Communicator::gWorldZBCCLComm{nullptr};
+CommunicatorPtr Communicator::gWorldCommunicator{nullptr};
 std::map<uintptr_t, CommunicatorPtr> Communicator::gCommLookupMap_;
 std::map<std::string, CommunicatorPtr> Communicator::gCommLookupMapByName_;
 std::mutex Communicator::gMutex;
@@ -119,54 +120,66 @@ CommunicatorPtr Communicator::CreateInner(zbccl_backend_t backendType, const Com
         return nullptr;
     }
 
-    if (backendType == ZBCCL_ASCEND_NPU) {
-        auto comm = ZMakeRef<NpuCommunicatorDefault>(options, isWorldGroup, gWorldZBCCLComm);
-        if (comm == nullptr) {
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed, probably out of memory");
-            return nullptr;
-        }
-        if (comm->Initialize()) {
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Init communicator failed.");
-            return nullptr;
-        }
+    CommunicatorPtr comm = nullptr;
 
-        if (isWorldGroup && gWorldZBCCLComm == nullptr) {
-            /*
-             * if world group and not created, then
-             * 1 created new one (created previously)
-             * 2 set to global one
-             * 3 increase reference and return
-             */
-            gWorldZBCCLComm = comm.Get();
-            gCommLookupMapByName_.emplace(options.name, comm.Get());
-            return comm.Get();
-        } else if (isWorldGroup && gWorldZBCCLComm != nullptr) {
-            /*
-             * if world group already created and return nullptr,
-             * return nullptr directly as its already created
-             */
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group already created");
+    switch (backendType) {
+        case ZBCCL_ASCEND_NPU:
+            comm = ZMakeRef<NpuCommunicatorDefault>(options, isWorldGroup, gWorldCommunicator).Get();
+            break;
+        case ZBCCL_BACK_BUTT:
+            comm = ZMakeRef<CommunicatorDummy>(options, isWorldGroup, gWorldCommunicator).Get();
+            break;
+        default:
+            ZBCCL_LOG_AND_SET_LAST_ERROR("Created communicator failed as backendType is invalid");
             return nullptr;
-        } else if (!isWorldGroup && gWorldZBCCLComm == nullptr) {
-            /*
-             * if not world group and world group not created,
-             * here we need to create world group firstly,
-             * return nullptr
-             */
-            ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group not created");
-            return nullptr;
-        } else {
-            /*
-             * if not world group and world group created
-             */
-            gCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
-            gCommLookupMapByName_.emplace(options.name, comm.Get());
-            ZBCCL_LOG_DEBUG("Created communicator, name: " << options.name << ", isWorldGroup: " << isWorldGroup);
-            return comm.Get();
-        }
     }
 
-    ZBCCL_LOG_DEBUG("Comm createInner exit with error");
+    if (comm == nullptr) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed, probably out of memory");
+        return nullptr;
+    }
+
+    if (comm->Initialize()) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Initialize communicator failed");
+        return nullptr;
+    }
+
+    if (isWorldGroup && gWorldCommunicator == nullptr) {
+        /*
+         * if world group and not created, then
+         * 1 created new one (created previously)
+         * 2 set to global one
+         * 3 increase reference and return
+         */
+        gWorldCommunicator = comm.Get();
+        gCommLookupMapByName_.emplace(options.name, comm.Get());
+        return comm.Get();
+    } else if (isWorldGroup && gWorldCommunicator != nullptr) {
+        /*
+         * if world group already created and return nullptr,
+         * return nullptr directly as its already created
+         */
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group already created");
+        return nullptr;
+    } else if (!isWorldGroup && gWorldCommunicator == nullptr) {
+        /*
+         * if not world group and world group not created,
+         * here we need to create world group firstly,
+         * return nullptr
+         */
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Create communicator failed as world group not created");
+        return nullptr;
+    } else {
+        /*
+         * if not world group and world group created
+         */
+        gCommLookupMap_.emplace(reinterpret_cast<uintptr_t>(comm.Get()), comm.Get());
+        gCommLookupMapByName_.emplace(options.name, comm.Get());
+        ZBCCL_LOG_DEBUG("Created communicator, name: " << options.name << ", isWorldGroup: " << isWorldGroup);
+        return comm.Get();
+    }
+
+    ZBCCL_LOG_DEBUG("exit");
     return nullptr;
 }
 
@@ -183,11 +196,11 @@ ZResult Communicator::DestroyInner(CommunicatorPtr &comm)
             return Z_ERROR;
         }
 
-        if (gWorldZBCCLComm != nullptr) {
+        if (gWorldCommunicator != nullptr) {
             ZBCCL_LOG_INFO("Destroying the world communicator");
-            gCommLookupMapByName_.erase(gWorldZBCCLComm->Name());
-            gWorldZBCCLComm->DecreaseRef();
-            gWorldZBCCLComm = nullptr;
+            gCommLookupMapByName_.erase(gWorldCommunicator->Name());
+            gWorldCommunicator->DecreaseRef();
+            gWorldCommunicator = nullptr;
         }
         return Z_OK;
     }
@@ -216,9 +229,9 @@ void Communicator::DestroyAllInner()
     gCommLookupMapByName_.clear();
 
     /* clear world one */
-    if (gWorldZBCCLComm != nullptr) {
-        gWorldZBCCLComm->DecreaseRef();
-        gWorldZBCCLComm = nullptr;
+    if (gWorldCommunicator != nullptr) {
+        gWorldCommunicator->DecreaseRef();
+        gWorldCommunicator = nullptr;
     }
 
     /* reset  */

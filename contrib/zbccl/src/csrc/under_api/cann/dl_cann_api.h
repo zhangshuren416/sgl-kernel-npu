@@ -29,6 +29,7 @@ using aclrtMemcpyFunc = int32_t (*)(void *, size_t, const void *, size_t, uint32
 using aclrtMemcpyAsyncFunc = int32_t (*)(void *, size_t, const void *, size_t, uint32_t, void *);
 using aclrtMemsetFunc = int32_t (*)(void *, size_t, int32_t, size_t);
 using rtGetLogicDevIdByUserDevIdFunc = int32_t (*)(const int32_t, int32_t *const);
+using rtGetC2cCtrlAddrFunc = int32_t (*)(uint64_t *, uint32_t *);
 
 class DlCannApi
 {
@@ -48,14 +49,15 @@ public:
     static ZResult AclrtFreeHost(void *ptr);
     static ZResult AclrtMemcpy(void *dst, size_t destMax, const void *src, size_t count, uint32_t kind);
     static ZResult AclrtMemcpyAsync(void *dst, size_t destMax, const void *src, size_t count, uint32_t kind,
-                                   void *stream);
+                                    void *stream);
     static ZResult AclrtMemset(void *ptr, size_t maxCount, int32_t value, size_t count);
     static ZResult RtGetLogicDevIdByUserDevId(const int32_t userDevId, int32_t *const logicDevId);
+    static ZResult RtGetC2cCtrlAddr(uint64_t *address, uint32_t *len);
 
 private:
     static std::mutex gMutex;
     static bool gLoaded;
-    static void *rtHandle;
+    static void *gAclHandle;
     static const char *gAscendAclLibName;
 
     static aclrtGetSocNameFunc pAclrtGetSocName;
@@ -71,6 +73,7 @@ private:
     static aclrtMemcpyAsyncFunc pAclrtMemcpyAsync;
     static aclrtMemsetFunc pAclrtMemset;
     static rtGetLogicDevIdByUserDevIdFunc pRtGetLogicDevIdByUserDevId;
+    static rtGetC2cCtrlAddrFunc pRtGetC2cCtrlAddr;
 };
 
 inline const char *DlCannApi::AclrtGetSocName()
@@ -160,7 +163,7 @@ inline ZResult DlCannApi::AclrtMemcpy(void *dst, size_t destMax, const void *src
 }
 
 inline ZResult DlCannApi::AclrtMemcpyAsync(void *dst, size_t destMax, const void *src, size_t count, uint32_t kind,
-                                          void *stream)
+                                           void *stream)
 {
     if (UNLIKELY(pAclrtMemcpyAsync == nullptr)) {
         return Z_DL_FUNCTION_UNLOAD;
@@ -182,6 +185,14 @@ inline ZResult DlCannApi::RtGetLogicDevIdByUserDevId(const int32_t userDevId, in
         return Z_DL_FUNCTION_UNLOAD;
     }
     return pRtGetLogicDevIdByUserDevId(userDevId, logicDevId);
+}
+
+inline ZResult DlCannApi::RtGetC2cCtrlAddr(uint64_t *address, uint32_t *len)
+{
+    if (UNLIKELY(pRtGetC2cCtrlAddr == nullptr)) {
+        return Z_DL_FUNCTION_UNLOAD;
+    }
+    return pRtGetC2cCtrlAddr(address, len);
 }
 }  // namespace underapi
 }  // namespace zbccl

@@ -46,16 +46,16 @@ file(GLOB_RECURSE ZBCCL_TEST_CASE_SRCS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
-message(STATUS "ZBCCL_TEST_CASE_SRCS = ${ZBCCL_TEST_CASE_SRCS}")
-
 add_executable(test_zbccl ${ZBCCL_TEST_CASE_SRCS}
         $<TARGET_OBJECTS:common_objects>
-        $<TARGET_OBJECTS:ccl_objects>)
+        $<TARGET_OBJECTS:ccl_objects>
+        $<TARGET_OBJECTS:under_api_objects>)
 
 target_compile_options(test_zbccl PRIVATE -fPIC -Wno-float-equal)
 target_link_options(test_zbccl PRIVATE -pie)
-target_link_libraries(test_zbccl PUBLIC gtest ascendcl runtime)
+target_link_libraries(test_zbccl PUBLIC gtest ascendcl runtime zbccl_kernel)
+#target_link_libraries(test_zbccl PUBLIC gtest zbccl_kernel acl_shared)
 
 install(TARGETS test_zbccl
-        RUNTIME DESTINATION ${ZBCCL_TEST_BASE_DIR}/output
+        RUNTIME DESTINATION ${ZBCCL_BASE_DIR}/output/ut
         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)

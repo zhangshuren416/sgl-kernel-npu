@@ -195,7 +195,7 @@ private:
     static void DestroyAllInner();
     static ZResult LookupInner(const std::string &name, CommunicatorPtr &comm);
 
-    static CommunicatorPtr gWorldZBCCLComm;                              /* the world comm, i.e. the first one */
+    static CommunicatorPtr gWorldCommunicator;                              /* the world comm, i.e. the first one */
     static std::mutex gMutex;                                            /* mutex for world comm */
     static std::map<uintptr_t, CommunicatorPtr> gCommLookupMap_;         /* all comm object except the world comm */
     static std::map<std::string, CommunicatorPtr> gCommLookupMapByName_; /* all comm object except the world comm */

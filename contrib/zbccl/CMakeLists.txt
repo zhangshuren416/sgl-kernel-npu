@@ -18,5 +18,6 @@ add_subdirectory(src/csrc)
 
 if (BUILD_ZBCCL_MODULE_UT)
     message(STATUS "build test is required")
+    add_compile_definitions(UNIT_TEST=1)
     add_subdirectory(test)
 endif ()

@@ -9,67 +9,92 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_COMMUNICATOR_DEFAULT_H
-#define ZBCCL_COMMUNICATOR_DEFAULT_H
+#ifndef ZBCCL_COMMUNICATOR_DUMMY_H
+#define ZBCCL_COMMUNICATOR_DUMMY_H
 
 #include "zbccl_communicator.h"
 
 namespace zbccl {
 namespace ccl {
 
-class NpuCommunicatorDefault : public Communicator
+/**
+ * This is for unit test, a dummy communicator doesn't depend on any hardware
+ */
+class CommunicatorDummy : public Communicator
 {
 public:
-    NpuCommunicatorDefault(const CommGroupOptions &options, bool isWorldGroup, const CommunicatorPtr &worldGroup);
-    ~NpuCommunicatorDefault() override
+    CommunicatorDummy(const CommGroupOptions &options, bool isWorldGroup, const CommunicatorPtr &worldGroup)
+        : Communicator(options, isWorldGroup, worldGroup)
+    {}
+
+    ~CommunicatorDummy() override = default;
+
+    ZResult Initialize() noexcept override
     {
-        UnInitialize();
+        return Z_OK;
     }
 
-    ZResult Initialize() noexcept override;
-
-    void UnInitialize() noexcept override;
+    void UnInitialize() noexcept override {}
 
     int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
-                      zbccl_reduce_op_t op, aclrtStream stream) noexcept override;
+                      zbccl_reduce_op_t op, aclrtStream stream) noexcept override
+    {
+        return Z_OK;
+    }
 
     int32_t ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count, zbccl_datatype_t data_type,
-                          zbccl_reduce_op_t op, aclrtStream stream) noexcept override;
+                          zbccl_reduce_op_t op, aclrtStream stream) noexcept override
+    {
+        return Z_OK;
+    }
 
     int32_t AllGather(const void *send_buff, void *recv_buff, size_t send_count, zbccl_datatype_t data_type,
-                      aclrtStream stream) noexcept override;
+                      aclrtStream stream) noexcept override
+    {
+        return Z_OK;
+    }
 
     int32_t All2All(const void *sendBuff, void *recvBuff, uint64_t data_count, zbccl_datatype_t dataType,
-                    uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept;
+                    uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept
+    {
+        return Z_OK;
+    }
 
     int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
                                  const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
                                  const zbccl_tensor_info_t *recvTokensPerExpert,
-                                 const zbccl_tensor_info_t *pushTargetOffset, int64_t flags) noexcept;
+                                 const zbccl_tensor_info_t *pushTargetOffset, int64_t flags) noexcept
+    {
+        return Z_OK;
+    }
 
     int32_t DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
                                  int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
                                  const zbccl_tensor_info_t *tokensPerExpert, const zbccl_tensor_info_t *isTokenInRank,
-                                 const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
-                                 int64_t flags) noexcept;
+                                 const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream, int64_t flags) noexcept
+    {
+        return Z_OK;
+    }
 
     int32_t DispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset,
                            int64_t expertNum, zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
                            const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
-                           int64_t flags) noexcept;
+                           int64_t flags) noexcept
+    {
+        return Z_OK;
+    }
 
     int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                           const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
                           const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
                           const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
-                          int64_t flags) noexcept;
-
-private:
-    void *kernelMetaH2DArea_ = nullptr;       /* dram space for exchange the meta of zbccl operators */
-    void *kernelMetaH2DAreaDevice_ = nullptr; /* the device ptr of kernelMetaH2DArea */
+                          int64_t flags) noexcept
+    {
+        return Z_OK;
+    }
 };
 }  // namespace ccl
 }  // namespace zbccl
 
-#endif  // ZBCCL_COMMUNICATOR_DEFAULT_H
+#endif  // ZBCCL_COMMUNICATOR_DUMMY_H

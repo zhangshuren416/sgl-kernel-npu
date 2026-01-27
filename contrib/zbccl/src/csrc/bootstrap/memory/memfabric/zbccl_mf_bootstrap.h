@@ -31,6 +31,7 @@ public:
 
 private:
     ZResult GetMemFabricLibPath(std::string &path) noexcept;
+    ZResult GetAscendLibPath(std::string &path) noexcept;
     ZResult InitPreCheck() noexcept;
     ZResult CreateSHMSpace() noexcept;
 
