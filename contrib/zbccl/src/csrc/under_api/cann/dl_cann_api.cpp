@@ -44,7 +44,7 @@ ZResult DlCannApi::LoadLibrary(const std::string &libDirPath)
 
     std::string realPath;
     if (!Func::LibraryRealPath(libDirPath, std::string(gAscendAclLibName), realPath)) {
-        ZBCCL_LOG_ERROR(libDirPath << "get real library [" << gAscendAclLibName << "] failed");
+        ZBCCL_LOG_ERROR(libDirPath << " get real library [" << gAscendAclLibName << "] failed");
         return Z_FILE_NOT_FOUND;
     }
 

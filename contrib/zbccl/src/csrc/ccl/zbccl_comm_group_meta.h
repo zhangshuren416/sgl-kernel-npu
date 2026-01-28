@@ -13,7 +13,7 @@
 #define ZBCCL_COMM_GROUP_META_H
 
 #include "zbccl_common_includes.h"
-#include "zbccl_comm_struct.h"
+#include "zbccl_comm_host_device_struct.h"
 
 namespace zbccl {
 namespace ccl {

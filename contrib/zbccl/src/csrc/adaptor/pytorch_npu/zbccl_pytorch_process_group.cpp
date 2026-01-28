@@ -296,8 +296,8 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
             RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({}));
             c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
 
-            auto inputDataPtr = input.data_ptr();
-            auto outputDataPtr = output.data_ptr();
+            void *inputDataPtr = input.data_ptr();
+            void *outputDataPtr = output.data_ptr();
             auto numel = GetNumelForZBCCL(input);
             auto zbcclType = GetZBcclDataType(input.scalar_type());
 

@@ -36,6 +36,8 @@ public:
 
     void UnInitialize() noexcept override {}
 
+    void ConstructCommGroupInfo(const CommGroupOptions &opt) noexcept override {}
+
     int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
                       zbccl_reduce_op_t op, aclrtStream stream) noexcept override
     {

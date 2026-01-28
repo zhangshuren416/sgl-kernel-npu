@@ -139,6 +139,7 @@ CommunicatorPtr Communicator::CreateInner(zbccl_backend_t backendType, const Com
         return nullptr;
     }
 
+    comm->ConstructCommGroupInfo(options);
     if (comm->Initialize()) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Initialize communicator failed");
         return nullptr;

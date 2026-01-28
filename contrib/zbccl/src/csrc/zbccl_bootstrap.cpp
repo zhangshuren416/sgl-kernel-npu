@@ -70,7 +70,7 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     zbccl_allocator_options_t alloc_state;
     alloc_state.gva = output->deviceGva;
     alloc_state.myGva = output->mySMAGva;
-    alloc_state.size = output->allocatedDeviceMemorySize;
+    alloc_state.size = output->smaSizeOfDevice;
     // flag currently is just a placeholder
     ZBCCL_VALIDATE_RETURN(zbccl_sma_init(&alloc_state, 0) == Z_OK, "sma init failed", Z_INVALID_PARAM);
 

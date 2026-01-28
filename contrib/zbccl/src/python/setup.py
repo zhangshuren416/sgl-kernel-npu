@@ -145,7 +145,7 @@ class CustomBuildExtension(BuildExtension):
             "..",
             "-DSOC_VERSION=Ascend910_9382",
             "-DBUILD_ZBCCL_MODULE_UT=OFF",
-            "-DCMAKE_BUILD_TYPE=DEBUG",
+            "-DCMAKE_BUILD_TYPE=Debug",
             "-DDISABLE_ADAPTOR_COMPILE=ON",
             "-DDISABLE_ALLOCATOR_COMPILE=ON"
         ]

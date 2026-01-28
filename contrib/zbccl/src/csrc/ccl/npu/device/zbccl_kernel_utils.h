@@ -1,5 +1,4 @@
 /*
-
 Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
 ZBCCL is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -14,18 +13,19 @@ See the Mulan PSL v2 for more details.
 #ifndef ZBCCL_KERNEL_UTILS_H
 #define ZBCCL_KERNEL_UTILS_H
 #include "kernel_operator.h"
+#include "zbccl_kernel_def.h"
 
 constexpr int64_t FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 
-__aicore__ __inline__ __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
+ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
 {
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
     uint64_t dstPtr = curPtr + (dstPe - curPe) * localMemSize;
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
-__aicore__ inline void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
+ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
                                   uint64_t flagMagic, uint64_t localDeviceMemSize)
 {
     const int64_t aivNum = AscendC::GetBlockNum();
@@ -46,8 +46,9 @@ __aicore__ inline void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16
 
     if (aivIndex < groupSize) {
         // write addr
-        auto ptr = zbccl_ptr((__gm__ uint64_t *)metaGM, myGroupRank, aivIndex, localDeviceMemSize);
-        metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2);
+        auto exchangeAddr = reinterpret_cast<__gm__ CommGroupInfo *>(metaGM)->myAddressExchangeGva;
+        auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex, localDeviceMemSize);
+        metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2);  // size ??
         AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
         AscendC::DataCopyPad(metaAddrTensor[addrOffset], inputBuff, copyParams);
 
@@ -58,7 +59,7 @@ __aicore__ inline void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16
 }
 
 template<typename T>
-__aicore__ inline void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTensor<T> inputGT, uint64_t count)
+ZBCCL_KERNEL void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTensor<T> inputGT, uint64_t count)
 {
     uint32_t copyUbSize = UB_DMA_MAX_SIZE / 2;
     uint32_t copyUbNum = copyUbSize / sizeof(T);

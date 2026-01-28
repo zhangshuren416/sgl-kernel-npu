@@ -1,3 +1,5 @@
+set(RUN_MODE "npu" CACHE STRING "run mode: npu")
+
 ascendc_library(zbccl_kernel STATIC
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_allgather.cpp
 )
@@ -12,4 +14,8 @@ ascendc_include_directories(zbccl_kernel PRIVATE
         ${ZBCCL_SRC_DIR}/csrc/common
         ${ZBCCL_SRC_DIR}/csrc/ccl
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu
+)
+
+ascendc_compile_definitions(zbccl_kernel PRIVATE
+        ASCENDC_DUMP=1
 )

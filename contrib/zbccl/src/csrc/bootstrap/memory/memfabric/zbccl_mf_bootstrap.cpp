@@ -47,7 +47,7 @@ ZResult MemFabricBoostrap::InitPreCheck() noexcept
     }
 
     std::string ascendLibPath = "";
-    result = GetMemFabricLibPath(ascendLibPath);
+    result = GetAscendLibPath(ascendLibPath);
     if (result != Z_OK || ascendLibPath.empty()) {
         return result;
     }

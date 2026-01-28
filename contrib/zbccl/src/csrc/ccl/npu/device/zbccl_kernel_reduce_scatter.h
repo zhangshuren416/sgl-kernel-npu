@@ -16,8 +16,7 @@
 #include "kernel_operator.h"
 #include "shmem.h"
 #include "zbccl_def.h"
-
-#define AICORE_FORCE_INLINE __attribute__((always_inline)) __aicore__ __inline__
+#include "zbccl_kernel_utils.h"
 
 namespace zbccl {
 namespace ccl {
@@ -28,7 +27,7 @@ constexpr uint32_t DATA_ADDR_INTERVAL = 8;
 constexpr uint32_t FLAG_INTERVAL = 16;
 
 template <typename T>
-AICORE_FORCE_INLINE void SetAtomicOp(uint32_t atomicOp)
+ZBCCL_KERNEL void SetAtomicOp(uint32_t atomicOp)
 {
     switch (atomicOp) {
         case 0:
@@ -47,24 +46,12 @@ AICORE_FORCE_INLINE void SetAtomicOp(uint32_t atomicOp)
 }
 
 template <typename T>
-inline __aicore__ T CeilDiv(const T dividend, const T divisor)
+ZBCCL_KERNEL T CeilDiv(const T dividend, const T divisor)
 {
     return (divisor == 0) ? 0 : ((dividend + divisor - 1) / divisor);
 }
 
-AICORE_FORCE_INLINE void dcciCacheline(__gm__ uint8_t *addr)
-{
-    using namespace AscendC;
-    GlobalTensor<uint8_t> global;
-    global.SetGlobalBuffer(addr);
-
-    // Important: add hint to avoid dcci being optimized by compiler
-    __asm__ __volatile__("");
-    DataCacheCleanAndInvalid<uint8_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(global);
-    __asm__ __volatile__("");
-}
-
-AICORE_FORCE_INLINE uint64_t GetDataAddr(__gm__ void *metaAddr, uint32_t rank, uint32_t groupSize)
+ZBCCL_KERNEL uint64_t GetDataAddr(__gm__ void *metaAddr, uint32_t rank, uint32_t groupSize)
 {
     uint32_t dataAddrOffset = rank * DATA_ADDR_INTERVAL;
     __gm__ uint64_t* dataGmAddr = (__gm__ uint64_t*)metaAddr + dataAddrOffset;
@@ -72,7 +59,7 @@ AICORE_FORCE_INLINE uint64_t GetDataAddr(__gm__ void *metaAddr, uint32_t rank, u
     return *dataGmAddr;
 }
 
-AICORE_FORCE_INLINE void SetDataAddr(__gm__ void *metaAddr, uint64_t val, uint32_t rank, uint32_t groupSize)
+ZBCCL_KERNEL void SetDataAddr(__gm__ void *metaAddr, uint64_t val, uint32_t rank, uint32_t groupSize)
 {
     uint32_t dataAddrOffset = rank * DATA_ADDR_INTERVAL;
     __gm__ uint64_t* dataGmAddr = (__gm__ uint64_t*)metaAddr + dataAddrOffset;
@@ -80,7 +67,7 @@ AICORE_FORCE_INLINE void SetDataAddr(__gm__ void *metaAddr, uint64_t val, uint32
     dcciCacheline((__gm__ uint8_t *)dataGmAddr);
 }
 
-AICORE_FORCE_INLINE int32_t GetFlag(__gm__ void *metaAddr, uint32_t rank, uint32_t groupSize)
+ZBCCL_KERNEL int32_t GetFlag(__gm__ void *metaAddr, uint32_t rank, uint32_t groupSize)
 {
     uint32_t dataAddrLength = groupSize * DATA_ADDR_SIZE * DATA_ADDR_INTERVAL;
     __gm__ int32_t* flagAddr = (__gm__ int32_t*)((__gm__ uint8_t*)metaAddr + dataAddrLength) + rank * FLAG_INTERVAL;
@@ -88,7 +75,7 @@ AICORE_FORCE_INLINE int32_t GetFlag(__gm__ void *metaAddr, uint32_t rank, uint32
     return *flagAddr;
 }
 
-AICORE_FORCE_INLINE void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uint32_t groupSize)
+ZBCCL_KERNEL void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uint32_t groupSize)
 {
     uint32_t dataAddrLength = groupSize * DATA_ADDR_SIZE * DATA_ADDR_INTERVAL;
     __gm__ int32_t* flagAddr = (__gm__ int32_t*)((__gm__ uint8_t*)metaAddr + dataAddrLength) + rank * FLAG_INTERVAL;
@@ -96,7 +83,7 @@ AICORE_FORCE_INLINE void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t ra
     dcciCacheline((__gm__ uint8_t *)flagAddr);
 }
 
-AICORE_FORCE_INLINE void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void* inputAddr, uint32_t aivIndex, uint32_t rank, uint32_t groupSize)
+ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void* inputAddr, uint32_t aivIndex, uint32_t rank, uint32_t groupSize)
 {
     if (aivIndex < groupSize) {
         SetFlag(metaAddr, 0, aivIndex, groupSize);
@@ -113,9 +100,9 @@ template <typename T>
 class ZeroBuffReduceScatterKernel
 {
 public:
-    __aicore__ inline ZeroBuffReduceScatterKernel() {}
+    ZBCCL_KERNEL ZeroBuffReduceScatterKernel() {}
 
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, GM_ADDR metaAddr, AscendC::TPipe* pipe,
+    ZBCCL_KERNEL void Init(GM_ADDR x, GM_ADDR y, GM_ADDR metaAddr, AscendC::TPipe* pipe,
                                 uint32_t rank, uint32_t rankSize, uint32_t totalLength,
                                 uint32_t magic, uint64_t fftsAddr, uint32_t atomicOp)
     {
@@ -171,7 +158,7 @@ public:
         }
     }
 
-    __aicore__ inline void Process()
+    ZBCCL_KERNEL void Process()
     {
 #ifdef __DAV_C220_VEC__
 

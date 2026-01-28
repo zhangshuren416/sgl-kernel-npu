@@ -51,6 +51,20 @@ void NpuCommunicatorDefault::UnInitialize() noexcept
     // TODO
 }
 
+void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &options) noexcept
+{
+    groupInfo_.groupSize = options.groupSize;
+    groupInfo_.myGroupRank = options.myGroupRank;
+    groupInfo_.myMetaGva = options.myMetaGva;
+    groupInfo_.myParamDataGva = options.myParamDataGva;
+    groupInfo_.myAddressExchangeGva = options.myAddressExchangeGva;
+    groupInfo_.sizeForCommGroupInfo = options.sizeForCommGroupInfo;
+    groupInfo_.sizeForParam = options.sizeForParam;
+    groupInfo_.sizeForExchangeAddress = options.sizeForExchangeAddress;
+    groupInfo_.fftsConfig = options.fftsConfig;
+    groupInfo_.localDeviceMemSize = options.localDeviceMemSize;
+}
+
 int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
