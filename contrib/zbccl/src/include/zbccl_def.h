@@ -62,7 +62,6 @@ typedef enum {
 
 typedef enum {
     BOOT_BY_MEMFABRIC = 0,
-    BOOT_BY_ACLSHMEM,
 
     BOOT_BY_BUTT
 } zbccl_bootstrap_type_t;
