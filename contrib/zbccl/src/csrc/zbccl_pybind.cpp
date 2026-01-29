@@ -30,8 +30,7 @@ int32_t zbccl_bootstrap_wrapper(zbccl_bootstrap_options_t &opt)
 void pybind11_bootstrap(py::module_ &m)
 {
     py::enum_<zbccl_bootstrap_type_t>(m, "ZBCCLBootstrapType")
-        .value("BOOT_BY_MEMFABRIC", zbccl_bootstrap_type_t::BOOT_BY_MEMFABRIC)
-        .value("BOOT_BY_ACLSHMEM", zbccl_bootstrap_type_t::BOOT_BY_ACLSHMEM);
+        .value("BOOT_BY_MEMFABRIC", zbccl_bootstrap_type_t::BOOT_BY_MEMFABRIC);
 
     py::class_<zbccl_bootstrap_options_t>(m, "ZBCCLBootstrapOption")
         .def(py::init<>())

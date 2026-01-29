@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details.
 #define ZBCCL_KERNEL_UTILS_H
 #include "kernel_operator.h"
 #include "zbccl_kernel_def.h"
+#include "zbccl_comm_host_device_struct.h"
 
 constexpr int64_t FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
