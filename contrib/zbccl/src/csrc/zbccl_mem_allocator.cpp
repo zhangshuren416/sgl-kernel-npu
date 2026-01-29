@@ -95,25 +95,17 @@ ZBCCL_API void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream
     return;
 }
 
+// deprecated
 ZBCCL_API void *zbccl_get_shmem_base_addr()
 {
+    ZBCCL_LOG_WARN("base addr no longer stands for meta if inited from bootstrap, will be deprecated soon");
 #ifdef USE_C10NPU_DMA
     return dma_get_base_addr();
 #else
-    ZBCCL_LOG_WARN("sma base addr no longer stands for meta if inited from bootstrap, will be deprecated soon");
     return sma_get_base_addr();
 #endif
 }
 
-void zbccl_inner_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port, bool is_simulation = false)
-{
-#ifdef USE_C10NPU_DMA
-    dma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port, is_simulation);
-#else
-    sma_init_shmem(my_rank, n_ranks, local_mem_size, meta_size, ip_port);
-#endif
-    return;
-}
 
 #ifdef __cplusplus
 }

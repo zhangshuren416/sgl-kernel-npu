@@ -27,8 +27,6 @@
 #include "dma_common.h"
 #include "zbccl_sma_mm_heap.h"
 
-#include "shmem.h"
-
 #include <mutex>
 #include <atomic>
 
@@ -314,9 +312,6 @@ EXPORT_API void dma_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempoo
 EXPORT_API void dma_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 
 EXPORT_API void *dma_get_base_addr(int device = -1);
-
-// deprecated
-EXPORT_API void dma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port, bool is_simulation = false);
 
 EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_simulation = false);
 }

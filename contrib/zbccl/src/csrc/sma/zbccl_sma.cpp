@@ -276,66 +276,6 @@ ZBCCL_API void *sma_get_base_addr(int device) {
     return zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapBase();
 }
 
-aclshmemx_uniqueid_t sma_default_flag_uid;
-static char sma_g_ipport[ACLSHMEM_MAX_IP_PORT_LEN] = {0};
-
-int sma_set_attr(int32_t my_pe, int32_t n_pes, uint64_t local_mem_size, const char *ip_port,
-                 aclshmemx_init_attr_t *attributes)
-{
-    ZBCCL_ASSERT_RETURN(local_mem_size <= ACLSHMEM_MAX_LOCAL_SIZE, ACLSHMEM_INVALID_VALUE);
-    ZBCCL_ASSERT_RETURN(n_pes <= ACLSHMEM_MAX_PES, ACLSHMEM_INVALID_VALUE);
-    ZBCCL_ASSERT_RETURN(my_pe < ACLSHMEM_MAX_PES, ACLSHMEM_INVALID_VALUE);
-    size_t ip_len = 0;
-    if (ip_port != nullptr) {
-        ip_len = std::min(strlen(ip_port), sizeof(sma_g_ipport) - 1);
-
-        std::copy_n(ip_port, ip_len, attributes->ip_port);
-        if (attributes->ip_port[0] == '\0') {
-            //SHM_LOG_ERROR("my_pe:" << my_pe << " ip_port is nullptr!");
-            return ACLSHMEM_INVALID_VALUE;
-        }
-    } else {
-        //SHM_LOG_WARN("init with my_pe:" << my_pe << " ip_port is nullptr!");
-    }
-
-    int attr_version = (1 << 16) + sizeof(aclshmemx_init_attr_t);
-    attributes->my_pe = my_pe;
-    attributes->n_pes = n_pes;
-    attributes->ip_port[ip_len] = '\0';
-    attributes->local_mem_size = local_mem_size;
-    attributes->option_attr = {attr_version, ACLSHMEM_DATA_OP_MTE, DEFAULT_TIMEOUT,
-                               DEFAULT_TIMEOUT, DEFAULT_TIMEOUT};
-    attributes->comm_args = reinterpret_cast<void *>(&sma_default_flag_uid);
-    aclshmemx_uniqueid_t *uid_args = (aclshmemx_uniqueid_t *)(attributes->comm_args);
-    uid_args->my_pe = my_pe;
-    uid_args->n_pes = n_pes;
-    return shmem_error_code_t::ACLSHMEM_SUCCESS;
-}
-
-ZBCCL_API void sma_init_shmem(int my_rank, int n_ranks, uint64_t local_mem_size, uint64_t meta_size, const char *ip_port) {
-    std::cout << "sma init: " << my_rank << " " << n_ranks << " " << local_mem_size << " " << meta_size << " "
-              << ip_port << std::endl;
-    if (shmem_init_status() != 2) {
-        auto status = shmem_set_conf_store_tls(false, nullptr, 0);
-        ZBCCL_ASSERT_S(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_set_conf_store_tls error.");
-        shmem_init_attr_t attributes;
-        sma_set_attr(my_rank, n_ranks, local_mem_size, ip_port, &attributes);
-        status = shmem_init_attr(ACLSHMEMX_INIT_WITH_DEFAULT, &attributes);
-        ZBCCL_ASSERT_S(status == shmem_error_code_t::ACLSHMEM_SUCCESS, "[E]shmem shmem_init_attr error.");
-    }
-
-    int device = 0;
-    c10_npu::GetDevice(&device);
-
-    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
-        void *shmem_base_addr_ = shmem_malloc(local_mem_size);
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->setMemHeapPool
-            (shmem_base_addr_ + meta_size, local_mem_size - meta_size);
-    } else {
-        ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
-    }
-}
-
 ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
     int device = 0;
     c10_npu::GetDevice(&device);

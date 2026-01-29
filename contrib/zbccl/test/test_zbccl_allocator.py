@@ -3,6 +3,21 @@ import torch_npu
 from torch import nn
 
 import zbccl
+import os
+
+
+def init():
+    # This will allocate memory in the device using the new allocator
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+
+    zbccl.zbccl_set_logger_level(0)
+    mem_128M = 128 * 1024 * 1024
+    if not zbccl.zbccl_init(world_size, local_rank, mem_128M):
+        print(f"zbccl_init failed on rank {local_rank}.")
+        exit(-1)
+    else:
+        print(f"zbccl_init success on rank {local_rank}")
 
 
 def train(num_iter=500, device="npu"):
@@ -54,10 +69,8 @@ def infer(device="npu"):
 
 
 if __name__ == "__main__":
-    # This will allocate memory in the device using the new allocator
-    zbccl.switch_to_allocator()
-    torch.npu.set_device(0)
-    zbccl.init_shmem(0, 1, 10 * (1024 ** 3), 1 * (1024 ** 3), 'tcp://127.0.0.1:37221')
+    init()
+
     npu_tensor = torch.zeros(10, device="npu")
     print(npu_tensor)
 
