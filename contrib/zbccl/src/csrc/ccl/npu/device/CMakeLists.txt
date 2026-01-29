@@ -2,6 +2,8 @@ set(RUN_MODE "npu" CACHE STRING "run mode: npu")
 
 ascendc_library(zbccl_kernel STATIC
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_allgather.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_allreduce.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_reduce_scatter.cpp
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE

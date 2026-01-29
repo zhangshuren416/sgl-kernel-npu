@@ -9,13 +9,13 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_kernel_reduce_scatter.h"
+#include "zbccl_kernel_allreduce.h"
 
 
 using namespace zbccl;
 using namespace zbccl::ccl;
 
-extern "C" __global__ __aicore__ void ZeroBuffReduceScatter(
+extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
     GM_ADDR input, GM_ADDR output, GM_ADDR gva,
     uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength,
     uint32_t rank, uint32_t groupSize, uint32_t reduceOp)
@@ -27,37 +27,37 @@ extern "C" __global__ __aicore__ void ZeroBuffReduceScatter(
     zbccl_datatype_t zbcclDataType = static_cast<zbccl_datatype_t>(dataType);
     switch (zbcclDataType) {
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT8: {
-            ZeroBuffReduceScatterKernel<int8_t> op;
+            ZeroBuffAllReduceKernel<int8_t> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT16: {
-            ZeroBuffReduceScatterKernel<int16_t> op;
+            ZeroBuffAllReduceKernel<int16_t> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT32: {
-            ZeroBuffReduceScatterKernel<int32_t> op;
+            ZeroBuffAllReduceKernel<int32_t> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_FP32: {
-            ZeroBuffReduceScatterKernel<float> op;
+            ZeroBuffAllReduceKernel<float> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_FP16: {
-            ZeroBuffReduceScatterKernel<float16_t> op;
+            ZeroBuffAllReduceKernel<float16_t> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_BFP16: {
-            ZeroBuffReduceScatterKernel<bfloat16_t> op;
+            ZeroBuffAllReduceKernel<bfloat16_t> op;
             op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
             op.Process();
             break;
@@ -67,8 +67,8 @@ extern "C" __global__ __aicore__ void ZeroBuffReduceScatter(
     }
 }
 
-int32_t ZBCCLReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_datatype_t dataType,
-                           aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo)
+int32_t ZBCCLAllReduce(const void *inp, void *out, size_t numel, zbccl_datatype_t dataType,
+                       aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo)
 {
     /* define the block dim */
     uint32_t blockDim = 16;
@@ -83,7 +83,7 @@ int32_t ZBCCLReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_d
     uint8_t* input = reinterpret_cast<uint8_t *>(const_cast<void *>(inp));
     uint8_t* output = reinterpret_cast<uint8_t *>(out);
 
-    ZeroBuffReduceScatter<<<blockDim, nullptr, stream>>>(input, output, metaAddr, fftsAddr, dataTypeNum, recvNumel, rank, groupSize, reduceOpNum);
+    ZeroBuffAllReduce<<<blockDim, nullptr, stream>>>(input, output, metaAddr, fftsAddr, dataTypeNum, numel, rank, groupSize, reduceOpNum);
 
     return 0;
 }

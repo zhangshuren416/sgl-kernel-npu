@@ -9,8 +9,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_KERNEL_REDUCE_SCATTER_H
-#define ZBCCL_KERNEL_REDUCE_SCATTER_H
+#ifndef ZBCCL_KERNEL_ALLREDUCE_H
+#define ZBCCL_KERNEL_ALLREDUCE_H
 
 #include <cstdint>
 #include "kernel_operator.h"
@@ -18,6 +18,7 @@
 #include "zbccl_kernel_utils.h"
 #include "zbccl_comm_host_device_struct.h"
 #include "zbccl_kernel_barrier.h"
+
 
 namespace zbccl {
 namespace ccl {
@@ -101,10 +102,10 @@ ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputA
 }
 
 template <typename T>
-class ZeroBuffReduceScatterKernel
+class ZeroBuffAllReduceKernel
 {
 public:
-    ZBCCL_KERNEL ZeroBuffReduceScatterKernel() {}
+    ZBCCL_KERNEL ZeroBuffAllReduceKernel() {}
 
     ZBCCL_KERNEL void Init(GM_ADDR x, GM_ADDR y, GM_ADDR metaAddr, AscendC::TPipe *pipe,
                                 uint32_t rank, uint32_t groupSize, uint32_t totalLength, uint32_t magic,
@@ -150,12 +151,11 @@ public:
 
         if (coreRankIdx < formerNum) {
             lenPerCore = formerLength;
-            xOffset = rank * lenPerRank + coreRankIdx * formerLength;
+            xOffset = coreRankIdx * formerLength;
             yOffset = coreRankIdx * formerLength;
         } else {
             lenPerCore = tailLength;
-            xOffset = rank * lenPerRank +
-                formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
+            xOffset = formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
             yOffset = formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
         }
 
@@ -216,4 +216,4 @@ private:
 
 }
 }
-#endif // ZBCCL_KERNEL_REDUCE_SCATTER_H
+#endif // ZBCCL_KERNEL_ALLREDUCE_H

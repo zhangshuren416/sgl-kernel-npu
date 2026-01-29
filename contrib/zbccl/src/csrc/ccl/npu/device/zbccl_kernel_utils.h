@@ -19,6 +19,32 @@ See the Mulan PSL v2 for more details.
 constexpr int64_t FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 
+template <typename T>
+ZBCCL_KERNEL void SetAtomicOp(uint32_t atomicOp)
+{
+    switch (atomicOp) {
+        case 0:
+            AscendC::SetAtomicAdd<T>();
+            break;
+        case 2:
+            AscendC::SetAtomicMax<T>();
+            break;
+        case 3:
+            AscendC::SetAtomicMin<T>();
+            break;
+        default:
+            AscendC::SetAtomicNone();
+            break;
+    }
+}
+
+
+template <typename T>
+ZBCCL_KERNEL T CeilDiv(const T dividend, const T divisor)
+{
+    return (divisor == 0) ? 0 : ((dividend + divisor - 1) / divisor);
+}
+
 ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
 {
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);

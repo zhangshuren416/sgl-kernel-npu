@@ -9,13 +9,13 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_OP_REDUCESCATTER_H
-#define ZBCCL_OP_REDUCESCATTER_H
+#ifndef ZBCCL_OP_ALLREDUCE_H
+#define ZBCCL_OP_ALLREDUCE_H
 
 #include "zbccl_def.h"
 #include "zbccl_communicator.h"
 
-int32_t ZBCCLReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_datatype_t dataType,
-                           aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
+int32_t ZBCCLAllReduce(const void *inp, void *out, size_t numel, zbccl_datatype_t dataType,
+                       aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
 
-#endif  // ZBCCL_OP_REDUCESCATTER_H
+#endif  // ZBCCL_OP_ALLREDUCE_H
