@@ -22,8 +22,8 @@
 #include <optional>
 #include "aclnn/opdev/platform.h"
 
-#include "zbccl_config.h"
-#include "zbccl_event.h"
+#include "zbccl_deepep_config.h"
+#include "zbccl_deep_event.h"
 
 namespace zbccl {
 namespace adaptor {

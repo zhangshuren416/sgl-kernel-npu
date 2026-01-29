@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "zbccl_config.h"
+#include "zbccl_deepep_config.h"
 
 namespace zbccl {
 namespace adaptor {
