@@ -23,19 +23,21 @@ def test_init_zbccl_pg():
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl group success on rank {local_rank=} {world_size=}")
     try:
-        in_tensor = torch.ones(6, dtype=torch.int32).npu()
-        out_tensor = torch.zeros(6 * world_size, dtype=torch.int32).npu()
+        for _ in range(3):
+            nelems = 64
+            in_tensor = torch.ones(nelems, dtype=torch.int32).npu()
+            out_tensor = torch.zeros(nelems * world_size, dtype=torch.int32).npu()
 
-        dist.all_gather_into_tensor(out_tensor, in_tensor)
-        # out_sum = torch.sum(out_tensor)
-        # print(f"{out_sum=}")
-        print(f"{out_tensor.shape=}")
-        print(f"{out_tensor=}")
+            dist.all_gather_into_tensor(out_tensor, in_tensor)
+            out_sum = torch.sum(out_tensor)
+            print(f"{out_sum=}")
+            print(f"{out_tensor.shape=}")
+            print(f"{out_tensor=}")
 
-        # if out_sum != (world_size * torch.sum(in_tensor)):
-        #     print(f"[ERROR] all gather result invalid.")
-        # else:
-        #     print(f"[SUCCESS] all gather reuslt correct.")
+            if out_sum != (world_size * torch.sum(in_tensor)):
+                print(f"[ERROR] all gather result invalid.")
+            else:
+                print(f"[SUCCESS] all gather reuslt correct.")
     finally:
         dist.destroy_process_group(group)
 
