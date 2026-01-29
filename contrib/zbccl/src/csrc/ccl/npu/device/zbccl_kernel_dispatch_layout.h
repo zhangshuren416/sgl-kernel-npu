@@ -19,7 +19,6 @@ See the Mulan PSL v2 for more details.
 #include "zbccl_def.h"
 #include "zbccl_kernel_utils.h"
 #include "zbccl_comm_host_device_struct.h"
-#include "zbccl_kernel_barrier.h"
 
 namespace MoeDispatchLayout {
 using namespace AscendC;

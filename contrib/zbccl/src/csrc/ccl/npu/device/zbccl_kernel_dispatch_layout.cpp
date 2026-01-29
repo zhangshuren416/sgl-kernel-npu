@@ -18,7 +18,7 @@ void dispatch_layout(GM_ADDR topkIdx, uint32_t numTokens, uint32_t numExperts, u
                     uint32_t rank, GM_ADDR numTokensPerRank, GM_ADDR numTokensPerExpert, GM_ADDR isTokenInRank,
                     GM_ADDR sendTokenIdx)
 {
-    TPipe pipe;
+    AscendC::TPipe pipe;
     MoeDispatchLayout::DispatchLayout<int32_t> op;
     op.Init(topkIdx, numTokens, numExperts, numTopk, numRanks, rank, numTokensPerRank, numTokensPerExpert,
         isTokenInRank, sendTokenIdx, &pipe);

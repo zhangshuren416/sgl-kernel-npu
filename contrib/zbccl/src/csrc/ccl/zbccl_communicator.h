@@ -45,8 +45,7 @@ struct CommGroupOptions {
         os << "CommGroupOptions [name: " << options.name << ", worldSize: " << options.worldSize
            << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
            << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva << ", metaSize: " << options.metaSize
-           << ", myMetaGva: " << std::hex << options.myMetaGva << ", syncGva: "
-           << ", myParamDataGva: " << options.myParamDataGva
+           << ", myMetaGva: " << std::hex << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
            << ", myAddressExchangeGva: " << options.myAddressExchangeGva  << std::dec
            << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
            << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", deviceId: " << options.deviceId
@@ -166,7 +165,7 @@ public:
     virtual int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount,
                                          int64_t topKNum, const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
                                          const zbccl_tensor_info_t *recvTokensPerExpert,
-                                         const zbccl_tensor_info_t *pushTargetOffset, 
+                                         const zbccl_tensor_info_t *pushTargetOffset,
                                          const zbccl_tensor_info_t *balanceMatrix, int64_t flags) noexcept = 0;
 
     /**
@@ -200,7 +199,7 @@ public:
      */
     virtual int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                                   const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                                  const zbccl_tensor_info_t *sendTokensIndex, 
+                                  const zbccl_tensor_info_t *sendTokensIndex,
                                   const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                                   const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                                   int64_t flags) noexcept = 0;

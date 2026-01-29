@@ -51,6 +51,7 @@ constexpr uint32_t PATH_MAX_LIMIT = 4096;
 constexpr uint32_t RANK_COUNT_MAX_LIMIT = 1024;
 constexpr uint32_t DEVICE_COUNT_MAX_LIMIT = 32;
 constexpr uint64_t MEMORY_SIZE_CAP = 274877906944; /* 256GB */
+constexpr uint64_t OPERATE_PARAM_SIZE = 64 * 1024L; /* 64KB */
 
 #ifndef LIKELY
 #define LIKELY(x) (__builtin_expect(!!(x), 1) != 0)

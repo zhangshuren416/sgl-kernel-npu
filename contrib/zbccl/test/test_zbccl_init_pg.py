@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import torch
 import torch.distributed as dist
 import torch_npu
@@ -13,7 +14,7 @@ def test_init_zbccl_pg():
     os.environ["ASCEND_LAUNCH_BLOCKING"] = "1"
 
     zbccl_set_logger_level(0)
-    mem_128M = 128 * 1024 * 1024
+    mem_128M = 256 * 1024 * 1024
     if not zbccl_init(world_size, local_rank, mem_128M):
         print(f"zbccl_init failed on rank {local_rank}.")
         return
@@ -23,9 +24,9 @@ def test_init_zbccl_pg():
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl group success on rank {local_rank=} {world_size=}")
     try:
-        for _ in range(3):
+        for i in range(5):
             nelems = 64
-            in_tensor = torch.ones(nelems, dtype=torch.int32).npu()
+            in_tensor = torch.ones(nelems, dtype=torch.int32).npu() * (i + 1)
             out_tensor = torch.zeros(nelems * world_size, dtype=torch.int32).npu()
 
             dist.all_gather_into_tensor(out_tensor, in_tensor)
@@ -35,9 +36,10 @@ def test_init_zbccl_pg():
             print(f"{out_tensor=}")
 
             if out_sum != (world_size * torch.sum(in_tensor)):
-                print(f"[ERROR] all gather result invalid.")
+                print(f"[ERROR] all gather result invalid on rank {local_rank}.")
             else:
-                print(f"[SUCCESS] all gather reuslt correct.")
+                print(f"[SUCCESS] all gather result correct on rank {local_rank}.")
+            time.sleep(1)
     finally:
         dist.destroy_process_group(group)
 

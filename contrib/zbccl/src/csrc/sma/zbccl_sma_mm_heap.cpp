@@ -77,10 +77,9 @@ void *MemoryHeap::allocate(uint64_t size) noexcept {
     return base_ + target_offset;
 }
 
-void *MemoryHeap::alignedAllocate(uint64_t alignment,
-                                                                        uint64_t size) noexcept {
+void *MemoryHeap::alignedAllocate(uint64_t alignment, uint64_t size) noexcept {
     if (size == 0 || alignment == 0 || size > size_) {
-        ZBCCL_LOG_ERROR("invalid input, align=" << alignment << ", size=" << size);
+        ZBCCL_LOG_ERROR("invalid input, align=" << alignment << ", size=" << size << ", total=" << size_);
         return nullptr;
     }
 

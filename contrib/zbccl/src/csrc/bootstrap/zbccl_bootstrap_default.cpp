@@ -60,6 +60,15 @@ ZResult Bootstrap::VerifyOptions() noexcept
     ZBCCL_VALIDATE_RETURN(options_.deviceMemorySize < MEMORY_SIZE_CAP, "invalid options, memory size is too large",
                           Z_INVALID_PARAM);
 
+    if (options_.cclGroupCap * options_.cclMetaSpaceSize * 1024 >= options_.deviceMemorySize) {
+        ZBCCL_LOG_ERROR("total meta space size is GE total device memory size.");
+        return Z_INVALID_PARAM;
+    }
+
+    if (options_.cclMetaSpaceSize * 1024 <= OPERATE_PARAM_SIZE) {
+        ZBCCL_LOG_ERROR("single meta space size is too small");
+        return Z_INVALID_PARAM;
+    }
     return Z_OK;
 }
 

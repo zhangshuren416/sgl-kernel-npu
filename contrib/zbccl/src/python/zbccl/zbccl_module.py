@@ -17,16 +17,23 @@ def zbccl_init(world_size: int,
                bootstrap_type: ZBCCLBootstrapType = ZBCCLBootstrapType.BOOT_BY_MEMFABRIC,
                start_config_server: bool = False,
                data_op_type: int = 0,
-               ccl_meta_space_size: int = 1,
+               ccl_meta_space_size: int = 1024,
                ccl_group_cap: int = 128,
                flags: int = 0,
                ip_port : str = "tcp://127.0.0.1:6789"):
     '''
     Initialize zbccl library
 
-    :param physicalMemoryFraction: proportion of device memory managed by zbccl
-    :param bootstrap: gva memory bootstrap backend
-    :return: 0 if
+    :param world_size: size of ranks to init zbccl
+    :param rank_id: current rank id
+    :param bootstrap_type: under memory bootstrap type, memfabric support only
+    :param start_config_server: whether to start config server
+    :param data_op_type: data operator type
+    :param ccl_meta_space_size: collective communication meta space size, unit is KB
+    :param ccl_group_cap: number of collective communication
+    :param flag: reserve flag
+    :param ip_port: bootstrap used ip port
+    :return: 0 if success else error code
     '''
     # get env of MemFabric home
     mem_fabric_lib_path = os.environ.get("MEMFABRIC_HYBRID_LIBRARY_PATH")

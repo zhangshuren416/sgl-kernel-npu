@@ -12,12 +12,15 @@ See the Mulan PSL v2 for more details.
 */
 #ifndef ZBCCL_KERNEL_UTILS_H
 #define ZBCCL_KERNEL_UTILS_H
+
 #include "kernel_operator.h"
-#include "zbccl_kernel_def.h"
 #include "zbccl_comm_host_device_struct.h"
+
+#define ZBCCL_KERNEL __attribute__((always_inline)) __aicore__ __inline__
 
 constexpr int64_t FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
+
 
 template <typename T>
 ZBCCL_KERNEL void SetAtomicOp(uint32_t atomicOp)
@@ -45,6 +48,18 @@ ZBCCL_KERNEL T CeilDiv(const T dividend, const T divisor)
     return (divisor == 0) ? 0 : ((dividend + divisor - 1) / divisor);
 }
 
+ZBCCL_KERNEL void dcciCacheline(__gm__ uint8_t *addr)
+{
+    using namespace AscendC;
+    GlobalTensor<uint8_t> global;
+    global.SetGlobalBuffer(addr);
+
+    // Important: add hint to avoid dcci being optimized by compiler
+    __asm__ __volatile__("");
+    DataCacheCleanAndInvalid<uint8_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(global);
+    __asm__ __volatile__("");
+}
+
 ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
 {
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
@@ -52,8 +67,70 @@ ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
+template<typename T>
+ZBCCL_KERNEL T zbccl_load(__gm__ T *addr)
+{
+    return *((__gm__ T *)addr);
+}
+
+template<typename T>
+ZBCCL_KERNEL void zbccl_store(__gm__ T *addr, T value)
+{
+    *((__gm__ T *)addr) = value;
+}
+
+ZBCCL_KERNEL void zbccl_single_set(__gm__ uint64_t *addr, uint64_t val)
+{
+    zbccl_store(addr, val);
+    dcciCacheline((__gm__ uint8_t *) addr);
+}
+
+ZBCCL_KERNEL void zbccl_single_wait_until_eq(__gm__ uint64_t *syncAddr, uint64_t cmp_val)
+{
+    uint64_t cur_val;
+    do {
+        dcciCacheline((__gm__ uint8_t *)syncAddr);
+        cur_val = *syncAddr;
+    } while(!(cur_val == cmp_val || cur_val == (cmp_val + 1)));
+}
+
+ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress, GM_ADDR output)
+{
+    int vecId = AscendC::GetBlockIdx();
+    int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
+
+    int k = 8;
+    k = k < groupSize ? k : groupSize;
+    k = k < vecSize ? k : vecSize;
+
+    __gm__ uint64_t *sync_counter = reinterpret_cast<__gm__ uint64_t *>(counterAddress);
+
+    uint64_t count = zbccl_load(sync_counter) + 1;
+    if (vecId == rankId % vecSize) {
+        zbccl_single_set(sync_counter, count);
+    }
+
+    for (int i = vecId; i < groupSize; i += k) {
+        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)counterAddress, rankId, i, localSize);
+        zbccl_single_wait_until_eq(target_addr, count);
+    }
+
+    zbccl_store(sync_counter, count);
+}
+
+ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress, GM_ADDR output)
+{
+    // AscendC::SyncAll<false>();
+
+    if ASCEND_IS_AIV {
+        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress, output);
+    }
+
+    // AscendC::SyncAll<false>();
+}
+
 ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
-                                  uint64_t flagMagic, uint64_t localDeviceMemSize)
+                                    uint64_t flagMagic, uint64_t localDeviceMemSize)
 {
     const int64_t aivNum = AscendC::GetBlockNum();
     const int64_t aivIndex = AscendC::GetBlockIdx();

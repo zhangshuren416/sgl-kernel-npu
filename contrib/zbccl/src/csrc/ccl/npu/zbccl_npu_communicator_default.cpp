@@ -10,10 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_npu_communicator_default.h"
-#include "zbccl_npu_op_allgather.h"
 #include "zbccl_npu_op_allreduce.h"
 #include "zbccl_npu_op_reducescatter.h"
-#include "zbccl_npu_op_dispatch_layout.h"
+#include "zbccl_npu_operators.h"
 #include "dl_cann_api.h"
 #include "acl/acl.h"
 
@@ -97,8 +96,7 @@ int32_t NpuCommunicatorDefault::AllGather(const void *send_buff, void *recv_buff
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
         groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
-    auto ret = ZBCCL_OP_AllGather(send_buff, recv_buff, send_count, data_type, stream, groupInfo);
-    return ret;
+    return ZBCCLOpAllGather(send_buff, recv_buff, send_count, data_type, stream, groupInfo);
 }
 
 int32_t NpuCommunicatorDefault::All2All(const void *sendBuff, void *recvBuff, uint64_t data_count,
@@ -114,7 +112,7 @@ int32_t NpuCommunicatorDefault::DispatchNormalNotify(const zbccl_tensor_info_t *
                                                      int64_t *totalRecvTokens,
                                                      const zbccl_tensor_info_t *recvTokensPerExpert,
                                                      const zbccl_tensor_info_t *pushTargetOffset,
-                                                     const zbccl_tensor_info_t *balanceMatrix, 
+                                                     const zbccl_tensor_info_t *balanceMatrix,
                                                      int64_t flags) noexcept
 {
     // TODO
@@ -129,8 +127,9 @@ int32_t NpuCommunicatorDefault::DispatchNormalLayout(const zbccl_tensor_info_t *
                                                      const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
                                                      int64_t flags) noexcept
 {
-    return ZBCCL_OP_DispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
-                                   isTokenInRank, sendTokensIndex, stream, GetMetaInfo(), flags);
+    // return ZBCCL_OP_DispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
+                                //    isTokenInRank, sendTokensIndex, stream, GetMetaInfo(), flags);
+    return Z_OK;
 }
 
 int32_t NpuCommunicatorDefault::DispatchNormal(const zbccl_tensor_info_t *srcTokens,
@@ -149,7 +148,7 @@ int32_t NpuCommunicatorDefault::CombineNormal(const zbccl_tensor_info_t *srcToke
                                               const zbccl_tensor_info_t *srcTokensPerEp,
                                               const zbccl_tensor_info_t *topKWeight,
                                               const zbccl_tensor_info_t *topkIndex,
-                                              const zbccl_tensor_info_t *sendTokensIndex, 
+                                              const zbccl_tensor_info_t *sendTokensIndex,
                                               const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                                               const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
                                               aclrtStream stream, int64_t flags) noexcept

@@ -9,14 +9,18 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef ZBCCL_OP_DISPATCH_LAYOUT_H
-#define ZBCCL_OP_DISPATCH_LAYOUT_H
+#ifndef ZBCCL_NPU_OPERATORS_H
+#define ZBCCL_NPU_OPERATORS_H
 
 #include "zbccl.h"
 #include "zbccl_communicator.h"
 
-namespace zbccl {
-namespace ccl {
+
+int32_t ZBCCLOpAllGather(const void *sendBuff, void *recvBuff, size_t sendCount, zbccl_datatype_t dataType,
+                         aclrtStream stream, const CommGroupInfo &groupInfo);
+
+int32_t ZBCCLOpReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_datatype_t dataType,
+                             aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
 
 int32_t ZBCCL_OP_DispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
                                 int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
@@ -24,7 +28,5 @@ int32_t ZBCCL_OP_DispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t to
                                 const zbccl_tensor_info_t *isTokenInRank,
                                 const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
                                 const CommGroupInfo &groupInfo, int64_t flags);
-}  // namespace ccl
-}  // namespace zbccl
 
-#endif  // ZBCCL_OP_DISPATCH_LAYOUT_H
+#endif  // ZBCCL_NPU_OPERATORS_H

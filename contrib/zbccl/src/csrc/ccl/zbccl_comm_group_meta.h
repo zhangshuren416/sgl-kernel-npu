@@ -26,8 +26,6 @@ public:
         return gInstance;
     }
 
-    static constexpr uint64_t OPERATE_PARAM_SIZE = 64 * 1024L; /* 64KB */
-
 public:
     GroupMetaArranger() = default;
     ~GroupMetaArranger() = default;
