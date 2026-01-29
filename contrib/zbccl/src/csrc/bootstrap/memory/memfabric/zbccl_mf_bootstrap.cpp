@@ -140,15 +140,15 @@ ZResult MemFabricBoostrap::CreateSHMSpace() noexcept
 
 ZResult MemFabricBoostrap::GetMemFabricLibPath(std::string &path) noexcept
 {
-    char *memFabricHome = std::getenv("MEMFABRIC_HYBRID_HOME_PATH");
-    if (memFabricHome == nullptr) {
-        ZBCCL_LOG_AND_SET_LAST_ERROR("ENV MEMFABRIC_HYBRID_HOME_PATH is not set, set this ENV properly");
+    char *memFabricLibPath = std::getenv("MEMFABRIC_HYBRID_LIBRARY_PATH");
+    if (memFabricLibPath == nullptr) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("ENV MEMFABRIC_HYBRID_LIBRARY_PATH is not set, set this ENV properly");
         return Z_INIT_BOOTSTRAP_FAILED;
     }
 
-    path = std::string(memFabricHome).append("/aarch64-linux/lib64/");
+    path = std::string(memFabricLibPath);
     if (!zbccl::Func::Realpath(path)) {
-        ZBCCL_LOG_AND_SET_LAST_ERROR("Path with MEMFABRIC_HYBRID_HOME_PATH is invalid");
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Path with MEMFABRIC_HYBRID_LIBRARY_PATH is invalid");
         return Z_INIT_BOOTSTRAP_FAILED;
     }
 

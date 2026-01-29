@@ -8,10 +8,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-message(STATUS "ACLSHMEM PATH = $ENV{SHMEM_HOME_PATH}")
-
 include_directories(
-        $ENV{SHMEM_HOME_PATH}/shmem/include
         ${ASCEND_HOME_PATH}/include
         ${ASCEND_HOME_PATH}/include/experiment/runtime/runtime/
         ${ASCEND_HOME_PATH}/include/experiment/msprof/
@@ -39,7 +36,6 @@ include_directories(
         ${ZBCCL_SRC_DIR}/csrc/bootstrap
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory
         ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/memfabric
-        ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/aclshmem
 )
 
 add_subdirectory(ccl/npu/device/)

@@ -68,7 +68,6 @@ include_dirs = [
     f"{python_include_dir}",
     f"{ascend_home}/include",
     f"{ascend_home}/include/experiment/runtime/runtime/",
-    f"{shmem_home}/shmem/include",
     f"{torch_npu_dir}/include",
     f"{torch_dir}/",
     f"{torch_dir}/include",
@@ -98,7 +97,6 @@ include_dirs = [
 library_dirs = [
     f"{torch_dir}/lib",
     f"{torch_npu_dir}/lib",
-    f"{shmem_home}/shmem/lib",
     sysconfig.get_config_var("LIBDIR"),
     f"{repo_root}/output/",
 ]
@@ -109,10 +107,9 @@ sources = ([f"{csrc_dir}/zbccl_pybind.cpp"] + \
            glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
-libraries = ["torch", "torch_npu", "shmem", "c10", "torch_python", "zbccl_core", "zbccl_kernel"]
+libraries = ["torch", "torch_npu", "c10", "torch_python", "zbccl_core", "zbccl_kernel"]
 
 logger.warning(f"Using ASCEND_TOOLKIT_HOME at: {ascend_home}")
-logger.warning(f"Using SHMEM_HOME_PATH at: {shmem_home}")
 logger.warning(f"{include_dirs=}")
 logger.warning(f"{sources=}")
 logger.warning(f"{library_dirs=}")

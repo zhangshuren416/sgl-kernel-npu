@@ -83,11 +83,11 @@ ZBCCL_API int32_t zbccl_unbootstrap(uint32_t flags)
     /* check if sma and ccl still there */
     if (ZBCCLInitState::Instance().HasCommunicator()) {
         ZBCCL_LOG_AND_SET_LAST_ERROR(
-            "Cannot un-bootstrap as there are still communicator existed, need to destroy all communicators firstly");
+            "Cannot un-bootstrap as there are still communicators existed, destroy all communicators firstly");
         return Z_CANNOT_UNBOOTSTRAP;
     } else if (ZBCCLInitState::Instance().SmaInitialized()) {
         ZBCCL_LOG_AND_SET_LAST_ERROR(
-            "Cannot un-bootstrap as sma is still not un-initialized, need to un-initialize sma firstly");
+            "Cannot un-bootstrap as secondary memory allocator is not un-initialized, un-initialize it firstly");
         return Z_CANNOT_UNBOOTSTRAP;
     }
 

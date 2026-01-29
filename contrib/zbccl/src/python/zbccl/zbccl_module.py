@@ -1,5 +1,6 @@
 import ctypes
 from pathlib import Path
+import os
 import torch
 import torch_npu
 from enum import Enum
@@ -27,6 +28,17 @@ def zbccl_init(world_size: int,
     :param bootstrap: gva memory bootstrap backend
     :return: 0 if
     '''
+    # get env of MemFabric home
+    mem_fabric_lib_path = os.environ.get("MEMFABRIC_HYBRID_LIBRARY_PATH")
+    if mem_fabric_lib_path is None:
+        # try to import memfabric from python package
+        import memfabric_hybrid as mf
+        mem_fabric_lib_path = mf.get_lib_path()
+        if mem_fabric_lib_path is not None:
+            os.environ["MEMFABRIC_HYBRID_LIBRARY_PATH"] = mem_fabric_lib_path
+            print(f"Set MEMFABRIC_HYBRID_LIBRARY_PATH to {mem_fabric_lib_path}")
+
+
     # init mem allocator, switch before set_device
     switch_to_allocator()
     torch.npu.set_device(rank_id)
