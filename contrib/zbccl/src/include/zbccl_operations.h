@@ -123,6 +123,7 @@ int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_t data_cou
  * @param totalRecvTokens      [in/out] total recv token num
  * @param recvTokensPerExpert  [in/out] the number of tokens received by each expert
  * @param pushTargetOffset     [in/out] the token offset sent by different ranks to each expert
+ * @param balanceMatrix        [in/out] the token range processed by each rank after balanced
  * @param comm                 [in] zbccl communication handle
  * @param stream               [in] stream
  * @param flags                [in] optional flags, reserved or extend
@@ -131,7 +132,8 @@ int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_t data_cou
 int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
                                      const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
                                      const zbccl_tensor_info_t *recvTokensPerExpert,
-                                     const zbccl_tensor_info_t *pushTargetOffset, zbccl_comm_t comm, aclrtStream stream,
+                                     const zbccl_tensor_info_t *pushTargetOffset,
+                                     const zbccl_tensor_info_t *balanceMatrix, zbccl_comm_t comm, aclrtStream stream,
                                      int64_t flags);
 
 /**
@@ -141,20 +143,20 @@ int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExp
  * @param tokens               [in] num of tokens
  * @param expertNum            [in] num of experts
  * @param topkNum              [in] num of topK
- * @param rankNum              [in] num of ranks
  * @param tokensPerRank        [in/out] the number of tokens to be sent to each rank
  * @param tokensPerExpert      [in/out] the number of tokens to be sent to each expert
  * @param isTokenInRank        [in/out] whether a token be sent to a rank
  * @param sendTokensIndex      [in/out] send index of per token
+ * @param comm                 [in] zbccl communication handle
  * @param stream               [in] compute stream
  * @param flags                [in] optional flags, reserved or extend
  * @return
  */
 int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                     int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
+                                     int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                      const zbccl_tensor_info_t *tokensPerExpert,
                                      const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *sendTokensIndex,
-                                     aclrtStream stream, int64_t flags);
+                                     zbccl_comm_t comm, aclrtStream stream, int64_t flags);
 
 /**
  * @brief Dispatch operation in push mode
@@ -186,6 +188,7 @@ int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_
  * @param topKWeight           [in] the weights of the topK experts for each token
  * @param topkIndex            [in] topK index info of per token
  * @param sendTokensIndex      [in] send index of per token
+ * @param balanceMatrix        [in] the token range processed by each rank after balanced
  * @param expertNum            [in] moe expert number
  * @param destTokens           [in/out] tensor info of destination tokens
  * @param comm                 [in] zbccl communication handle
@@ -195,7 +198,8 @@ int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_
  */
 int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                              const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                             const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
+                             const zbccl_tensor_info_t *sendTokensIndex, 
+                             const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                              const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                              int64_t flags);
 

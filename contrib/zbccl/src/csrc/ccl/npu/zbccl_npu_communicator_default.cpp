@@ -11,6 +11,7 @@
  */
 #include "zbccl_npu_communicator_default.h"
 #include "zbccl_npu_op_allgather.h"
+#include "zbccl_npu_op_dispatch_layout.h"
 #include "dl_cann_api.h"
 #include "acl/acl.h"
 
@@ -103,6 +104,7 @@ int32_t NpuCommunicatorDefault::DispatchNormalNotify(const zbccl_tensor_info_t *
                                                      int64_t *totalRecvTokens,
                                                      const zbccl_tensor_info_t *recvTokensPerExpert,
                                                      const zbccl_tensor_info_t *pushTargetOffset,
+                                                     const zbccl_tensor_info_t *balanceMatrix, 
                                                      int64_t flags) noexcept
 {
     // TODO
@@ -110,15 +112,15 @@ int32_t NpuCommunicatorDefault::DispatchNormalNotify(const zbccl_tensor_info_t *
 }
 
 int32_t NpuCommunicatorDefault::DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens,
-                                                     int64_t expertNum, int64_t topkNum, int64_t rankNum,
+                                                     int64_t expertNum, int64_t topkNum,
                                                      const zbccl_tensor_info_t *tokensPerRank,
                                                      const zbccl_tensor_info_t *tokensPerExpert,
                                                      const zbccl_tensor_info_t *isTokenInRank,
                                                      const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
                                                      int64_t flags) noexcept
 {
-    // TODO
-    return Z_OK;
+    return ZBCCL_OP_DispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
+                                   isTokenInRank, sendTokensIndex, stream, GetMetaInfo(), flags);
 }
 
 int32_t NpuCommunicatorDefault::DispatchNormal(const zbccl_tensor_info_t *srcTokens,
@@ -137,7 +139,8 @@ int32_t NpuCommunicatorDefault::CombineNormal(const zbccl_tensor_info_t *srcToke
                                               const zbccl_tensor_info_t *srcTokensPerEp,
                                               const zbccl_tensor_info_t *topKWeight,
                                               const zbccl_tensor_info_t *topkIndex,
-                                              const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
+                                              const zbccl_tensor_info_t *sendTokensIndex, 
+                                              const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                                               const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
                                               aclrtStream stream, int64_t flags) noexcept
 {

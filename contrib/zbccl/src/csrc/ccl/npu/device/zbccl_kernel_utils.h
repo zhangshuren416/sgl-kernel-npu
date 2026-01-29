@@ -91,4 +91,12 @@ ZBCCL_KERNEL void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTens
     return;
 }
 
+template <AscendC::HardEvent event>
+ZBCCL_KERNEL void SyncFunc()
+{
+    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
+    AscendC::SetFlag<event>(eventID);
+    AscendC::WaitFlag<event>(eventID);
+}
+
 #endif // ZBCCL_KERNEL_UTILS_H

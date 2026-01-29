@@ -154,12 +154,12 @@ Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std:
     int64_t flags = 0;
 
     auto ret = zbccl_dispatch_normal_layout(transfer_tensor_info(topk_idx),
-                                num_tokens, num_experts, num_topk, num_ranks, 
+                                num_tokens, num_experts, num_topk,
                                 transfer_tensor_info(num_tokens_per_rank),
                                 transfer_tensor_info(num_tokens_per_expert),
                                 transfer_tensor_info(is_token_in_rank),
                                 transfer_tensor_info(send_token_idx),
-                                acl_stream, flags);
+                                comm_, acl_stream, flags);
 
     this->send_token_idx = send_token_idx;
     std::optional<EventHandle> event;
@@ -168,7 +168,7 @@ Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std:
 }
 
 std::tuple<at::Tensor, std::optional<at::Tensor>, std::optional<at::Tensor>, std::optional<at::Tensor>,
-           std::vector<int>, at::Tensor, std::optional<EventHandle>>
+           std::vector<int>, at::Tensor, at::Tensor, std::optional<EventHandle>>
 Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> &x_scales,
                        const std::optional<at::Tensor> &topk_idx, const std::optional<at::Tensor> &topk_weights,
                        const std::optional<at::Tensor> &num_tokens_per_rank, const at::Tensor &is_token_in_rank,
@@ -241,8 +241,9 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     int send_per_group = 1;  // (send_to_expert_num,)
     int send_count = send_per_group * num_experts;
     auto recv_data = torch::empty({num_ranks, num_experts}, at::dtype(at::kInt).device(device));
-    auto put_offset = torch::empty({num_experts, num_ranks}, at::dtype(at::kInt).device(device));
     auto recv_tokens_per_expert = torch::empty({num_local_experts}, at::dtype(at::kLong).device(device));
+    auto put_offset = torch::empty({num_experts, num_ranks}, at::dtype(at::kInt).device(device));
+    auto balance_matrix = torch::empty({num_ranks, num_ranks * 2}, at::dtype(at::kInt).device(device));
     int64_t total_recv_token = 0;
 
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
@@ -253,8 +254,9 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
         send_count, topk_num, 
         transfer_tensor_info(recv_data), 
         &total_recv_token,
-        transfer_tensor_info(recv_tokens_per_expert), 
-        transfer_tensor_info(put_offset), 
+        transfer_tensor_info(recv_tokens_per_expert),
+        transfer_tensor_info(put_offset),
+        transfer_tensor_info(balance_matrix),
         comm_, acl_stream, flags);
 
     int num_recv_tokens = (total_recv_token == 0) ? 1 : total_recv_token;  // max recv_tokens in all rank
@@ -288,15 +290,18 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
             recv_topk_weights,
             num_recv_tokens_per_expert_list,
             put_offset,
+            balance_matrix,
             event};
 }
 
 std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> 
 Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx, 
-    const std::optional<torch::Tensor> &topk_weights, const torch::Tensor &put_offset)
+    const std::optional<torch::Tensor> &topk_weights, const torch::Tensor &put_offset,
+    const torch::Tensor &balance_matrix)
 {
     ZBCCL_CHECK_S(x.dim() == 2 and x.is_contiguous(), "x dim not 2 or not comtiguous");
     ZBCCL_CHECK_S(topk_idx.dim() == 2 and topk_idx.is_contiguous(), "topk_idx dim not 2 or not comtiguous");
+    ZBCCL_CHECK_S(balance_matrix.dim() == 2 and balance_matrix.is_contiguous(), "balance_matrix dim not 2 or not comtiguous");
     auto recv_x = x;
     auto expert_ids = topk_idx.to(at::kInt);
     auto device = x.device();
@@ -329,6 +334,7 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
         transfer_tensor_info(expert_scales),
         transfer_tensor_info(expert_ids),
         transfer_tensor_info(send_token_idx),
+        transfer_tensor_info(balance_matrix),
         moe_expert_number,
         transfer_tensor_info(combined_x),
         comm_, acl_stream, flags);

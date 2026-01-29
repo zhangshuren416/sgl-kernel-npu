@@ -127,7 +127,7 @@ if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
         target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
 endif()
 set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl_core")
-target_link_libraries(zbccl_shared PUBLIC pthread)
+target_link_libraries(zbccl_shared PUBLIC pthread tiling_api platform)
 
 set(TARGET_INSTALL_DIR ${ZBCCL_BASE_DIR}/output/)
 

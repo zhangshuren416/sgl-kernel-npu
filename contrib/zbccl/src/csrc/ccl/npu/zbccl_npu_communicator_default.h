@@ -47,13 +47,13 @@ public:
     int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
                                  const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
                                  const zbccl_tensor_info_t *recvTokensPerExpert,
-                                 const zbccl_tensor_info_t *pushTargetOffset, int64_t flags) noexcept;
+                                 const zbccl_tensor_info_t *pushTargetOffset, 
+                                 const zbccl_tensor_info_t *balanceMatrix, int64_t flags) noexcept;
 
     int32_t DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
-                                 int64_t topkNum, int64_t rankNum, const zbccl_tensor_info_t *tokensPerRank,
+                                 int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                  const zbccl_tensor_info_t *tokensPerExpert, const zbccl_tensor_info_t *isTokenInRank,
-                                 const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
-                                 int64_t flags) noexcept;
+                                 const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream, int64_t flags) noexcept;
 
     int32_t DispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset,
@@ -63,7 +63,8 @@ public:
 
     int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                           const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                          const zbccl_tensor_info_t *sendTokensIndex, uint16_t expertNum,
+                          const zbccl_tensor_info_t *sendTokensIndex, 
+                          const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                           const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                           int64_t flags) noexcept;
 

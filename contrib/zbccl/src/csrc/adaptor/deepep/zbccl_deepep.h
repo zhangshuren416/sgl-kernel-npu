@@ -69,7 +69,7 @@ public:
                         bool async, bool allocate_on_comm_stream);
     
     std::tuple<at::Tensor, std::optional<at::Tensor>, std::optional<at::Tensor>, std::optional<at::Tensor>,
-           std::vector<int>, at::Tensor, std::optional<EventHandle>>
+           std::vector<int>, at::Tensor, at::Tensor, std::optional<EventHandle>>
     intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> &x_scales,
                        const std::optional<at::Tensor> &topk_idx, const std::optional<at::Tensor> &topk_weights,
                        const std::optional<at::Tensor> &num_tokens_per_rank, const at::Tensor &is_token_in_rank,
@@ -79,7 +79,7 @@ public:
 
     std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> intranode_combine(
         const torch::Tensor &x, const torch::Tensor &topk_idx, const std::optional<torch::Tensor> &topk_weights,
-        const torch::Tensor &put_offset);
+        const torch::Tensor &put_offset, const torch::Tensor &balance_matrix);
 
     std::tuple<at::Tensor, std::optional<at::Tensor>, at::Tensor, at::Tensor, at::Tensor, std::optional<EventHandle>,
                std::optional<std::function<void()>>>
