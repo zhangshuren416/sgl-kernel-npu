@@ -169,7 +169,8 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
                                                int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
-                                               const zbccl_tensor_info_t *sendTokensIndex, 
+                                               const zbccl_tensor_info_t *sendTokensIndex,
+                                               const zbccl_tensor_info_t *notifySendData,
                                                zbccl_comm_t comm, aclrtStream stream, int64_t flags)
 {
     ZBCCL_VALIDATE_RETURN(topkIndex != nullptr, "DispatchLayout failed, topkIndex is null", Z_INVALID_PARAM);
@@ -179,6 +180,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
     ZBCCL_VALIDATE_RETURN(isTokenInRank != nullptr, "DispatchLayout failed, isTokenInRank is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "DispatchLayout failed, sendTokensIndex is null",
                           Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(notifySendData != nullptr, "DispatchLayout failed, notifySendData is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(tokens > 0, "DispatchLayout failed, tokens " << tokens << " is invalid", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(expertNum > 0, "DispatchLayout failed, expertNum " << expertNum << " is invalid",
                           Z_INVALID_PARAM);
@@ -191,7 +193,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->DispatchNormalLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
-        isTokenInRank, sendTokensIndex, stream, flags);
+        isTokenInRank, sendTokensIndex, notifySendData, stream, flags);
     return Z_OK;
 }
 

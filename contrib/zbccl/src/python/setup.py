@@ -92,11 +92,13 @@ include_dirs = [
     f"{zbccl_root}/src/csrc/bootstrap/memory/memfabric",
     f"{zbccl_root}/src/csrc/bootstrap/memory/aclshmem",
     f"{zbccl_root}/src/csrc/adaptor/pytorch_npu/",
+    f"{zbccl_root}/src/csrc/adaptor/deepep/",
 ]
 
 library_dirs = [
     f"{torch_dir}/lib",
     f"{torch_npu_dir}/lib",
+    f"{ascend_home}/lib64",
     sysconfig.get_config_var("LIBDIR"),
     f"{repo_root}/output/",
 ]
@@ -107,7 +109,7 @@ sources = ([f"{csrc_dir}/zbccl_pybind.cpp"] + \
            glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
 
-libraries = ["torch", "torch_npu", "c10", "torch_python", "zbccl_core", "zbccl_kernel"]
+libraries = ["torch", "torch_npu", "c10", "torch_python", "tiling_api", "platform", "opapi", "zbccl_core", "zbccl_kernel"]
 
 logger.warning(f"Using ASCEND_TOOLKIT_HOME at: {ascend_home}")
 logger.warning(f"{include_dirs=}")

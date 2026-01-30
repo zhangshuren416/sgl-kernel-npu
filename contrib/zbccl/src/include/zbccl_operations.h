@@ -147,6 +147,7 @@ int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExp
  * @param tokensPerExpert      [in/out] the number of tokens to be sent to each expert
  * @param isTokenInRank        [in/out] whether a token be sent to a rank
  * @param sendTokensIndex      [in/out] send index of per token
+ * @param notifySendData       [in/out] exchange data for notify
  * @param comm                 [in] zbccl communication handle
  * @param stream               [in] compute stream
  * @param flags                [in] optional flags, reserved or extend
@@ -156,6 +157,7 @@ int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64
                                      int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                      const zbccl_tensor_info_t *tokensPerExpert,
                                      const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *sendTokensIndex,
+                                     const zbccl_tensor_info_t *notifySendData,
                                      zbccl_comm_t comm, aclrtStream stream, int64_t flags);
 
 /**

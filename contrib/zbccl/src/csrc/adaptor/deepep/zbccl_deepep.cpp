@@ -149,6 +149,8 @@ Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std:
     if (is_internode_available()) {
         num_tokens_per_rdma_rank = torch::empty({num_rdma_ranks}, dtype(at::kInt).device(device));
     }
+    int blocks = 50;
+    auto notify_send_data = at::zeros({num_experts * blocks}, at::dtype(at::kInt).device(device));
 
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
@@ -159,6 +161,7 @@ Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std:
                                 transfer_tensor_info(num_tokens_per_expert),
                                 transfer_tensor_info(is_token_in_rank),
                                 transfer_tensor_info(send_token_idx),
+                                transfer_tensor_info(notify_send_data),
                                 comm_, acl_stream, flags);
 
     this->send_token_idx = send_token_idx;

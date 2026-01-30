@@ -4,6 +4,7 @@ ascendc_library(zbccl_kernel STATIC
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_allgather.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_allreduce.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_reduce_scatter.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_dispatch_layout.cpp
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE
@@ -12,6 +13,7 @@ ascendc_include_directories(zbccl_kernel PRIVATE
         ${ASCEND_HOME_PATH}/include
         ${ASCEND_HOME_PATH}/include/aclnn
         ${ASCEND_HOME_PATH}/include/aclnn/opdev
+        ${ASCEND_HOME_PATH}/asc/include
         ${ZBCCL_SRC_DIR}/include
         ${ZBCCL_SRC_DIR}/csrc/common
         ${ZBCCL_SRC_DIR}/csrc/ccl

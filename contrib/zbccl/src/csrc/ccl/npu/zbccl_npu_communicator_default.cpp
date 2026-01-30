@@ -122,11 +122,12 @@ int32_t NpuCommunicatorDefault::DispatchNormalLayout(const zbccl_tensor_info_t *
                                                      const zbccl_tensor_info_t *tokensPerRank,
                                                      const zbccl_tensor_info_t *tokensPerExpert,
                                                      const zbccl_tensor_info_t *isTokenInRank,
-                                                     const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
+                                                     const zbccl_tensor_info_t *sendTokensIndex,
+                                                     const zbccl_tensor_info_t *notifySendData, aclrtStream stream,
                                                      int64_t flags) noexcept
 {
-    // return ZBCCL_OP_DispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
-                                //    isTokenInRank, sendTokensIndex, stream, GetMetaInfo(), flags);
+    return ZBCCLOpDispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
+                                   isTokenInRank, sendTokensIndex, notifySendData, stream, GetMetaInfo(), flags);
     return Z_OK;
 }
 

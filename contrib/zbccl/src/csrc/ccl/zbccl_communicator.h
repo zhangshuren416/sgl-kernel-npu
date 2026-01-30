@@ -177,7 +177,8 @@ public:
                                          int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                          const zbccl_tensor_info_t *tokensPerExpert,
                                          const zbccl_tensor_info_t *isTokenInRank,
-                                         const zbccl_tensor_info_t *sendTokensIndex, aclrtStream stream,
+                                         const zbccl_tensor_info_t *sendTokensIndex,
+                                         const zbccl_tensor_info_t *notifySendData, aclrtStream stream,
                                          int64_t flags) noexcept = 0;
 
     /**
