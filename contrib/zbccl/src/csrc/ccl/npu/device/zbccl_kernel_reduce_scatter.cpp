@@ -53,7 +53,7 @@ ZBCCL_KERNEL void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uin
     dcciCacheline((__gm__ uint8_t *)flagAddr);
 }
 
-ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, __gm__ void *syncAddr, uint32_t aivIndex,
+ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, uint32_t aivIndex,
                                       uint32_t rank, uint32_t groupSize, __gm__ uint64_t *counterAddress,
                                       uint64_t localDeviceMemSize)
 {
@@ -61,7 +61,7 @@ ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputA
         SetFlag(metaAddr, 0, aivIndex, groupSize);
     }
     // last param useless.
-    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress, (GM_ADDR)syncAddr);
+    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress);
     if (aivIndex < groupSize) {
         uint64_t dataAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(inputAddr));
         SetDataAddr(zbccl_ptr(metaAddr, rank, aivIndex, localDeviceMemSize), dataAddr, rank, groupSize);
@@ -86,7 +86,6 @@ public:
         auto groupInfo = reinterpret_cast<__gm__ CommGroupInfo *>(metaAddr);
         this->groupInfo = groupInfo;
         __gm__ void *exchangeAddr = (__gm__ void *)(groupInfo->myAddressExchangeGva);
-        this->syncAddr = (__gm__ void *)(groupInfo->myParamDataGva);
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         const uint32_t aivIndex = AscendC::GetBlockIdx();
@@ -98,9 +97,9 @@ public:
         coreRankIdx = aivIndex % corePerRank;
         coreTargetRank = aivIndex / corePerRank;
 
-        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, syncAddr,
+        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x,
                             aivIndex, rank, groupSize,
-                            &(groupInfo->counter), groupInfo->localDeviceMemSize);
+                            (__gm__ uint64_t *)(groupInfo->myParamDataGva), groupInfo->localDeviceMemSize);
         int32_t addrReadyFlag;
         do {
             addrReadyFlag = GetFlag((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
@@ -163,7 +162,7 @@ public:
         AscendC::SetAtomicNone();
         // Sync Ensure Corresponding Tasks Done.
         // last param useless.
-        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, &(groupInfo->counter), (GM_ADDR)syncAddr);
+        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)(groupInfo->myParamDataGva));
 #endif
     }
 
@@ -178,7 +177,6 @@ private:
     uint32_t coreRankIdx;
     uint32_t corePerRank;
     uint32_t magic;
-    __gm__ void * syncAddr;
     __gm__ CommGroupInfo *groupInfo;
     uint32_t groupSize;
 };
@@ -188,7 +186,7 @@ extern "C" __global__ __aicore__ void ZeroBuffReduceScatter(
     uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength,
     uint32_t rank, uint32_t groupSize, uint32_t reduceOp)
 {
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
     AscendC::SetSyncBaseAddr(fftsAddr);
     uint32_t magic = 1;
     AscendC::TPipe pipe;

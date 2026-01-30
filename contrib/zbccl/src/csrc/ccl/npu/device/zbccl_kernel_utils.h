@@ -71,6 +71,7 @@ ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint
 template<typename T>
 ZBCCL_KERNEL T zbccl_load(__gm__ T *addr)
 {
+    dcciCacheline((__gm__ uint8_t *) addr);
     return *((__gm__ T *)addr);
 }
 
@@ -95,7 +96,7 @@ ZBCCL_KERNEL void zbccl_single_wait_until_eq(__gm__ uint64_t *syncAddr, uint64_t
     } while(!(cur_val == cmp_val || cur_val == (cmp_val + 1)));
 }
 
-ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress, GM_ADDR output)
+ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress)
 {
     int vecId = AscendC::GetBlockIdx();
     int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
@@ -104,30 +105,33 @@ ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_
     k = k < groupSize ? k : groupSize;
     k = k < vecSize ? k : vecSize;
 
-    __gm__ uint64_t *sync_counter = reinterpret_cast<__gm__ uint64_t *>(counterAddress);
+    uint64_t syncCounterSize = 8;
+    __gm__ uint64_t *sync_counter = reinterpret_cast<__gm__ uint64_t *>(counterAddress) + syncCounterSize;
 
-    uint64_t count = zbccl_load(sync_counter) + 1;
+    uint64_t count = zbccl_load<uint64_t>(counterAddress) + 1;
     if (vecId == rankId % vecSize) {
         zbccl_single_set(sync_counter, count);
     }
 
     for (int i = vecId; i < groupSize; i += k) {
-        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)counterAddress, rankId, i, localSize);
+        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)sync_counter, rankId, i, localSize);
         zbccl_single_wait_until_eq(target_addr, count);
     }
 
-    zbccl_store(sync_counter, count);
+    if (vecId == rankId % vecSize) {
+        zbccl_single_set(counterAddress, count);
+    }
 }
 
-ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress, GM_ADDR output)
+ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_t localSize, __gm__ uint64_t *counterAddress)
 {
-    // AscendC::SyncAll<false>();
+    AscendC::SyncAll<true>();
 
     if ASCEND_IS_AIV {
-        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress, output);
+        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress);
     }
 
-    // AscendC::SyncAll<false>();
+    AscendC::SyncAll<true>();
 }
 
 ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,

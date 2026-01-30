@@ -53,7 +53,7 @@ ZBCCL_KERNEL void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uin
     dcciCacheline((__gm__ uint8_t *)flagAddr);
 }
 
-ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, __gm__ void *syncAddr, uint32_t aivIndex,
+ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, uint32_t aivIndex,
                                       uint32_t rank, uint32_t groupSize, __gm__ uint64_t *counterAddress,
                                       uint64_t localDeviceMemSize)
 {
@@ -61,7 +61,7 @@ ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputA
         SetFlag(metaAddr, 0, aivIndex, groupSize);
     }
     // last param useless.
-    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress, (GM_ADDR)syncAddr);
+    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress);
     if (aivIndex < groupSize) {
         uint64_t dataAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(inputAddr));
         SetDataAddr(zbccl_ptr(metaAddr, rank, aivIndex, localDeviceMemSize), dataAddr, rank, groupSize);
@@ -98,7 +98,7 @@ public:
         coreRankIdx = aivIndex % corePerRank;
         coreTargetRank = aivIndex / corePerRank;
 
-        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, syncAddr,
+        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x,
                             aivIndex, rank, groupSize,
                             &(groupInfo->counter), groupInfo->localDeviceMemSize);
         int32_t addrReadyFlag;
@@ -162,7 +162,7 @@ public:
         AscendC::SetAtomicNone();
         // Sync Ensure Corresponding Tasks Done.
         // last param useless.
-        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, &(groupInfo->counter), (GM_ADDR)syncAddr);
+        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, &(groupInfo->counter));
 #endif
     }
 
