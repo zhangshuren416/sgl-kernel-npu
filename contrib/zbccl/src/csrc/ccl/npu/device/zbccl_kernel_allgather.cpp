@@ -28,7 +28,8 @@ public:
         uint16_t myGroupRank = comm->myGroupRank;
         uint64_t localDeviceMemSize = comm->localDeviceMemSize;
 
-        zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, &(comm->counter), output);
+        //zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, &(comm->counter), output);
+        Barrier(metaGM, myGroupRank, groupSize, localDeviceMemSize);
 
         uint64_t flagMagic = 1024;
         ExchangeInputAddr(input, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize);
@@ -96,6 +97,7 @@ void ZBCCLAllGatherInner(GM_ADDR input, GM_ADDR output, size_t elements, int dat
 {
     AllGatherKernel op;
     zbccl_datatype_t ZBCCL_DATA_TYPE = static_cast<zbccl_datatype_t>(dataType);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
 
     switch (ZBCCL_DATA_TYPE){
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT8:

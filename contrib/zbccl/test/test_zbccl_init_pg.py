@@ -19,27 +19,28 @@ def test_init_zbccl_pg():
         print(f"zbccl_init failed on rank {local_rank}.")
         return
     else:
-        print(f"zbccl_init success on rank {local_rank}")
+        print(f"zbccl_init success on rank {local_rank}\n")
 
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl group success on rank {local_rank=} {world_size=}")
     try:
-        for i in range(5):
-            nelems = 64
-            in_tensor = torch.ones(nelems, dtype=torch.int32).npu() * (i + 1)
-            out_tensor = torch.zeros(nelems * world_size, dtype=torch.int32).npu()
-
+        for k in range(1, 10):
+            print(f"[INFO] rank {local_rank}, round {k} start\n")
+            nelems = 6*k
+            torch.manual_seed(int(time.time())+ k*1000)
+            in_tensor = torch.rand(1, nelems, device='npu', dtype=torch.float32) * 10
+            print(f"{in_tensor=}")
+            out_tensor = torch.zeros(nelems * world_size, dtype=torch.float32).npu()
+            gold_tensor = torch.zeros(nelems * world_size, dtype=torch.float32).npu()
+            for i in range(0, world_size):
+                gold_tensor[i * nelems: (i + 1) * nelems] = in_tensor
             dist.all_gather_into_tensor(out_tensor, in_tensor)
-            out_sum = torch.sum(out_tensor)
-            print(f"{out_sum=}")
-            print(f"{out_tensor.shape=}")
             print(f"{out_tensor=}")
-
-            if out_sum != (world_size * torch.sum(in_tensor)):
-                print(f"[ERROR] all gather result invalid on rank {local_rank}.")
+            if not torch.allclose(gold_tensor, out_tensor, rtol=1e-4, atol=1e-8):
+                print(f"[ERROR] rank {local_rank}, round {k} all gather result not correct\n")
+                break
             else:
-                print(f"[SUCCESS] all gather result correct on rank {local_rank}.")
-            time.sleep(1)
+                print(f"[SUCCESS] rank {local_rank}, round {k} all gather reuslt correct\n")
     finally:
         dist.destroy_process_group(group)
 
