@@ -22,6 +22,9 @@ int32_t ZBCCLOpAllGather(const void *sendBuff, void *recvBuff, size_t sendCount,
 int32_t ZBCCLOpReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_datatype_t dataType,
                              aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
 
+int32_t ZBCCLOpAllReduce(const void *inp, void *out, size_t numel, zbccl_datatype_t dataType,
+                             aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
+
 int32_t ZBCCL_OP_DispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
                                 int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
                                 const zbccl_tensor_info_t *tokensPerExpert,

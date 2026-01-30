@@ -10,8 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_npu_communicator_default.h"
-#include "zbccl_npu_op_allreduce.h"
-#include "zbccl_npu_op_reducescatter.h"
 #include "zbccl_npu_operators.h"
 #include "dl_cann_api.h"
 #include "acl/acl.h"
@@ -74,7 +72,7 @@ int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
         groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     zbccl::underapi::DlCannApi::AclrtMemset(recv_buff, count, 0, count);
-    auto ret = ZBCCLAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
+    auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
     return ret;
 }
 
@@ -86,7 +84,7 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
         groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     zbccl::underapi::DlCannApi::AclrtMemset(recv_buff, recv_count, 0, recv_count);
-    auto ret = ZBCCLReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
+    auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
     return ret;
 }
 
