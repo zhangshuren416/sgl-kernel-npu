@@ -103,10 +103,10 @@ public:
                             &(groupInfo->counter), groupInfo->localDeviceMemSize);
         int32_t addrReadyFlag;
         do {
-            addrReadyFlag = GetFlag((__gm__ void*)metaAddr, coreTargetRank, groupSize);
+            addrReadyFlag = GetFlag((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
         } while (addrReadyFlag != 1);
 
-        uint64_t inputAddr = GetDataAddr((__gm__ void*)metaAddr, coreTargetRank, groupSize);
+        uint64_t inputAddr = GetDataAddr((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
         GM_ADDR inputPtr = (GM_ADDR)inputAddr;
 
         uint32_t lenPerRankAlignToCore = CeilDiv(lenPerRank, corePerRank) * corePerRank;
