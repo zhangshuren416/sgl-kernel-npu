@@ -130,11 +130,14 @@ ZResult SecondaryMemoryAllocator::EmptyCache(bool check_error) {
 
     int device_count = static_cast<int>(device_allocator_.size());
     for (int device_idx = 0; device_idx < device_count; device_idx++) {
-        if (check_error)
-            ZBCCL_CHECK_S(c10_npu::SetDevice(device_idx) == ACL_SUCCESS, Z_RT_ERROR);
-        else
-            c10_npu::SetDevice(device_idx);
-        device_allocator_[device_idx]->emptyCache(device_idx, check_error);
+        // TODO use getUsedDevice to tell which device is used, otherwise will cause one rank take all device use case
+        if (device_allocator_[device_idx]->isHeapInited()) {
+            if (check_error)
+                ZBCCL_CHECK_S(c10_npu::SetDevice(device_idx) == ACL_SUCCESS, Z_RT_ERROR);
+            else
+                c10_npu::SetDevice(device_idx);
+            device_allocator_[device_idx]->emptyCache(device_idx, check_error);
+        }
     }
     if (check_error) {
         ZBCCL_CHECK_S(c10_npu::MaybeSetDevice(current_device) == ACL_SUCCESS, Z_RT_ERROR);

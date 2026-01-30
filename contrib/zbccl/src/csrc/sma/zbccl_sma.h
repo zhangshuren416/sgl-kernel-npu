@@ -152,7 +152,6 @@ public:
      */
     ZResult GetHeapState(size_t &in_used_size, size_t &total_size, int device = -1);
 };
-using SMAPtr = ZRef<SecondaryMemoryAllocator>;
 
 }  // namespace sma
 }  // namespace zbccl
