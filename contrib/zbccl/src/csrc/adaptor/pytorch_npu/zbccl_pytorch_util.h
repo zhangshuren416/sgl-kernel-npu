@@ -13,6 +13,7 @@
 #define ZBCCL_ADAPTOR_PY_UTIL_H
 
 #include "zbccl_def.h"
+#include <torch/csrc/distributed/c10d/Types.hpp>
 #include "torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.h"
 #include "torch_npu/csrc/framework/FormatHelper.h"
 #include "torch_npu/csrc/core/NPUBridge.h"
@@ -43,6 +44,8 @@ int32_t CheckNpuTensorsDifferentDevices(const std::vector<at::Tensor> &tensors);
 uint64_t GetNumelForZBCCL(const at::Tensor &t);
 
 zbccl_datatype_t GetZBcclDataType(at::ScalarType type);
+
+zbccl_reduce_op_t GetZBcclReduceOp(const c10d::ReduceOp op);
 
 }
 }

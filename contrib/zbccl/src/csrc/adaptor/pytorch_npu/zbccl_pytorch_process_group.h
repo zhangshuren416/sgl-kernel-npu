@@ -156,6 +156,9 @@ public:
     c10::intrusive_ptr<c10d::Work>
     reduce_scatter(std::vector<at::Tensor> &outputTensors, std::vector<std::vector<at::Tensor>> &inputTensors,
                    const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
+    
+    c10::intrusive_ptr<c10d::Work> _reduce_scatter_base(at::Tensor &output, at::Tensor &input,
+        const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
 
     static const int64_t kProcessGroupZBcclOpTimeoutMillis;
 

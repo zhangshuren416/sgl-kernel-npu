@@ -29,6 +29,14 @@ const std::map<at::ScalarType, zbccl_datatype_t> kScalarTypeToZBcclDataType = {
     {at::kBFloat16, ZBCCL_DATA_TYPE_BFP16},
 };
 
+const std::map<c10d::ReduceOp, zbccl_reduce_op_t> ReduceOpToZBcclReduceOp = {
+    {c10d::ReduceOp::MIN, ZBCCL_REDUCE_MIN},
+    {c10d::ReduceOp::MAX, ZBCCL_REDUCE_MAX},
+    {c10d::ReduceOp::SUM, ZBCCL_REDUCE_SUM},
+    {c10d::ReduceOp::PRODUCT, ZBCCL_REDUCE_PROD},
+};
+
+
 std::vector<at::Device> GetDeviceList(const std::vector<at::Tensor> &tensors)
 {
     std::vector<at::Device> devices;
@@ -166,6 +174,15 @@ zbccl_datatype_t GetZBcclDataType(at::ScalarType type)
         ZBCCL_CHECK_S(false, "Unsupported data type for ZBCCL process group");
     }
     return kScalarTypeToZBcclDataType.at(type);
+}
+
+zbccl_reduce_op_t GetZBcclReduceOp(const c10d::ReduceOp op)
+{
+    auto it = ReduceOpToZBcclReduceOp.find(op);
+    if (it == ReduceOpToZBcclReduceOp.end()) {
+        ZBCCL_CHECK_S(false, "Unsupported reduce op for ZBCCL process group");
+    }
+    return ReduceOpToZBcclReduceOp.at(op);
 }
 
 
