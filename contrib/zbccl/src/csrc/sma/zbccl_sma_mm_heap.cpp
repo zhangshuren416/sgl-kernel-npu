@@ -29,7 +29,7 @@ bool RangeSizeFirstComparator::operator()(
 
 // MemoryHeap
 MemoryHeap::MemoryHeap(void *base, uint64_t size) noexcept
-        : base_{reinterpret_cast<uint8_t *>(base)}, size_{size} {
+        : base_{reinterpret_cast<uint8_t *>(base)}, size_{size}, used_size_{0} {
     pthread_spin_init(&spinlock_, 0);
     address_idle_tree_[0] = size;
     size_idle_tree_.insert({0, size});
@@ -72,6 +72,7 @@ void *MemoryHeap::allocate(uint64_t size) noexcept {
         address_idle_tree_.emplace(left.offset_, left.size_);
         size_idle_tree_.emplace(left);
     }
+    used_size_ += aligned_size;
     pthread_spin_unlock(&spinlock_);
 
     return base_ + target_offset;
@@ -132,6 +133,7 @@ void *MemoryHeap::alignedAllocate(uint64_t alignment, uint64_t size) noexcept {
     }
 
     address_used_tree_.emplace(result_range.offset_, result_range.size_);
+    used_size_ += result_range.size_;
     pthread_spin_unlock(&spinlock_);
 
     return base_ + result_range.offset_;
@@ -167,12 +169,14 @@ bool MemoryHeap::changeSize(void *address, uint64_t size) noexcept {
     // 缩小size
     if (pos->second > size) {
         reduce_size_in_lock(pos, size);
+        used_size_ -= pos->second - size;
         pthread_spin_unlock(&spinlock_);
         return true;
     }
 
     // 扩大size
     auto success = expend_size_in_lock(pos, size);
+    used_size_ += size - pos->second;
     pthread_spin_unlock(&spinlock_);
 
     return success;
@@ -226,13 +230,18 @@ int32_t MemoryHeap::release(void *address) noexcept {
     }
     address_idle_tree_.emplace(final_offset, final_size);
     size_idle_tree_.emplace(MemoryRange{final_offset, final_size});
+    used_size_ -= final_size;
     pthread_spin_unlock(&spinlock_);
 
     return Z_OK;
 }
 
-size_t MemoryHeap::reservedTotalSize() noexcept {
+size_t MemoryHeap::getTotalSize() noexcept {
     return size_;
+}
+
+size_t MemoryHeap::getInUsedSize() noexcept {
+    return used_size_;
 }
 
 bool MemoryHeap::allocatedSize(void *address, uint64_t &size) const noexcept {
@@ -352,8 +361,12 @@ void *DualMemoryHeap::alignedAllocate(uint64_t alignment, uint64_t size) noexcep
     }
 }
 
-size_t DualMemoryHeap::reservedTotalSize() noexcept {
+size_t DualMemoryHeap::getTotalSize() noexcept {
     return size_small_ + size_large_;
+}
+
+size_t DualMemoryHeap::getInUsedSize() noexcept {
+    return small_.getInUsedSize() + large_.getInUsedSize();
 }
 
 int32_t DualMemoryHeap::release(void *address) noexcept {
@@ -397,8 +410,13 @@ ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr<heap::MemoryHeap> shmem_
     return shmem_pool->release(devPtr);
 }
 
-ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool) {
-    size = shmem_pool->reservedTotalSize();
+ZBCCL_API int GetTotalSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool) {
+    size = shmem_pool->getTotalSize();
+    return Z_OK;
+}
+
+ZBCCL_API int GetInUsedSize(size_t &size, std::shared_ptr <heap::MemoryHeap> shmem_pool) {
+    size = shmem_pool->getInUsedSize();
     return Z_OK;
 }
 
@@ -422,11 +440,19 @@ ZBCCL_API int CustomHeapRelease(void *devPtr, std::shared_ptr<heap::CustomMemory
     return shmem_pool->release(devPtr);
 }
 
-ZBCCL_API int CustomReservedTotalSize(size_t &size, std::shared_ptr <heap::CustomMemoryHeap> shmem_pool) {
+ZBCCL_API int CustomGetTotalSize(size_t &size, std::shared_ptr <heap::CustomMemoryHeap> shmem_pool) {
     if (!shmem_pool) {
         return Z_ERROR;
     }
-    size = shmem_pool->reservedTotalSize();
+    size = shmem_pool->getTotalSize();
+    return Z_OK;
+}
+
+ZBCCL_API int CustomGetInUsedSize(size_t &size, std::shared_ptr <heap::CustomMemoryHeap> shmem_pool) {
+    if (!shmem_pool) {
+        return Z_ERROR;
+    }
+    size = shmem_pool->getInUsedSize();
     return Z_OK;
 }
 

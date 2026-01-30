@@ -680,7 +680,7 @@ void DeviceSMACachingAllocator::eraseStream(DeviceBlock *block, c10_npu::NPUStre
 void DeviceSMACachingAllocator::setMemoryFraction(double fraction)
 {
     size_t device_total;
-    zbccl::sma::CustomReservedTotalSize(device_total, mem_heap_pool_);
+    zbccl::sma::CustomGetTotalSize(device_total, mem_heap_pool_);
     allowed_memory_maximum_ = static_cast<size_t>(fraction * device_total);
     set_fraction_ = true;
 }

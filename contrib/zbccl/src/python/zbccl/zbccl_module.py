@@ -6,6 +6,7 @@ import torch_npu
 from enum import Enum
 from typing import Optional
 from zbccl.zbccl import ZBCCLBootstrapType, ZBCCLBootstrapOption, zbccl_bootstrap, zbccl_unbootstrap
+from zbccl.zbccl.allocator import get_heap_stats
 
 CURRENT_DIR = Path(__file__).resolve().parent
 ZBCCL_LIB = list(CURRENT_DIR.glob("zbccl.*.so"))[0]
@@ -114,3 +115,8 @@ def zbccl_get_shmem_base_addr():
     zbccl_allocator = ctypes.CDLL(ZBCCL_LIB)
     zbccl_allocator.zbccl_get_shmem_base_addr.restype = ctypes.c_void_p
     return zbccl_allocator.zbccl_get_shmem_base_addr()
+
+
+def mem_get_info():
+    # this api is used to fulfill torch.npu.mem_get_info functions when sma take control of memory
+    return get_heap_stats()

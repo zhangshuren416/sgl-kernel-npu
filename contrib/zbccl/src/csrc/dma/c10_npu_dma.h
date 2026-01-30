@@ -314,4 +314,6 @@ EXPORT_API void dma_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 EXPORT_API void *dma_get_base_addr(int device = -1);
 
 EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_simulation = false);
+
+EXPORT_API void dma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device = -1);
 }

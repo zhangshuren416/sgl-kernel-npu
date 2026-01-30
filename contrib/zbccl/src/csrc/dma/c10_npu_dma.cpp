@@ -3999,6 +3999,21 @@ EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_s
     }
 }
 
+EXPORT_API void dma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device) {
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+
+    if (c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_inited) {
+        in_used_size = c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_pool_->getInUsedSize();
+        total_size = c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_pool_->getTotalSize();
+    } else {
+        ZBCCL_LOG_ERROR("heap on target device is not inited, no stats now");
+    }
+}
+
 }
 
 
@@ -4153,7 +4168,18 @@ py::dict dump_snapshot() {
 
 void pybind11_allocator(pybind11::module_ &m)
 {
+    m.doc() = "ZBCCL DMA Stats API";
+
     m.def("record_memory_history", &record_memory_history);
     m.def("dump_snapshot", &dump_snapshot);
+    m.def("get_heap_stats", [](int device) {
+        size_t in_used_size = 0;
+        size_t total_size = 0;
+
+        dma_get_heap_stats(in_used_size, total_size, device);
+
+        return std::make_tuple(in_used_size, total_size);
+        }, py::arg("device") = -1,
+      "get heap stats，return (used_size, total_size)");
 }
 

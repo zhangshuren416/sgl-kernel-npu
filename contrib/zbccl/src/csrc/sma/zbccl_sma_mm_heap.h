@@ -53,7 +53,9 @@ public:
 
     bool changeSize(void *address, uint64_t size) noexcept;
 
-    size_t reservedTotalSize() noexcept;
+    size_t getTotalSize() noexcept;
+
+    size_t getInUsedSize() noexcept;
 
     int32_t release(void *address) noexcept;
 
@@ -75,6 +77,7 @@ private:
     bool initialized_{false};
     uint8_t *const base_;
     const uint64_t size_;
+    uint64_t used_size_;
     mutable pthread_spinlock_t spinlock_{};
     std::map<uint64_t, uint64_t> address_idle_tree_;
     std::map<uint64_t, uint64_t> address_used_tree_;
@@ -90,7 +93,9 @@ public:
 public:
     virtual void *alignedAllocate(uint64_t alignment, uint64_t size) noexcept = 0;
 
-    virtual size_t reservedTotalSize() noexcept = 0;
+    virtual size_t getTotalSize() noexcept = 0;
+
+    virtual size_t getInUsedSize() noexcept = 0;
 
     virtual int32_t release(void *address) noexcept = 0;
 
@@ -117,7 +122,9 @@ public:
 public:
     void *alignedAllocate(uint64_t alignment, uint64_t size) noexcept override;
 
-    size_t reservedTotalSize() noexcept override;
+    size_t getTotalSize() noexcept override;
+
+    size_t getInUsedSize() noexcept override;
 
     int32_t release(void *address) noexcept override;
 
@@ -143,14 +150,18 @@ ZBCCL_API int HeapAlignedAllocate(void **devPtr, size_t size,
 
 ZBCCL_API int HeapRelease(void *devPtr, std::shared_ptr<heap::MemoryHeap> shmem_pool);
 
-ZBCCL_API int ReservedTotalSize(size_t &size, std::shared_ptr<heap::MemoryHeap> shmem_pool);
+ZBCCL_API int GetTotalSize(size_t &size, std::shared_ptr<heap::MemoryHeap> shmem_pool);
+
+ZBCCL_API int GetInUsedSize(size_t &size, std::shared_ptr<heap::MemoryHeap> shmem_pool);
 
 ZBCCL_API int CustomHeapAlignedAllocate(void **devPtr, size_t size,
                                         std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
 
 ZBCCL_API int CustomHeapRelease(void *devPtr, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
 
-ZBCCL_API int CustomReservedTotalSize(size_t &size, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
+ZBCCL_API int CustomGetTotalSize(size_t &size, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
+
+ZBCCL_API int CustomInUsedSize(size_t &size, std::shared_ptr<heap::CustomMemoryHeap> shmem_pool);
 
 }  // namespace sma
 }  // namespace zbccl

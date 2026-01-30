@@ -222,6 +222,18 @@ ZResult SecondaryMemoryAllocator::ReleasePool(int device, c10_npu::MempoolId_t m
     return Z_OK;
 }
 
+ZResult SecondaryMemoryAllocator::GetHeapState(size_t &in_used_size, size_t &total_size, int device) {
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+
+    in_used_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapInUsedSize();
+    total_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapTotalSize();
+    return Z_OK;
+}
+
 }  // namespace sma
 }  // namespace zbccl
 
@@ -286,6 +298,14 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->setMemHeapPool(shmem_base_addr_, local_mem_size);
     } else {
         ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
+    }
+}
+
+ZBCCL_API void sma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device) {
+    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->GetHeapState(in_used_size, total_size, device);
+    } else {
+        ZBCCL_LOG_ERROR("heap on target device is not inited, no stats now");
     }
 }
 

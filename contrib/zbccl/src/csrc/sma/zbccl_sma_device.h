@@ -202,7 +202,8 @@ public:
             return false;
     };
     inline void *getHeapBase() { return mem_heap_pool_->getBaseAddr();};
-    inline uint64_t getHeapSize() { return mem_heap_pool_->reservedTotalSize();};
+    inline uint64_t getHeapTotalSize() { return mem_heap_pool_->getTotalSize();};
+    inline uint64_t getHeapInUsedSize() { return mem_heap_pool_->getInUsedSize();};
 };
 
 }  // namespace device

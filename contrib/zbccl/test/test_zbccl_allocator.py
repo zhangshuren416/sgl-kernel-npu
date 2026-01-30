@@ -72,8 +72,12 @@ if __name__ == "__main__":
     init()
 
     npu_tensor = torch.zeros(10, device="npu")
+    print('mem info:', zbccl.mem_get_info())
     print(npu_tensor)
 
     # full demo test
     train()
+    print('mem info:', zbccl.mem_get_info())
+
     infer()
+    print('mem info:', zbccl.mem_get_info())

@@ -141,6 +141,16 @@ public:
      * @return 0 if successful
      */
     ZResult ReleasePool(int device, c10_npu::MempoolId_t mempool_id);
+
+    /**
+     * @brief get memory heap state in target device
+     *
+     * @param in_used_size  [inout] heap currently in used size(including caching blocks)
+     * @param total_size    [inout] heap currently in used size(including caching blocks)
+     * @param device        [in] checked device id, using current device if < 0
+     * @return 0 if successful
+     */
+    ZResult GetHeapState(size_t &in_used_size, size_t &total_size, int device = -1);
 };
 using SMAPtr = ZRef<SecondaryMemoryAllocator>;
 
@@ -169,6 +179,8 @@ ZBCCL_API void sma_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 ZBCCL_API void *sma_get_base_addr(int device = -1);
 
 ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size);
+
+ZBCCL_API void sma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device = -1);
 }
 
 #endif  // ZBCCL_SMA_H
