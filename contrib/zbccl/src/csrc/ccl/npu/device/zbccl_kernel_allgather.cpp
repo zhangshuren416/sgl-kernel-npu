@@ -28,7 +28,6 @@ public:
         uint16_t myGroupRank = comm->myGroupRank;
         uint64_t localDeviceMemSize = comm->localDeviceMemSize;
 
-        //zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, &(comm->counter), output);
         Barrier(metaGM, myGroupRank, groupSize, localDeviceMemSize);
 
         uint64_t flagMagic = 1024;

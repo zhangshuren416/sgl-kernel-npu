@@ -30,8 +30,8 @@ struct CommGroupInfo {
     uint64_t fftsConfig;                                    /* copy from CommGroupOptions.fftsConfig */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
     uint64_t localDeviceMemSize;                            /* copy from CommGroupOptions.localDeviceMemSize */
-    uint64_t counter;                                       /* sync value address and sync counter value */
-    uint64_t barrier;
+    uint64_t counter[8];                                    /* sync value address and sync counter value */
+    uint64_t barrier[8];
 
     // friend std::ostream &operator<<(std::ostream &os, const CommGroupInfo &options)
     // {

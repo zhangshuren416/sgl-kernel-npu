@@ -55,13 +55,13 @@ ZBCCL_KERNEL void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uin
 
 ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, uint32_t aivIndex,
                                       uint32_t rank, uint32_t groupSize, __gm__ uint64_t *counterAddress,
-                                      uint64_t localDeviceMemSize)
+                                      __gm__ uint64_t *barrierAddress, uint64_t localDeviceMemSize)
 {
     if (aivIndex < groupSize) {
         SetFlag(metaAddr, 0, aivIndex, groupSize);
     }
     // last param useless.
-    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress);
+    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress, barrierAddress);
     if (aivIndex < groupSize) {
         uint64_t dataAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(inputAddr));
         SetDataAddr(zbccl_ptr(metaAddr, rank, aivIndex, localDeviceMemSize), dataAddr, rank, groupSize);
@@ -97,9 +97,9 @@ public:
         coreRankIdx = aivIndex % corePerRank;
         coreTargetRank = aivIndex / corePerRank;
 
-        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x,
-                            aivIndex, rank, groupSize,
-                            (__gm__ uint64_t *)(groupInfo->myParamDataGva), groupInfo->localDeviceMemSize);
+        InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, aivIndex, rank, groupSize,
+                            (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier,
+                            groupInfo->localDeviceMemSize);
         int32_t addrReadyFlag;
         do {
             addrReadyFlag = GetFlag((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
@@ -162,7 +162,8 @@ public:
         AscendC::SetAtomicNone();
         // Sync Ensure Corresponding Tasks Done.
         // last param useless.
-        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)(groupInfo->myParamDataGva));
+        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&groupInfo->counter,
+                          (__gm__ uint64_t *)&groupInfo->barrier);
 #endif
     }
 
