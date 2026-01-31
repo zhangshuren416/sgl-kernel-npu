@@ -72,7 +72,6 @@ int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
         groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
-    zbccl::underapi::DlCannApi::AclrtMemset(recv_buff, count, 0, count);
     auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
     return ret;
 }

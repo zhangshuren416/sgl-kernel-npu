@@ -268,7 +268,32 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
 c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tensor> &tensors,
                                                             const c10d::AllreduceOptions &opts)
 {
-    return nullptr;
+    std::vector<at::Tensor> inputTensors = {tensors[0]};
+    std::vector<at::Tensor> outputTensors = {tensors[0]};
+    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(inputTensors) == 0, "check input tensor failed.");
+    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(outputTensors) == 0, "check output tensor failed.");
+
+    // // auto inputTensors_ = CastOriginFormat(inputTensors);
+
+    return collective(
+        inputTensors, outputTensors,
+        [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream, zbccl_comm_t comm) {
+            RECORD_FUNCTION("ZBcclAllReduce", std::vector<c10::IValue>({}));
+            c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
+
+            void *inputDataPtr = input.data_ptr();
+            void *outputDataPtr = output.data_ptr();
+            auto numel = GetNumelForZBCCL(input);
+            auto zbcclType = GetZBcclDataType(input.scalar_type());
+            auto zbcclReduceOp = GetZBcclReduceOp(opts.reduceOp);
+
+            auto ret = zbccl_all_reduce(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
+            return ret;
+        },
+        [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
+        c10d::OpType::ALLREDUCE
+    );
 }
 
 
@@ -325,7 +350,7 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_reduce_scatter_base(at::Tenso
     std::vector<at::Tensor> inputTensors = {inputTensor};
     std::vector<at::Tensor> outputTensors = {outputTensor};
     ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(inputTensors) == 0, "check input tensor failed.");
-    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(outputTensors) == 0, "check output tenso failed.");
+    ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(outputTensors) == 0, "check output tensor failed.");
 
     // // auto inputTensors_ = CastOriginFormat(inputTensors);
 

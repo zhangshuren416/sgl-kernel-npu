@@ -87,7 +87,6 @@ public:
         auto groupInfo = reinterpret_cast<__gm__ CommGroupInfo *>(metaAddr);
         this->groupInfo = groupInfo;
         __gm__ void *exchangeAddr = (__gm__ void *)(groupInfo->myAddressExchangeGva);
-        this->syncAddr = (__gm__ void *)(groupInfo->myParamDataGva);
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         const uint32_t aivIndex = AscendC::GetBlockIdx();
@@ -100,7 +99,7 @@ public:
         coreTargetRank = aivIndex / corePerRank;
 
         InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, aivIndex, rank, groupSize,
-                            (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier,
+                            (__gm__ uint64_t *)&(groupInfo->counter), (__gm__ uint64_t *)&(groupInfo->barrier),
                             groupInfo->localDeviceMemSize, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
         int32_t addrReadyFlag;
         do {
@@ -130,6 +129,7 @@ public:
 
         xGm.SetGlobalBuffer((__gm__ T *)inputPtr + xOffset, lenPerCore);
         yGm.SetGlobalBuffer((__gm__ T *)y + yOffset, lenPerCore);
+        rankSyncFlag.SetGlobalBuffer((__gm__ uint64_t *)groupInfo->myParamDataGva, 8 * aivNum);
         if (lenPerCore * sizeof(T) > UB_DMA_MAX_SIZE) {
             pipe->InitBuffer(bindQueue, 1, UB_DMA_MAX_SIZE);
         } else {
@@ -140,7 +140,6 @@ public:
     ZBCCL_KERNEL void Process()
     {
 #ifdef __DAV_C220_VEC__
-
         uint32_t leftCopySize = lenPerCore * sizeof(T);
         AscendC::DataCopyPadExtParams<T> padParams;
         SetAtomicOp<T>(atomicOp);
@@ -151,10 +150,17 @@ public:
             uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
             AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
             AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
-            AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
-            bindQueue.EnQue(xLocal);
-            xLocal = bindQueue.DeQue<T>();
-            AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
+            if (rank != coreTargetRank) {
+                AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
+                bindQueue.EnQue(xLocal);
+            }
+            zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize,
+                (__gm__ uint64_t *)&(groupInfo->counter), (__gm__ uint64_t *)&(groupInfo->barrier),
+                (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+            if (rank != coreTargetRank) {
+                xLocal = bindQueue.DeQue<T>();
+                AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
+            }
             bindQueue.FreeTensor(xLocal);
             leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
             times++;
@@ -163,15 +169,16 @@ public:
         AscendC::SetAtomicNone();
         // Sync Ensure Corresponding Tasks Done.
         // last param useless.
-        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&groupInfo->counter,
-                          (__gm__ uint64_t *)&groupInfo->barrier, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&(groupInfo->counter),
+                          (__gm__ uint64_t *)&(groupInfo->barrier), (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
 #endif
     }
 
 private:
-    AscendC::TQueBind<AscendC::TPosition::VECIN, AscendC::TPosition::VECIN, 1> bindQueue;
+    AscendC::TQueBind<AscendC::TPosition::VECIN, AscendC::TPosition::VECOUT, 1> bindQueue;
     AscendC::GlobalTensor<T> xGm;
     AscendC::GlobalTensor<T> yGm;
+    AscendC::GlobalTensor<uint64_t> rankSyncFlag;
     uint32_t rank;
     uint32_t atomicOp;
     uint32_t lenPerCore;
@@ -179,7 +186,6 @@ private:
     uint32_t coreRankIdx;
     uint32_t corePerRank;
     uint32_t magic;
-    __gm__ void * syncAddr;
     __gm__ CommGroupInfo *groupInfo;
     uint32_t groupSize;
 };
@@ -189,7 +195,7 @@ extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
     uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength,
     uint32_t rank, uint32_t groupSize, uint32_t reduceOp)
 {
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
     AscendC::SetSyncBaseAddr(fftsAddr);
     uint32_t magic = 1;
     AscendC::TPipe pipe;

@@ -169,7 +169,7 @@ public:
     }
 
 private:
-    AscendC::TQueBind<AscendC::TPosition::VECIN, AscendC::TPosition::VECIN, 1> bindQueue;
+    AscendC::TQueBind<AscendC::TPosition::VECIN, AscendC::TPosition::VECOUT, 1> bindQueue;
     AscendC::GlobalTensor<T> xGm;
     AscendC::GlobalTensor<T> yGm;
     uint32_t rank;
