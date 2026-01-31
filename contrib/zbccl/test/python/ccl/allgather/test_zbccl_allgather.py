@@ -5,7 +5,6 @@ import torch
 import torch.distributed as dist
 import torch_npu
 import numpy as np
-from ml_dtypes import bfloat16
 from zbccl import zbccl_init, zbccl_uninit, zbccl_set_logger_level
 
 torch_npu.npu.config.allow_internal_format = True
@@ -23,7 +22,7 @@ def test_zbccl_allgather():
         "int32_t": np.int32,
         "float16_t": np.float16,
         "float": np.float32,
-        "bfloat16_t": bfloat16
+        "bfloat16_t": np.float16
     }
     data_type = type_map.get(test_type, 'int')
 
@@ -53,9 +52,9 @@ def test_zbccl_allgather():
             data_len = 6 * (2 ** i)
             golden_dir = f"allgather_{data_len}_{world_size}"
             data = np.fromfile(f"{current_dir}/golden/{golden_dir}/input_gm_{local_rank}.bin", dtype=data_type)
-            in_tensor = torch.from_numpy(data).npu()
+            in_tensor = torch.from_numpy(data).to(tensor_data_type).npu()
             gold_data = np.fromfile(f"{current_dir}/golden/{golden_dir}/golden.bin", dtype=data_type)
-            gold_tensor = torch.from_numpy(gold_data).npu()
+            gold_tensor = torch.from_numpy(gold_data).to(tensor_data_type).npu()
             out_tensor = torch.zeros(data_len * world_size, dtype=tensor_data_type).npu()
             dist.all_gather_into_tensor(out_tensor, in_tensor)
             if not torch.allclose(gold_tensor, out_tensor, rtol=1e-4, atol=1e-8):

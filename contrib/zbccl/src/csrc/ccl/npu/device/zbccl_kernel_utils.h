@@ -61,8 +61,11 @@ ZBCCL_KERNEL void dcciCacheline(__gm__ uint8_t *addr)
     __asm__ __volatile__("");
 }
 
-ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize)
+ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize, 
+                                    __gm__ uint16_t *peerGroupRank2WorldRank)
 {
+    uint16_t worldDstPe = *((__gm__ uint16_t *)(peerGroupRank2WorldRank + dstPe));
+    uint16_t worldCurPe = *((__gm__ uint16_t *)(peerGroupRank2WorldRank + curPe));
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
     uint64_t dstPtr = curPtr + (dstPe - curPe) * localMemSize;
     return reinterpret_cast<__gm__ void *>(dstPtr);
@@ -97,7 +100,8 @@ ZBCCL_KERNEL void zbccl_single_wait_until_eq(__gm__ uint64_t *syncAddr, uint64_t
 }
 
 ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
-                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress)
+                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress, 
+                                    __gm__ uint16_t *peerGroupRank2WorldRank)
 {
     int vecId = AscendC::GetBlockIdx();
     int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
@@ -112,7 +116,8 @@ ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_
     }
 
     for (int i = vecId; i < groupSize; i += k) {
-        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)barrierAddress, rankId, i, localSize);
+        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)barrierAddress, rankId, i, localSize, 
+                                                                    peerGroupRank2WorldRank);
         zbccl_single_wait_until_eq(target_addr, count);
     }
 
@@ -122,12 +127,13 @@ ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_
 }
 
 ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
-                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress)
+                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress,
+                                    __gm__ uint16_t *peerGroupRank2WorldRank)
 {
     AscendC::SyncAll<true>();
 
     if ASCEND_IS_AIV {
-        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress, barrierAddress);
+        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress, barrierAddress, peerGroupRank2WorldRank);
     }
 
     AscendC::SyncAll<true>();
@@ -136,11 +142,13 @@ ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_
 ZBCCL_KERNEL void zbccl_barrier_all(__gm__ CommGroupInfo *groupInfo)
 {
     zbccl_barrier_all(groupInfo->myGroupRank, groupInfo->groupSize, groupInfo->localDeviceMemSize,
-                      (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier);
+                      (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier, 
+                      (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
 }
 
 ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
-                                    uint64_t flagMagic, uint64_t localDeviceMemSize)
+                                    uint64_t flagMagic, uint64_t localDeviceMemSize, 
+                                    __gm__ uint16_t *peerGroupRank2WorldRank)
 {
     const int64_t aivNum = AscendC::GetBlockNum();
     const int64_t aivIndex = AscendC::GetBlockIdx();
@@ -161,8 +169,8 @@ ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t gr
     if (aivIndex < groupSize) {
         // write addr
         auto exchangeAddr = reinterpret_cast<__gm__ CommGroupInfo *>(metaGM)->myAddressExchangeGva;
-        auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex, localDeviceMemSize);
-        metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2);  // size ??
+        auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex, localDeviceMemSize, peerGroupRank2WorldRank);
+        metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2); 
         AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
         AscendC::DataCopyPad(metaAddrTensor[addrOffset], inputBuff, copyParams);
 
@@ -210,57 +218,6 @@ ZBCCL_KERNEL void SyncFunc()
     int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
     AscendC::SetFlag<event>(eventID);
     AscendC::WaitFlag<event>(eventID);
-}
-
-ZBCCL_KERNEL void Barrier(GM_ADDR metaGM, uint16_t rankId, uint16_t groupSize, uint64_t localDeviceMemSize)
-{
-    AscendC::SyncAll<true>();
-    auto paramAddr = reinterpret_cast<__gm__ CommGroupInfo *>(metaGM)->myParamDataGva;
-    __gm__ uint64_t *ctrlFlagsGM;
-    AscendC::LocalTensor<uint64_t> localSetTensor(AscendC::TPosition::VECIN, 8*64 + 32, 2);
-    AscendC::LocalTensor<uint64_t> localCheckTensor(AscendC::TPosition::VECIN, 9*64 + 32, 2);
-    AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
-    GlobalTensor<uint64_t> globalTensor;
-    if (GetBlockIdx() == 0) {
-        PipeBarrier<PIPE_ALL>();
-        // rankId = 0, targetRank = 1, rankId = 1, targetRank = 0,
-        for (int i = 1; i < groupSize; i++) {
-            uint32_t targetRank = (rankId + i) % groupSize;
-            auto ptr = zbccl_ptr((__gm__ uint64_t *)(paramAddr), rankId, targetRank, localDeviceMemSize);
-            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, BARRIER_FLAG_SIZE * groupSize);
-            localSetTensor.SetValue(0, 1212);
-            AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-            AscendC::DataCopyPad(globalTensor[rankId * BARRIER_FLAG_SIZE], localSetTensor, copyParams);
-        }
-        PipeBarrier<PIPE_ALL>();
-        for (int i = 1; i < groupSize; i++) { //rankId = 1, targetRank = 0
-            uint32_t targetRank = (rankId + i) % groupSize;
-            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)paramAddr, BARRIER_FLAG_SIZE * groupSize);
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-            while (true) {
-                AscendC::DataCopyPadExtParams<uint64_t> copyExtParams{false, 0U, 0U, 0U};
-                AscendC::DataCopyPad(localCheckTensor, globalTensor[targetRank * BARRIER_FLAG_SIZE], copyParams, copyExtParams);
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID0);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID0);
-                if (localCheckTensor.GetValue(0) == 1212) {
-                    break;
-                }
-            }
-        }
-        PipeBarrier<PIPE_ALL>();
-        for (int i = 1; i < groupSize; i++) {
-            uint32_t targetRank = (rankId + i) % groupSize;
-            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)paramAddr, BARRIER_FLAG_SIZE * groupSize);
-            localSetTensor.SetValue(0, 0);
-            AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-            AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
-            AscendC::DataCopyPad(globalTensor[targetRank * BARRIER_FLAG_SIZE], localSetTensor, copyParams);
-        }
-    }
-    AscendC::SyncAll<true>();
 }
 
 #endif // ZBCCL_KERNEL_UTILS_H

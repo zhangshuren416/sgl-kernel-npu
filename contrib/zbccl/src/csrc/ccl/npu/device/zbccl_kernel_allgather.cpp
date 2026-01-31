@@ -27,13 +27,14 @@ public:
         uint16_t groupSize = comm->groupSize;
         uint16_t myGroupRank = comm->myGroupRank;
         uint64_t localDeviceMemSize = comm->localDeviceMemSize;
+        __gm__ uint64_t *counterAddress = reinterpret_cast<__gm__ uint64_t *>(comm->counter);
+        __gm__ uint64_t *barrierAddress = reinterpret_cast<__gm__ uint64_t *>(comm->barrier);
+        __gm__ uint16_t *peerGroupRank2WorldRank = reinterpret_cast<__gm__ uint16_t *>(comm->peerGroupRank2WorldRank);
 
-        Barrier(metaGM, myGroupRank, groupSize, localDeviceMemSize);
+        zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, counterAddress, barrierAddress, peerGroupRank2WorldRank);
 
         uint64_t flagMagic = 1024;
-        ExchangeInputAddr(input, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize);
-
-        __gm__ uint32_t *exchange = reinterpret_cast<__gm__ uint32_t *>(comm->myAddressExchangeGva);
+        ExchangeInputAddr(input, metaGM, groupSize, myGroupRank, flagMagic, localDeviceMemSize, peerGroupRank2WorldRank);
 
         const int64_t aivNum = AscendC::GetBlockNum() * AscendC::GetTaskRation();
         const int64_t aivIndex = AscendC::GetBlockIdx();

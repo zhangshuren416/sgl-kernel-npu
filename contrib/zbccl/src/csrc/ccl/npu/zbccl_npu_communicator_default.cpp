@@ -63,6 +63,7 @@ void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &opti
     groupInfo_.sizeForExchangeAddress = options.sizeForExchangeAddress;
     groupInfo_.fftsConfig = options.fftsConfig;
     groupInfo_.localDeviceMemSize = options.localDeviceMemSize;
+    groupInfo_.peerGroupRank2WorldRank[options.myGroupRank] = options.myWorldRank;
 }
 
 int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
