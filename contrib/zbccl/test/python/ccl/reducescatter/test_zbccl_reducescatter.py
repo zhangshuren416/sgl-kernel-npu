@@ -10,7 +10,7 @@ from zbccl import zbccl_init, zbccl_uninit, zbccl_set_logger_level
 
 torch_npu.npu.config.allow_internal_format = True
 
-def test_zbccl_allgather():
+def test_zbccl_reducescatter():
     local_rank = int(os.environ["LOCAL_RANK"])
     world_size = int(os.environ["WORLD_SIZE"] or 2)
     test_type = os.environ["TEST_TYPE"] or "int"
@@ -50,20 +50,20 @@ def test_zbccl_allgather():
     try:
         ret = 0
         for i in range(0, case_num):
-            data_len = 6 * (2 ** i)
-            golden_dir = f"allgather_{data_len}_{world_size}"
+            data_len = 8 * (2 ** i)
+            golden_dir = f"reducescatter_{data_len}_{world_size}"
             data = np.fromfile(f"{current_dir}/golden/{golden_dir}/input_gm_{local_rank}.bin", dtype=data_type)
             in_tensor = torch.from_numpy(data).npu()
-            gold_data = np.fromfile(f"{current_dir}/golden/{golden_dir}/golden.bin", dtype=data_type)
+            gold_data = np.fromfile(f"{current_dir}/golden/{golden_dir}/golden_{local_rank}.bin", dtype=data_type)
             gold_tensor = torch.from_numpy(gold_data).npu()
-            out_tensor = torch.zeros(data_len * world_size, dtype=tensor_data_type).npu()
-            dist.all_gather_into_tensor(out_tensor, in_tensor)
+            out_tensor = torch.zeros(data_len // world_size, dtype=tensor_data_type).npu()
+            dist.reduce_scatter_tensor(out_tensor, in_tensor)
             if not torch.allclose(gold_tensor, out_tensor, rtol=1e-4, atol=1e-8):
-                print(f"[ERROR] rank {local_rank}, case {i} allgather result not correct\n")
+                print(f"[ERROR] rank {local_rank}, case {i} reducescatter result not correct\n")
                 ret = 1
                 break
         if ret == 0:
-            print(f"[INFO] rank {local_rank}, allgather run all case success\n")
+            print(f"[INFO] rank {local_rank}, reducescatter run all case success\n")
     finally:
         dist.destroy_process_group(group)
 
@@ -72,4 +72,4 @@ def test_zbccl_allgather():
 
 
 if __name__ == "__main__":
-    test_zbccl_allgather()
+    test_zbccl_reducescatter()

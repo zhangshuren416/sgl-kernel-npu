@@ -19,22 +19,25 @@ def gen_random_data(size, dtype):
 
 
 def golden_generate(data_len, rank_size, data_type, current_dir):
-    golden_dir = f"allgather_{data_len}_{rank_size}"
-    cmd = f"mkdir golden/{golden_dir}"
+    golden_dir = f"reducescatter_{data_len}_{rank_size}"
+    cmd = f"mkdir -p {current_dir}/golden/{golden_dir}"
     os.system(cmd)
 
+    output_len = data_len // rank_size
     input_gm = np.zeros((rank_size, data_len), dtype=data_type)
-    output_gm = np.zeros((rank_size * data_len), dtype=data_type)
+    output_gm = np.zeros((rank_size, output_len), dtype=data_type)
 
     for i in range(rank_size):
         input_gm[i][:] = gen_random_data((data_len), dtype=data_type)
-        output_gm[i * data_len: i * data_len + data_len] = input_gm[i]
-
+    for i in range(rank_size):
+        for j in range(rank_size):
+            output_gm[i][:] += input_gm[j][i * output_len: (i + 1) * output_len]
+    
     for i in range(rank_size):
         input_gm[i].tofile(f"{current_dir}/golden/{golden_dir}/input_gm_{i}.bin")
-    output_gm.tofile(f"{current_dir}/golden/{golden_dir}/golden.bin")
-    print(f"{data_len} golden generate success !")
+        output_gm[i].tofile(f"{current_dir}/golden/{golden_dir}/golden_{i}.bin")
 
+    print(f"{data_len} reducescatter golden generate success !")
 
 def gen_golden_data():
     import argparse
@@ -57,7 +60,7 @@ def gen_golden_data():
     case_num = int(os.getenv("CASE_NUM", "16"))
     current_dir = os.getenv("CURRENT_DIR", ".")
     for i in range(case_num):
-        data_len = 6 * (2 ** i)
+        data_len = 8 * (2 ** i)
         golden_generate(data_len, rank_size, data_type, current_dir)
 
 

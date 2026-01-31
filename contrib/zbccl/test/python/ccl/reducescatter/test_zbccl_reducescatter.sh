@@ -18,4 +18,4 @@ rm -rf golden output
 mkdir -p golden output
 python3 ${CURRENT_DIR}/scripts/data_gen.py $WORLD_SIZE $TEST_TYPE
 
-torchrun --nproc-per-node $WORLD_SIZE --master-port 8777 ${CURRENT_DIR}/test_zbccl_allgather.py
+torchrun --nproc-per-node $WORLD_SIZE --master-port 8777 ${CURRENT_DIR}/test_zbccl_reducescatter.py
