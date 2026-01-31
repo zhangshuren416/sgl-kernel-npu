@@ -57,6 +57,7 @@ void pybind11_bootstrap(py::module_ &m)
     m.def("zbccl_bootstrap", &zbccl_bootstrap_wrapper);
     m.def("zbccl_unbootstrap", &zbccl_unbootstrap);
     m.def("zbccl_set_logger_level", &zbccl_set_logger_level);
+    m.def("zbccl_version", &zbccl_version);
 }
 
 PYBIND11_MODULE(zbccl, m) {

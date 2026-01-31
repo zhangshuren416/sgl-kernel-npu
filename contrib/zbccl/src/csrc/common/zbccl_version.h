@@ -12,10 +12,12 @@
 #ifndef ZBCCL_VERSION_H
 #define ZBCCL_VERSION_H
 
-/* version information */
+/* version information, these variables are read in cmake from VERSION file */
+#ifndef VERSION_MAJOR
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 1
+#define VERSION_MINOR 0
 #define VERSION_FIX 0
+#endif
 
 /* second level marco define 'CONCAT' to get string */
 #define CONCAT(x, y, z) x.##y.##z

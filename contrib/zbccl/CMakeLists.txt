@@ -8,6 +8,8 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
+include(cmake/config_version.cmake)
+
 set(ZBCCL_BASE_DIR ${PROJECT_SOURCE_DIR}/contrib/zbccl/)
 set(ZBCCL_SRC_DIR ${PROJECT_SOURCE_DIR}/contrib/zbccl/src)
 
@@ -17,7 +19,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ZBCCL_BASE_DIR}/python/zbccl/lib)
 add_subdirectory(src/csrc)
 
 if (BUILD_ZBCCL_MODULE_UT)
-    message(STATUS "build test is required")
+    message(STATUS "test： unit test build is required")
     add_compile_definitions(UNIT_TEST=1)
     add_subdirectory(test)
 endif ()

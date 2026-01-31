@@ -22,7 +22,10 @@ extern "C" {
 
 ZBCCL_API const char *zbccl_version()
 {
-    return LIB_VERSION_FULL;
+    /* log full version */
+    ZBCCL_LOG_INFO("full version: " << LIB_VERSION_FULL);
+    /* return short version */
+    return LIB_VERSION;
 }
 
 ZBCCL_API int32_t zbccl_set_logger(void (*func)(int, const char *))

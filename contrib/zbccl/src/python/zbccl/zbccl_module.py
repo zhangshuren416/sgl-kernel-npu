@@ -5,12 +5,14 @@ import torch
 import torch_npu
 from enum import Enum
 from typing import Optional
-from zbccl.zbccl import ZBCCLBootstrapType, ZBCCLBootstrapOption, zbccl_bootstrap, zbccl_unbootstrap
+from zbccl.zbccl import ZBCCLBootstrapType, ZBCCLBootstrapOption
+from zbccl.zbccl import zbccl_version, zbccl_bootstrap, zbccl_unbootstrap
 from zbccl.zbccl.allocator import get_heap_stats
 
 CURRENT_DIR = Path(__file__).resolve().parent
 ZBCCL_LIB = list(CURRENT_DIR.glob("zbccl.*.so"))[0]
 
+__version__ = zbccl_version()
 
 def zbccl_init(world_size: int,
                rank_id: int,
@@ -36,6 +38,7 @@ def zbccl_init(world_size: int,
     :param ip_port: bootstrap used ip port
     :return: 0 if success else error code
     '''
+
     # get env of MemFabric home
     mem_fabric_lib_path = os.environ.get("MEMFABRIC_HYBRID_LIBRARY_PATH")
     if mem_fabric_lib_path is None:

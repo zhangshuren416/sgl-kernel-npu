@@ -151,7 +151,7 @@ set(TARGET_INSTALL_DIR ${ZBCCL_BASE_DIR}/output/)
 #install
 file(GLOB HEADER_FILES ${ZBCCL_BASE_DIR}/src/include/*.h)
 
-message(STATUS "header files = ${HEADER_FILES}")
+message(STATUS "install: header files = ${HEADER_FILES}")
 
 #install head files
 install(FILES ${HEADER_FILES} DESTINATION ${TARGET_INSTALL_DIR}/zbccl/include)
