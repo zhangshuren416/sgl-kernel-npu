@@ -63,9 +63,15 @@ ZBCCL_API int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t 
 ZBCCL_API int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *property)
 {
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "Get property as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(property != nullptr, "Get property as property is null", Z_INVALID_PARAM);
 
+    return Communicator::GetCommProperty(comm, property);
+}
+
+ZBCCL_API zbccl_comm_t zbccl_comm_get_global()
+{
     // TODO
-    return Z_OK;
+    return nullptr;
 }
 
 ZBCCL_API zbccl_comm_t zbccl_comm_get_by_name(const char *name)
@@ -209,7 +215,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, co
 
 ZBCCL_API int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                                        const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                                       const zbccl_tensor_info_t *sendTokensIndex, 
+                                       const zbccl_tensor_info_t *sendTokensIndex,
                                        const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                                        const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                                        int64_t flags)

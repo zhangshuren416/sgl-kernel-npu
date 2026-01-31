@@ -37,6 +37,13 @@ int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t *comm);
 int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *property);
 
 /**
+ * @brief Get global communicator object
+
+ * @return global comm handle if successfully or else nullptr
+ */
+zbccl_comm_t zbccl_comm_get_global();
+
+/**
  * @brief Get communicator object by name
  *
  * @param name                 [in] name of the communicator
@@ -200,7 +207,7 @@ int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_
  */
 int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                              const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                             const zbccl_tensor_info_t *sendTokensIndex, 
+                             const zbccl_tensor_info_t *sendTokensIndex,
                              const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
                              const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                              int64_t flags);

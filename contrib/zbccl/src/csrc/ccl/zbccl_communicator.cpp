@@ -102,6 +102,39 @@ ZResult Communicator::Lookup(const std::string &name, zbccl_comm_t *comm)
     return Z_OK;
 }
 
+ZResult Communicator::GetCommProperty(const zbccl_comm_t comm, zbccl_comm_property_t *property)
+{
+    CommunicatorPtr outComm = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(gMutex);
+
+        auto iter = gCommLookupMap_.find(reinterpret_cast<uintptr_t>(comm));
+        if (iter == gCommLookupMap_.end() || iter->second == nullptr) {
+            ZBCCL_LOG_INFO_AND_SET_LAST_ERROR("Communicator find failed.");
+            return Z_CCL_NOT_EXIST_BY_HANDLE;
+        }
+        outComm = iter->second;
+        ZBCCL_LOG_DEBUG("Found communicator entity success.");
+    }
+
+    const CommGroupInfo &groupInfo = outComm->GetMetaInfo();
+    property->name[0] = '\0'; // TODO
+    property->backendType = ZBCCL_ASCEND_NPU;
+    property->isWorldGroup = 0; // TODO
+    property->groupSize = groupInfo.groupSize;
+    property->groupRankId = groupInfo.myGroupRank;
+    property->symmetricMetaGva = groupInfo.myMetaGva;
+    property->myGVA = nullptr;  // TODO
+    property->myMetaGVA = reinterpret_cast<void *>(groupInfo.myMetaGva);
+    property->myMetaGVAForOpParam = reinterpret_cast<void *>(groupInfo.myParamDataGva);
+    property->myMetaGVAForOpExchange = reinterpret_cast<void *>(groupInfo.myAddressExchangeGva);
+    property->sizeOfMetaArea = groupInfo.sizeForCommGroupInfo;
+    property->sizeOfMetaForOpParam = groupInfo.sizeForParam;
+    property->sizeOfMetaForAddressExchange = groupInfo.sizeForExchangeAddress;
+    property->localDeviceMemSize = groupInfo.localDeviceMemSize;
+    return Z_OK;
+}
+
 uint32_t Communicator::Count()
 {
     std::lock_guard<std::mutex> guard(gMutex);

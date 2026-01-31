@@ -27,10 +27,13 @@ int32_t zbccl_bootstrap_wrapper(zbccl_bootstrap_options_t &opt)
     return zbccl_bootstrap(&opt, &output);
 }
 
-void pybind11_bootstrap(py::module_ &m)
+void pybind11_definitions(py::module_ &m)
 {
     py::enum_<zbccl_bootstrap_type_t>(m, "ZBCCLBootstrapType")
         .value("BOOT_BY_MEMFABRIC", zbccl_bootstrap_type_t::BOOT_BY_MEMFABRIC);
+
+    py::enum_<zbccl_backend_t>(m, "ZBCCLBackendType")
+        .value("ZBCCL_ASCEND_NPU", zbccl_backend_t::ZBCCL_ASCEND_NPU);
 
     py::class_<zbccl_bootstrap_options_t>(m, "ZBCCLBootstrapOption")
         .def(py::init<>())
@@ -54,10 +57,73 @@ void pybind11_bootstrap(py::module_ &m)
             opt.ipPort[ipPort.size()] = '\0';
         });
 
+    py::class_<zbccl_comm_property_t>(m, "ZBCCLCommProperty")
+        .def(py::init<>())
+        .def_readwrite("backendType", &zbccl_comm_property_t::backendType)
+        .def_readwrite("isWorldGroup", &zbccl_comm_property_t::isWorldGroup)
+        .def_readwrite("groupSize", &zbccl_comm_property_t::groupSize)
+        .def_readwrite("groupRankId", &zbccl_comm_property_t::groupRankId)
+        .def_readwrite("symmetricMetaGva", &zbccl_comm_property_t::symmetricMetaGva)
+        .def_property("myGVA", [](const zbccl_comm_property_t &prop) {
+            return reinterpret_cast<uintptr_t>(prop.myGVA);
+        }, [](zbccl_comm_property_t &prop, uintptr_t myGVA) {
+            prop.myGVA = reinterpret_cast<void*>(myGVA);
+        })
+        .def_property("myMetaGVA", [](const zbccl_comm_property_t &prop) {
+            return reinterpret_cast<uintptr_t>(prop.myMetaGVA);
+        }, [](zbccl_comm_property_t &prop, uintptr_t myMetaGVA) {
+            prop.myMetaGVA = reinterpret_cast<void*>(myMetaGVA);
+        })
+        .def_property("myMetaGVAForOpParam", [](const zbccl_comm_property_t &prop) {
+            return reinterpret_cast<uintptr_t>(prop.myMetaGVAForOpParam);
+        }, [](zbccl_comm_property_t &prop, uintptr_t myMetaGVAForOpParam) {
+            prop.myMetaGVAForOpParam = reinterpret_cast<void*>(myMetaGVAForOpParam);
+        })
+        .def_property("myMetaGVAForOpExchange", [](const zbccl_comm_property_t &prop) {
+            return reinterpret_cast<uintptr_t>(prop.myMetaGVAForOpExchange);
+        }, [](zbccl_comm_property_t &prop, uintptr_t myMetaGVAForOpExchange) {
+            prop.myMetaGVAForOpExchange = reinterpret_cast<void*>(myMetaGVAForOpExchange);
+        })
+        .def_readwrite("sizeOfMetaArea", &zbccl_comm_property_t::sizeOfMetaArea)
+        .def_readwrite("sizeOfMetaForOpParam", &zbccl_comm_property_t::sizeOfMetaForOpParam)
+        .def_readwrite("sizeOfMetaForAddressExchange", &zbccl_comm_property_t::sizeOfMetaForAddressExchange)
+        .def_readwrite("localDeviceMemSize", &zbccl_comm_property_t::localDeviceMemSize)
+        .def_property("name", [](const zbccl_comm_property_t &prop) {
+            return std::string(prop.name);
+        }, [](zbccl_comm_property_t &prop, const std::string &name) {
+            if (name.size() >= ZBCCL_COMM_NAME_MAX) {
+                throw std::runtime_error("name is too long");
+            }
+            std::copy(name.begin(), name.end(), prop.name);
+            prop.name[name.size()] = '\0';
+        });
+}
+
+void pybind11_functions(py::module_ &m)
+{
     m.def("zbccl_bootstrap", &zbccl_bootstrap_wrapper);
     m.def("zbccl_unbootstrap", &zbccl_unbootstrap);
     m.def("zbccl_set_logger_level", &zbccl_set_logger_level);
     m.def("zbccl_version", &zbccl_version);
+
+    // communicator
+    m.def("zbccl_comm_get_global", []() -> uintptr_t {
+        return reinterpret_cast<uintptr_t>(zbccl_comm_get_global());
+    });
+    m.def("zbccl_comm_get_by_name", [](const char* name) ->uintptr_t {
+        return reinterpret_cast<uintptr_t>(zbccl_comm_get_by_name(name));
+    });
+    m.def("zbccl_comm_get_property", [](uintptr_t comm) {
+        zbccl_comm_property_t prop;
+        zbccl_comm_get_property(reinterpret_cast<zbccl_comm_t>(comm), &prop);
+        return prop;
+    });
+}
+
+void pybind11_bootstrap(py::module_ &m)
+{
+    pybind11_definitions(m);
+    pybind11_functions(m);
 }
 
 PYBIND11_MODULE(zbccl, m) {

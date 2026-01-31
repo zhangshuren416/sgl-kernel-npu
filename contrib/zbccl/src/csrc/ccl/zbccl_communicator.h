@@ -95,6 +95,15 @@ public:
     static ZResult Lookup(const std::string &name, zbccl_comm_t *comm);
 
     /**
+     * @brief Lookup communicator property
+     *
+     * @param comm         [in] communicator
+     * @param property     [out] property of communicator
+     * @return 0 if successful or else error code
+     */
+    static ZResult GetCommProperty(const zbccl_comm_t comm, zbccl_comm_property_t *property);
+
+    /**
      * @brief Get the count of communicators
      *
      * @return Count of existing communicators

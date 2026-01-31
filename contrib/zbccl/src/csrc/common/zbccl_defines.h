@@ -42,7 +42,8 @@ enum ZResultErrorCode : ZResult {
     Z_DL_FUNCTION_UNLOAD = -17,
     Z_CCL_EXEC_FAILED = -18,
     Z_CCL_NOT_EXIST_BY_NAME = -19,
-    Z_FFTS_INIT_FAILED = -20,
+    Z_CCL_NOT_EXIST_BY_HANDLE = -20,
+    Z_FFTS_INIT_FAILED = -21,
 };
 
 #define USE_GITCODE_SHMEM
