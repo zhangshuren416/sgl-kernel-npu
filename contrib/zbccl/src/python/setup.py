@@ -158,7 +158,7 @@ class CustomBuildExtension(BuildExtension):
         # make
         make_cmd = [
             "make",
-            "-j3"
+            "-j9"
         ]
         result = subprocess.run(make_cmd, cwd=build_dir)
         if result.returncode != 0:

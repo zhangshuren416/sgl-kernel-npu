@@ -24,10 +24,12 @@ def test_init_zbccl_pg():
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl group success on rank {local_rank=} {world_size=}")
     try:
-        for k in range(1, 10):
+        success_cnt = 0
+        total_cnt = 10
+        for k in range(1, total_cnt + 1):
             print(f"[INFO] rank {local_rank}, round {k} start\n")
-            nelems = 6*k
-            torch.manual_seed(int(time.time())+ k*1000)
+            nelems = 6 * k
+            torch.manual_seed(int(time.time())+ k * 1000)
             in_tensor = torch.rand(1, nelems, device='npu', dtype=torch.float32) * 10
             print(f"{in_tensor=}")
             out_tensor = torch.zeros(nelems * world_size, dtype=torch.float32).npu()
@@ -41,6 +43,8 @@ def test_init_zbccl_pg():
                 break
             else:
                 print(f"[SUCCESS] rank {local_rank}, round {k} all gather reuslt correct\n")
+                success_cnt += 1
+        print(f"{success_cnt}/{total_cnt} tests run success")
     finally:
         dist.destroy_process_group(group)
 

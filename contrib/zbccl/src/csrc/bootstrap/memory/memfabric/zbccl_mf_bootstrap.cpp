@@ -98,7 +98,7 @@ ZResult MemFabricBoostrap::CreateSHMSpace() noexcept
     }
 
     int32_t deviceId = -1;
-    result = aclrtGetDevice(&deviceId);
+    result = underapi::DlCannApi::AclrtGetDevice(&deviceId);
     if (result != Z_OK || deviceId < 0) {
         ZBCCL_LOG_AND_SET_LAST_ERROR("Call external api 'aclrtGetDevice' failed, result: " << result);
         return Z_INIT_BOOTSTRAP_FAILED;

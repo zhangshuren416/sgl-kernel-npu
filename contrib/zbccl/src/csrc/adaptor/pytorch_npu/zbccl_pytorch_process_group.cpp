@@ -13,14 +13,6 @@
 #include "zbccl_pytorch_util.h"
 #include "zbccl_operations.h"
 #include "zbccl_common_includes.h"
-// #include "torch_npu/csrc/core/npu/sys_ctrl/npu_sys_ctrl.h"
-// #include "torch_npu/csrc/framework/FormatHelper.h"
-// #include "torch_npu/csrc/core/NPUBridge.h"
-// #include "torch_npu/csrc/core/npu/NPUGuard.h"
-// #include "torch_npu/csrc/core/npu/NPUCachingAllocator.h"
-// #include "torch_npu/csrc/core/npu/DeviceUtils.h"
-// #include "torch_npu/csrc/core/npu/NPUFormat.h"
-// #include "torch_npu/csrc/framework/OpCommand.h"
 
 namespace zbccl {
 namespace adaptor {
@@ -147,8 +139,15 @@ const int64_t ProcessGroupZBCCL::kProcessGroupZBcclOpTimeoutMillis = 10 * 1000;
 ProcessGroupZBCCL::ProcessGroupZBCCL(int rank, int size) : c10d::Backend(rank, size), store_(nullptr) {}
 
 ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store,
-    int rank, int size, std::chrono::milliseconds tm) : c10d::Backend(rank, size), store_(store), opTimeout_(tm)
+    int rank, int size, std::chrono::milliseconds timeout) : c10d::Backend(rank, size), store_(store)
 {
+    auto timeoutMill = timeout * 1000;
+    if (timeoutMill > WORKER_MAX_TIMEOUT) {
+        timeoutMill = WORKER_MAX_TIMEOUT;
+        auto inputTm = static_cast<int>(timeout.count());
+        ZBCCL_LOG_WARN("timeout " << inputTm << " exceed, set to default value");
+    }
+    opTimeout_ = timeoutMill;
 }
 
 int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
@@ -182,7 +181,6 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
         opt.isWorldGroup = 1;
         opt.groupSize = size_;
         opt.groupRankId = rank_;
-        opt.symmetricMetaGva = 0;  // TODO
         opt.name = const_cast<char *>(curCommKey.c_str());
         auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
         if (ret != Z_OK || zbcclComms[i] == nullptr) {
@@ -244,7 +242,7 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
             // insert sync point fluxLimit(key, i)
 
             int32_t ret = fn(inputs[i], outputs[i], zbcclStreams[i], zbcclComms[i]);
-            ZBCCL_CHECK_S(ret == 0, "zbccl exec failed");
+            ZBCCL_CHECK_S(ret == 0, "zbccl process group fn exec failed");
         }
     }
 
@@ -258,6 +256,8 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
     for (size_t i = 0; i < inputs.size(); ++i) {
         c10_npu::NPUStream &zbcclStream = zbcclStreams[i];
         (*(work->zbcclEndEvents_))[i].record(zbcclStream);
+        ZBCCL_LOG_DEBUG("Event: record zbccl work is successfully executed, event=" <<
+            (*(work->zbcclEndEvents_))[i].event());
         work->zbcclComms_[i] = zbcclComms[i];
     }
     work->blockingWait_ = blockingWait_;
@@ -288,12 +288,12 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
     ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(inputTensors) == 0, "check input tensor failed.");
     ZBCCL_CHECK_S(CheckNpuTensorsDifferentDevices(outputTensors) == 0, "check output tenso failed.");
 
-    // // auto inputTensors_ = CastOriginFormat(inputTensors);
+    // // auto inputTensors_ = CastOriginFormat(inputTensors);  // TODO
 
     return collective(
         inputTensors, outputTensors,
         [&](at::Tensor &input, at::Tensor &output, c10_npu::NPUStream &stream, zbccl_comm_t comm) {
-            RECORD_FUNCTION("ZBcclAllgatherBase", std::vector<c10::IValue>({}));
+            RECORD_FUNCTION("ZBCCLAllGatherBase", std::vector<c10::IValue>({input}));
             c10_npu::NPUCachingAllocator::recordStream(output.storage().data_ptr(), stream);    // TODO
 
             void *inputDataPtr = input.data_ptr();

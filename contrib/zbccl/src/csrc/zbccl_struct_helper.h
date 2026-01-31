@@ -58,7 +58,7 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_comm_option
     os << "zbccl_comm_options_t [name: " << (options.name != nullptr ? options.name : "")
        << "backendType: " << options.backendType << ", flags: " << options.flags
        << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
-       << ", groupRankId: " << options.groupRankId << ", symmetricMetaGva: " << options.symmetricMetaGva << "]";
+       << ", groupRankId: " << options.groupRankId << "]";
 
     return os;
 }
@@ -67,7 +67,7 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_comm_proper
 {
     os << "zbccl_comm_property_t [backendType: " << property.backendType << ", flags: " << property.flags
        << ", isWorldGroup: " << property.isWorldGroup << ", groupSize: " << property.groupSize
-       << ", groupRankId: " << property.groupRankId << ", symmetricMetaGva: " << property.symmetricMetaGva
+       << ", groupRankId: " << property.groupRankId
        << ", myGVA: " << property.myGVA << ", myMetaGVA: " << property.myMetaGVA
        << ", sizeOfMetaArea: " << property.sizeOfMetaArea
        << ", sizeOfMetaForAddressExchange: " << property.sizeOfMetaForAddressExchange

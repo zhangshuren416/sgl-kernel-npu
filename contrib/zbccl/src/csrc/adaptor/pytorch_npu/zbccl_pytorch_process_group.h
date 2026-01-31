@@ -46,6 +46,7 @@ namespace adaptor {
 namespace pytorch_npu {
 
 const std::string ZBCCL_BACKEND_NAME = "zbccl";
+constexpr std::chrono::milliseconds WORKER_MAX_TIMEOUT{600000};
 
 class ProcessGroupZBCCL : public c10d::Backend
 {

@@ -68,7 +68,9 @@ void SyncStreams(const std::vector<at::Device> &devices,
         c10_npu::NPUStream &zbcclSteam = streams[i];
         c10_npu::NPUEvent &event = events[i];
         event.record(c10_npu::getCurrentNPUStream(devices[i].index()));
+        ZBCCL_LOG_DEBUG("Event: record zbccl group is successfully executed, event=" << event.event());
         event.block(zbcclSteam);
+        ZBCCL_LOG_DEBUG("Event: block zbccl group is successfully executed, event=" << event.event());
     }
 }
 
