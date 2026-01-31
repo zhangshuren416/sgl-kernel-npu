@@ -78,8 +78,11 @@ void zbccl_pluggable_empty_cache(bool check_error);
 
 
 // TODO add adaptor for stream API since we dont want to include c10_npu in top level
-// void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream);
-// void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream);
+//void zbccl_pluggable_record_stream(void *ptr, c10_npu::NPUStream stream);
+//void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream);
+//void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter);
+//void zbccl_pluggable_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id);
+//void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mempool_id);
 
 #ifdef __cplusplus
 }

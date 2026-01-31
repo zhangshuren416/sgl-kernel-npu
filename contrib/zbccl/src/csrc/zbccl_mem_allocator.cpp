@@ -107,6 +107,30 @@ ZBCCL_API void *zbccl_get_shmem_base_addr()
 }
 
 
+void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+#ifdef USE_C10NPU_DMA
+    dma_begin_allocate_to_pool(device, mempool_id, filter);
+#else
+    sma_begin_allocate_to_pool(device, mempool_id, filter);
+#endif
+}
+
+void zbccl_pluggable_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
+#ifdef USE_C10NPU_DMA
+    dma_end_allocate_to_pool(device, mempool_id);
+#else
+    sma_end_allocate_to_pool(device, mempool_id);
+#endif
+}
+
+void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
+#ifdef USE_C10NPU_DMA
+    dma_release_pool(device, mempool_id);
+#else
+    dma_release_pool(device, mempool_id);
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif

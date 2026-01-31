@@ -230,7 +230,12 @@ int32_t MemoryHeap::release(void *address) noexcept {
     }
     address_idle_tree_.emplace(final_offset, final_size);
     size_idle_tree_.emplace(MemoryRange{final_offset, final_size});
-    used_size_ -= final_size;
+    if(size > used_size_) {
+        ZBCCL_LOG_ERROR("mismatch with used_size calc, should check mm heap logic");
+        used_size_ = 0;
+    } else {
+        used_size_ -= size;
+    }
     pthread_spin_unlock(&spinlock_);
 
     return Z_OK;

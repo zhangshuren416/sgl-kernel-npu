@@ -119,4 +119,4 @@ def zbccl_get_shmem_base_addr():
 
 def mem_get_info():
     # this api is used to fulfill torch.npu.mem_get_info functions when sma take control of memory
-    return get_heap_stats()
+    return get_heap_stats()[1] - get_heap_stats()[0], get_heap_stats()[1]
