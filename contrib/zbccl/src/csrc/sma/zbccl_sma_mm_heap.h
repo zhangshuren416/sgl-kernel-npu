@@ -23,6 +23,7 @@
 
 #include "zbccl_common_includes.h"
 #include "zbccl_sma_common.h"
+#include "zbccl_sma_config.h"
 
 namespace zbccl {
 namespace sma {
@@ -131,8 +132,8 @@ public:
     bool allocatedSize(void *address, uint64_t &size) const noexcept override;
 
 private:
-    constexpr static uint64_t SMALL_SIZE{kSmallHeapSize};       // small heap total size 512M
-    constexpr static uint64_t SMALL_ALLOC{kSmallSize};          // small heap cover under 1M alloc
+    const uint64_t SMALL_SIZE{SMAConfig::small_heap_size()};       // small heap total size kSmallHeapSize
+    const uint64_t SMALL_ALLOC{SMAConfig::small_heap_threshold()};     // small heap cover under kSmallThreshold alloc
     constexpr static bool ENABLE_CROSS{true};                   // whether enable small alloc overflow to large heap
 
     const uint64_t size_small_;
@@ -142,7 +143,82 @@ private:
 
 };
 
+// =========================================================
+// SplitMemoryHeap Class Declaration
+// Features: O(log N) Search, Bi-directional Allocation, POSIX Spinlock
+// =========================================================
+class SplitMemoryHeap : public CustomMemoryHeap {
+public:
+    SplitMemoryHeap(void *base, uint64_t size, uint64_t threshold = SMAConfig::small_heap_threshold());
+    ~SplitMemoryHeap() override;
+
+    // Core Interface Implementation
+    void *alignedAllocate(uint64_t alignment, uint64_t size) noexcept override;
+    int32_t release(void *address) noexcept override;
+    bool allocatedSize(void *address, uint64_t &size) const noexcept override;
+    size_t getTotalSize() noexcept override;
+    size_t getInUsedSize() noexcept override;
+
+private:
+    // Configuration
+    uint64_t split_threshold_;
+    size_t used_bytes_{0};
+
+    // Locking: POSIX Spinlock
+    mutable pthread_spinlock_t spinlock_{};
+
+    // --- RAII Helper for Spinlock ---
+    // Defined inline for performance (compiler optimization)
+    struct SpinGuard {
+        pthread_spinlock_t& lock_ref;
+
+        explicit SpinGuard(pthread_spinlock_t& lock) : lock_ref(lock) {
+            pthread_spin_lock(&lock_ref);
+        }
+
+        ~SpinGuard() {
+            pthread_spin_unlock(&lock_ref);
+        }
+
+        // Disable copy/move to prevent accidental unlocking
+        SpinGuard(const SpinGuard&) = delete;
+        SpinGuard& operator=(const SpinGuard&) = delete;
+    };
+
+    // --- Data Structures ---
+
+    // 1. Global Address View: Key=Address, Value=Size
+    // Used for O(log N) Coalescing (Merging)
+    std::map<uintptr_t, size_t> global_free_map_;
+
+    // 2. Segregated Size View: buckets[k] contains addresses of blocks with size in [2^k, 2^(k+1))
+    // The internal std::set is sorted by Address.
+    std::vector<std::set<uintptr_t>> size_buckets_;
+
+    // 3. Metadata for allocated blocks
+    std::unordered_map<void*, uint64_t> allocated_records_;
+
+    // --- Internal Helper Methods ---
+
+    static int get_bucket_index(uint64_t size);
+
+    void addToFreeStructures(uintptr_t addr, uint64_t size);
+    void removeFromFreeStructures(uintptr_t addr, uint64_t size);
+
+    void* allocateLowToHigh(int start_idx, uint64_t alignment, uint64_t req_size);
+    void* allocateHighToLow(int start_idx, uint64_t alignment, uint64_t req_size);
+
+    void coalesceAndInsert(uintptr_t addr, uint64_t size);
+};
+
 }  // namespace heap
+
+// Helper: Bit manipulation for bucket indexing
+inline int get_bucket_index(uint64_t size) {
+    if (size == 0) return 0;
+    // Uses GCC/Clang built-in for O(1) calculation.
+    return 64 - __builtin_clzll(size) - 1;
+}
 
 // Heap API remains for dma
 ZBCCL_API int HeapAlignedAllocate(void **devPtr, size_t size,

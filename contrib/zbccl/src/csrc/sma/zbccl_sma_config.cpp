@@ -31,13 +31,19 @@ void SMAConfig::parseEnv(const char *env)
     lexArgs(env, config);
 
     for (size_t i = 0; i < config.size(); i++) {
-        if (config[i].compare(kMaxSplitSizeMB) == 0) {
+        if (config[i].compare(MaxSplitSizeMB) == 0) {
             i = parseMaxSplitSize(config, i);
-        } else if (config[i].compare(kGarbageCollectionThreshold) == 0) {
+        } else if (config[i].compare(GarbageCollectionThreshold) == 0) {
             i = parseGarbageCollectionThreshold(config, i);
-        //} else if (config[i] == kBaseAddrAlignedKB) {
+        //} else if (config[i] == BaseAddrAlignedKB) {
         //    i = parseAddrAlignSize(config, i);
-        } else if (config[i] == kSegmentSizeMB) {
+        } else if (config[i] == UseSMAAllocator) {
+            i = parseUseSMAAllocator(config, i);
+        } else if (config[i] == SmallHeapSize) {
+            i = parseSmallHeapSize(config, i);
+        } else if (config[i] == SmallHeapThreshold) {
+            i = parseSmallHeapThresHold(config, i);
+        } else if (config[i] == SegmentSizeMB) {
             i = parseSegmentSizeMb(config, i);
         } else {
             ZBCCL_CHECK_S(false, "Unrecognized SMAConfig option: ", config[i]);
@@ -132,6 +138,40 @@ size_t SMAConfig::parseSegmentSizeMb(const std::vector<std::string> &config, siz
         segment_size_mb_ = val * kMB;
     } else {
         ZBCCL_CHECK_S(false, "Error, expecting segment_size_mb value");
+    }
+    return i;
+}
+
+size_t SMAConfig::parseUseSMAAllocator(const std::vector<std::string> &config, size_t i) {
+    consumeToken(config, ++i, ':');
+    if (++i < config.size()) {
+        ZBCCL_CHECK_S(i < config.size() && (config[i] == "True" || config[i] == "False"),
+                    "Expected a single True/False argument for use_sma_allocator");
+        use_sma_allocator_ = (config[i] == "True");
+    } else {
+        ZBCCL_CHECK_S(false, "Error, expecting use_sma_allocator value");
+    }
+    return i;
+}
+
+size_t SMAConfig::parseSmallHeapSize(const std::vector<std::string> &config, size_t i) {
+    consumeToken(config, ++i, ':');
+    if (++i < config.size()) {
+        size_t val = static_cast<size_t>(stoi(config[i]));
+        small_heap_size_ = val;
+    } else {
+        ZBCCL_CHECK_S(false, "Error, expecting small_heap_size value");
+    }
+    return i;
+}
+
+size_t SMAConfig::parseSmallHeapThresHold(const std::vector<std::string> &config, size_t i) {
+    consumeToken(config, ++i, ':');
+    if (++i < config.size()) {
+        size_t val = static_cast<size_t>(stoi(config[i]));
+        small_heap_threshold_ = val;
+    } else {
+        ZBCCL_CHECK_S(false, "Error, expecting small_heap_threshold value");
     }
     return i;
 }

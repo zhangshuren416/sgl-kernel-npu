@@ -18,6 +18,7 @@
 #include "zbccl_sma_mm_heap.h"
 
 using ZEvent = std::unique_ptr<c10_npu::NPUEvent, std::function<void(c10_npu::NPUEvent *)>>;
+using CustomHeapPool = zbccl::sma::heap::SplitMemoryHeap;
 
 namespace zbccl {
 namespace sma {
@@ -65,7 +66,7 @@ private:
     ska::flat_hash_set<DeviceBlock *> active_blocks_;
 
     // mem heap for shmem
-    std::shared_ptr<heap::DualMemoryHeap> mem_heap_pool_{nullptr};
+    std::shared_ptr<CustomHeapPool> mem_heap_pool_{nullptr};
 
     // TODO: merge into DeviceStats later(addrs allocated by shmem)
     ska::flat_hash_set<void *> shmem_addrs_;
@@ -193,7 +194,7 @@ public:
 
     // heap funcs
     inline void setMemHeapPool(void *base, uint64_t size) {
-        mem_heap_pool_ = std::make_shared<zbccl::sma::heap::DualMemoryHeap>(base, size);
+        mem_heap_pool_ = std::make_shared<CustomHeapPool>(base, size);
     };
     inline bool isHeapInited() {
         if (mem_heap_pool_ != nullptr)

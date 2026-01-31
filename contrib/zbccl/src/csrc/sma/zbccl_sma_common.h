@@ -35,14 +35,6 @@ enum DeviceBlockType {
     BT_BIG,
 };
 
-static const char* kPytorchNPUAllocConf = "PYTORCH_NPU_ALLOC_CONF";
-static const char* kMaxSplitSizeMB = "max_split_size_mb";
-static const char* kGarbageCollectionThreshold = "garbage_collection_threshold";
-// static const char* kExpandableSegments = "expandable_segments";
-// static const char* kBaseAddrAlignedKB = "base_addr_aligned_kb";
-static const char* kPageSize = "page_size";
-static const char* kSegmentSizeMB = "segment_size_mb";
-
 constexpr size_t kMinBlockSize = 512;                 // all sizes are rounded to at least 512 bytes(for L1)
 constexpr size_t kSmallSize = 1048576;                // largest "small" allocation is 1 MiB
 constexpr size_t kSmallBuffer = 2097152;              // "small" allocations are packed in 2 MiB blocks
@@ -53,7 +45,8 @@ constexpr size_t kMiddleAlloc = 10485760;             // allocations between 1 a
 constexpr size_t kRoundLarge = 2097152;               // round up large allocs to 2 MiB
 // constexpr size_t kAlignRoundLarge = 16384;            // align large allocs head addr to 16 KB
 constexpr size_t kMB = 1024 * 1024;                   // 1 MB
-constexpr size_t kSmallHeapSize = 512 * kMB;          // 512MB for small heap in dualHeap allocator
+constexpr size_t kSmallHeapSize = 512 * kMB;          // 512MB for small heap size in dualHeap allocator
+constexpr size_t kSmallThreshold = 1 * kMB;           // 1MB to tell which is small in dualHeap/splitHeap allocator
 
 }  // namespace sma
 }  // namespace zbccl

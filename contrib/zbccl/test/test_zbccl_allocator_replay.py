@@ -14,9 +14,9 @@ def init():
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
 
-    zbccl.zbccl_set_logger_level(0)
-    mem_128M = 128 * 1024 * 1024
-    if not zbccl.zbccl_init(world_size, local_rank, mem_128M):
+    zbccl.zbccl_set_logger_level(2)
+    mem = 1024 * 1024 * 1024
+    if not zbccl.zbccl_init(world_size, local_rank, mem):
         print(f"zbccl_init failed on rank {local_rank}.")
         exit(-1)
     else:

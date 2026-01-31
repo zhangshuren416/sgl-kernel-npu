@@ -146,7 +146,6 @@ size_t DeviceSMACachingAllocator::try_merge_blocks(DeviceBlock *dst, DeviceBlock
     const size_t subsumed_size = src->size_;
     dst->size_ += subsumed_size;
 
-    ZBCCL_ASSERT_S(!pool.is_private_, "assert pool !is_private error:", Z_INVALID_VALUE);
     pool.eraseBlock(src->block_type_, src);
 
     delete src;
