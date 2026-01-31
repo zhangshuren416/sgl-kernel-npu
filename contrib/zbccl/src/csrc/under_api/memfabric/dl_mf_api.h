@@ -30,8 +30,8 @@ using mfSmemShmConfigInitFunc = int32_t (*)(smem_shm_config_t *);
 using mfSmemShmInitFunc = int32_t (*)(const char *, uint32_t, uint32_t, uint16_t, smem_shm_config_t *);
 using mfSmemShmUnInitFunc = void (*)(uint32_t);
 using mfSmemShmQuerySupportDataOperationFunc = uint32_t (*)(void);
-using mfSmemCreateFunc = smem_shm_t (*)(uint32_t, uint32_t, uint32_t, uint64_t, smem_shm_data_op_type, uint32_t,
-                                        void **);
+using mfSmemShmCreateFunc = smem_shm_t (*)(uint32_t, uint32_t, uint32_t, uint64_t, smem_shm_data_op_type, uint32_t,
+                                           void **);
 using mfSmemShmDestroyFunc = int32_t (*)(smem_shm_t, uint32_t);
 using mfSmemShmSetExtraContextFunc = int32_t (*)(smem_shm_t, const void *, uint32_t);
 using mfSmemShmGetGlobalRankFunc = uint32_t (*)(smem_shm_t);
@@ -41,6 +41,10 @@ using mfSmemShmControlAllGatherFunc = int32_t (*)(smem_shm_t, const char *, uint
 using mfSmemShmTopologyCanReachFunc = int32_t (*)(smem_shm_t, uint32_t, uint32_t *);
 using mfSmemShmRegisterExitFunc = int32_t (*)(smem_shm_t, void (*exit)(int));
 using mfSmemShmGlobalExitFunc = void (*)(smem_shm_t, int);
+
+using mfSmemShmSubgroupBarrierFunc = int32_t (*)(smem_shm_t, const char *, uint32_t, uint32_t);
+using mfSmemShmSubgroupAllGatherFunc = int32_t (*)(smem_shm_t, const char *, uint32_t, uint32_t, const char *, uint32_t,
+                                                   char *, uint32_t);
 
 class DlMfApi
 {
@@ -196,6 +200,43 @@ public:
      */
     static void SmemShmGlobalExit(smem_shm_t handle, int status);
 
+    /**
+     * @brief Do barrier operation with sub partition of world, there is no need to setup sub group firstly,
+     * just need to make sure the key is following the rule:
+     * a) key is a string
+     * b) key should be the same for all participators (i.e. same in the sub group)
+     * c) key should be different with other sub group, otherwise it will be messed up
+     *
+     * @param handle           [in] shm object
+     * @param key              [in] key name for this barrier, which should be same in sub group but unique in the world
+     * @param rankSize         [in] rank size of the sub group
+     * @param rankId           [in] rank id in the sub group
+     * @return 0 if successful
+     */
+    static ZResult SmemShmSubGroupBarrier(smem_shm_t handle, const std::string &key, uint32_t rankSize,
+                                          uint32_t rankId);
+
+    /**
+     * @brief Do allGather operation with sub partition of world, there is no need to setup sub group firstly,
+     * just need to make sure the key is following the rule:
+     * a) key is a string
+     * b) key should be the same for all participators (i.e. same in the sub group)
+     * c) key should be different with other sub group, otherwise it will be messed up
+     *
+     * @param handle           [in] shm object
+     * @param key              [in] key name for this barrier, which should be same in sub group but unique in the world
+     * @param rankSize         [in] rank size of the sub group
+     * @param rankId           [in] rank id in the sub group
+     * @param sendBuf          [in] input data buf
+     * @param sendSize         [in] input data buf size
+     * @param recvBuf          [in] output data buf
+     * @param recvSize         [in] output data buf size
+     * @return
+     */
+    static ZResult SmemShmSubGroupAllGather(smem_shm_t handle, const std::string &key, uint32_t rankSize,
+                                            uint32_t rankId, const char *sendBuf, uint32_t sendSize, char *recvBuf,
+                                            uint32_t recvSize);
+
 private:
     static std::mutex gMutex;
     static bool gLoaded;
@@ -214,9 +255,9 @@ private:
     static mfSmemShmInitFunc gMfSmemShmInit;
     static mfSmemShmUnInitFunc gMfSmemShmUnInit;
     static mfSmemShmQuerySupportDataOperationFunc gMfSmemShmQuerySupportDataOperation;
-    static mfSmemCreateFunc gMfSmemCreate;
+    static mfSmemShmCreateFunc gMfSmemShmCreate;
     static mfSmemShmDestroyFunc gMfSmemShmDestroy;
-    static mfSmemShmSetExtraContextFunc gMmfSmemShmSetExtraContext;
+    static mfSmemShmSetExtraContextFunc gMfSmemShmSetExtraContext;
     static mfSmemShmGetGlobalRankFunc gMfSmemShmGetGlobalRank;
     static mfSmemShmGetGlobalRankSizeFunc gMfSmemShmGetGlobalRankSize;
     static mfSmemShmControlBarrierFunc gMfSmemShmControlBarrier;
@@ -224,6 +265,9 @@ private:
     static mfSmemShmTopologyCanReachFunc gMfSmemShmTopologyCanReach;
     static mfSmemShmRegisterExitFunc gMfSmemShmRegisterExit;
     static mfSmemShmGlobalExitFunc gMfSmemShmGlobalExit;
+
+    static mfSmemShmSubgroupBarrierFunc gMfSmemShmSubgroupBarrier;
+    static mfSmemShmSubgroupAllGatherFunc gMfSmemShmSubgroupAllGather;
 };
 
 inline ZResult DlMfApi::SmemInit(uint32_t flags)
@@ -280,7 +324,7 @@ inline uint32_t DlMfApi::SmemShmQuerySupportDataOperation(void)
 inline smem_shm_t DlMfApi::SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
                                          smem_shm_data_op_type dataOpType, uint32_t flags, void **gva)
 {
-    return gMfSmemCreate(id, rankSize, rankId, symmetricSize, dataOpType, flags, gva);
+    return gMfSmemShmCreate(id, rankSize, rankId, symmetricSize, dataOpType, flags, gva);
 }
 
 inline ZResult DlMfApi::SmemShmDestroy(smem_shm_t handle, uint32_t flags)
@@ -290,7 +334,7 @@ inline ZResult DlMfApi::SmemShmDestroy(smem_shm_t handle, uint32_t flags)
 
 inline ZResult DlMfApi::SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size)
 {
-    return gMmfSmemShmSetExtraContext(handle, context, size);
+    return gMfSmemShmSetExtraContext(handle, context, size);
 }
 
 inline uint32_t DlMfApi::SmemShmGetGlobalRank(smem_shm_t handle)
@@ -327,6 +371,19 @@ inline ZResult DlMfApi::SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int)
 inline void DlMfApi::SmemShmGlobalExit(smem_shm_t handle, int status)
 {
     gMfSmemShmGlobalExit(handle, status);
+}
+
+inline ZResult DlMfApi::SmemShmSubGroupBarrier(smem_shm_t handle, const std::string &key, uint32_t rankSize,
+                                               uint32_t rankId)
+{
+    return gMfSmemShmSubgroupBarrier(handle, key.c_str(), rankSize, rankId);
+}
+
+inline ZResult DlMfApi::SmemShmSubGroupAllGather(smem_shm_t handle, const std::string &key, uint32_t rankSize,
+                                                 uint32_t rankId, const char *sendBuf, uint32_t sendSize, char *recvBuf,
+                                                 uint32_t recvSize)
+{
+    return gMfSmemShmSubgroupAllGather(handle, key.c_str(), rankSize, rankId, sendBuf, sendSize, recvBuf, recvSize);
 }
 }  // namespace underapi
 }  // namespace zbccl

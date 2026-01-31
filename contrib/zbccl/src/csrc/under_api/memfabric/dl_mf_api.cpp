@@ -32,9 +32,9 @@ mfSmemShmConfigInitFunc DlMfApi::gMfSmemShmConfigInit = nullptr;
 mfSmemShmInitFunc DlMfApi::gMfSmemShmInit = nullptr;
 mfSmemShmUnInitFunc DlMfApi::gMfSmemShmUnInit = nullptr;
 mfSmemShmQuerySupportDataOperationFunc DlMfApi::gMfSmemShmQuerySupportDataOperation = nullptr;
-mfSmemCreateFunc DlMfApi::gMfSmemCreate = nullptr;
+mfSmemShmCreateFunc DlMfApi::gMfSmemShmCreate = nullptr;
 mfSmemShmDestroyFunc DlMfApi::gMfSmemShmDestroy = nullptr;
-mfSmemShmSetExtraContextFunc DlMfApi::gMmfSmemShmSetExtraContext = nullptr;
+mfSmemShmSetExtraContextFunc DlMfApi::gMfSmemShmSetExtraContext = nullptr;
 mfSmemShmGetGlobalRankFunc DlMfApi::gMfSmemShmGetGlobalRank = nullptr;
 mfSmemShmGetGlobalRankSizeFunc DlMfApi::gMfSmemShmGetGlobalRankSize = nullptr;
 mfSmemShmControlBarrierFunc DlMfApi::gMfSmemShmControlBarrier = nullptr;
@@ -42,6 +42,9 @@ mfSmemShmControlAllGatherFunc DlMfApi::gMfSmemShmControlAllGather = nullptr;
 mfSmemShmTopologyCanReachFunc DlMfApi::gMfSmemShmTopologyCanReach = nullptr;
 mfSmemShmRegisterExitFunc DlMfApi::gMfSmemShmRegisterExit = nullptr;
 mfSmemShmGlobalExitFunc DlMfApi::gMfSmemShmGlobalExit = nullptr;
+
+mfSmemShmSubgroupBarrierFunc DlMfApi::gMfSmemShmSubgroupBarrier = nullptr;
+mfSmemShmSubgroupAllGatherFunc DlMfApi::gMfSmemShmSubgroupAllGather = nullptr;
 
 ZResult DlMfApi::LoadLibrary(const std::string &libDirPath)
 {
@@ -78,9 +81,9 @@ ZResult DlMfApi::LoadLibrary(const std::string &libDirPath)
     DL_LOAD_SYM(gMfSmemShmUnInit, mfSmemShmUnInitFunc, gMfSmemHandle, "smem_shm_uninit");
     DL_LOAD_SYM(gMfSmemShmQuerySupportDataOperation, mfSmemShmQuerySupportDataOperationFunc, gMfSmemHandle,
                 "smem_shm_query_support_data_operation");
-    DL_LOAD_SYM(gMfSmemCreate, mfSmemCreateFunc, gMfSmemHandle, "smem_shm_create");
+    DL_LOAD_SYM(gMfSmemShmCreate, mfSmemShmCreateFunc, gMfSmemHandle, "smem_shm_create");
     DL_LOAD_SYM(gMfSmemShmDestroy, mfSmemShmDestroyFunc, gMfSmemHandle, "smem_shm_destroy");
-    DL_LOAD_SYM(gMmfSmemShmSetExtraContext, mfSmemShmSetExtraContextFunc, gMfSmemHandle, "smem_shm_set_extra_context");
+    DL_LOAD_SYM(gMfSmemShmSetExtraContext, mfSmemShmSetExtraContextFunc, gMfSmemHandle, "smem_shm_set_extra_context");
     DL_LOAD_SYM(gMfSmemShmGetGlobalRank, mfSmemShmGetGlobalRankFunc, gMfSmemHandle, "smem_shm_get_global_rank");
     DL_LOAD_SYM(gMfSmemShmGetGlobalRankSize, mfSmemShmGetGlobalRankSizeFunc, gMfSmemHandle,
                 "smem_shm_get_global_rank_size");
@@ -90,6 +93,10 @@ ZResult DlMfApi::LoadLibrary(const std::string &libDirPath)
                 "smem_shm_topology_can_reach");
     DL_LOAD_SYM(gMfSmemShmRegisterExit, mfSmemShmRegisterExitFunc, gMfSmemHandle, "smem_shm_register_exit");
     DL_LOAD_SYM(gMfSmemShmGlobalExit, mfSmemShmGlobalExitFunc, gMfSmemHandle, "smem_shm_global_exit");
+
+    DL_LOAD_SYM(gMfSmemShmSubgroupBarrier, mfSmemShmSubgroupBarrierFunc, gMfSmemHandle, "smem_shm_subgroup_barrier");
+    DL_LOAD_SYM(gMfSmemShmSubgroupAllGather, mfSmemShmSubgroupAllGatherFunc, gMfSmemHandle,
+                "smem_shm_subgroup_allgather");
 
     gLoaded = true;
     return Z_OK;
@@ -114,9 +121,9 @@ void DlMfApi::CleanupLibrary()
     gMfSmemShmInit = nullptr;
     gMfSmemShmUnInit = nullptr;
     gMfSmemShmQuerySupportDataOperation = nullptr;
-    gMfSmemCreate = nullptr;
+    gMfSmemShmCreate = nullptr;
     gMfSmemShmDestroy = nullptr;
-    gMmfSmemShmSetExtraContext = nullptr;
+    gMfSmemShmSetExtraContext = nullptr;
     gMfSmemShmGetGlobalRank = nullptr;
     gMfSmemShmGetGlobalRankSize = nullptr;
     gMfSmemShmControlBarrier = nullptr;
@@ -124,6 +131,9 @@ void DlMfApi::CleanupLibrary()
     gMfSmemShmTopologyCanReach = nullptr;
     gMfSmemShmRegisterExit = nullptr;
     gMfSmemShmGlobalExit = nullptr;
+
+    gMfSmemShmSubgroupBarrier = nullptr;
+    gMfSmemShmSubgroupAllGather = nullptr;
 
     if (gMfSmemHandle != nullptr) {
         dlclose(gMfSmemHandle);

@@ -56,7 +56,7 @@ static inline std::ostream &operator<<(std::ostream &os, const zbccl_allocator_o
 static inline std::ostream &operator<<(std::ostream &os, const zbccl_comm_options_t &options)
 {
     os << "zbccl_comm_options_t [name: " << (options.name != nullptr ? options.name : "")
-       << "backendType: " << options.backendType << ", flags: " << options.flags
+       << ", backendType: " << options.backendType << ", flags: " << options.flags
        << ", isWorldGroup: " << options.isWorldGroup << ", groupSize: " << options.groupSize
        << ", groupRankId: " << options.groupRankId << "]";
 
