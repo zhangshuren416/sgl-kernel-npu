@@ -81,7 +81,7 @@ TEST_F(TestZBCCLCommGroupMeta, GetGroupIndex)
     EXPECT_TRUE(index == 0);
     EXPECT_TRUE(address == baseAddress);
     EXPECT_TRUE(addressParam == (baseAddress + sizeof(CommGroupInfo)));
-    EXPECT_TRUE(addressExchange == (baseAddress + GroupMetaArranger::OPERATE_PARAM_SIZE));
+    EXPECT_TRUE(addressExchange == (baseAddress + OPERATE_PARAM_SIZE));
 
     arranger.Move2NextGroup();
 
@@ -92,7 +92,7 @@ TEST_F(TestZBCCLCommGroupMeta, GetGroupIndex)
     auto metaSpaceSizeInBytes = stateExt.cclMetaSpaceSize * 1024;
     EXPECT_TRUE(address == (baseAddress + metaSpaceSizeInBytes));
     EXPECT_TRUE(addressParam == (baseAddress + metaSpaceSizeInBytes + sizeof(CommGroupInfo)));
-    EXPECT_TRUE(addressExchange == (baseAddress + metaSpaceSizeInBytes + GroupMetaArranger::OPERATE_PARAM_SIZE));
+    EXPECT_TRUE(addressExchange == (baseAddress + metaSpaceSizeInBytes + OPERATE_PARAM_SIZE));
 
     arranger.Move2NextGroup();
 
@@ -115,8 +115,8 @@ TEST_F(TestZBCCLCommGroupMeta, GetSpaceSize)
     EXPECT_TRUE(result == Z_OK);
 
     EXPECT_TRUE(arranger.GetAddressExchangeSpaceSize() ==
-                (stateExt.cclMetaSpaceSize * 1024 - GroupMetaArranger::OPERATE_PARAM_SIZE));
+                (stateExt.cclMetaSpaceSize * 1024 - OPERATE_PARAM_SIZE));
     EXPECT_TRUE(arranger.GetSingleMetaSpaceSize() == stateExt.cclMetaSpaceSize * 1024);
-    EXPECT_TRUE(arranger.GetParamSpaceSize() == (GroupMetaArranger::OPERATE_PARAM_SIZE - sizeof(CommGroupInfo)));
+    EXPECT_TRUE(arranger.GetParamSpaceSize() == (OPERATE_PARAM_SIZE - sizeof(CommGroupInfo)));
     EXPECT_TRUE(arranger.GetCommGroupInfoSpaceSize() == sizeof(CommGroupInfo));
 }
