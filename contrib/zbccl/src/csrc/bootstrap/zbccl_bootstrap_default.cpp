@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_bootstrap_default.h"
-#include "zbccl_struct_helper.h"
 
 namespace zbccl {
 namespace bootstrap {
@@ -46,6 +45,17 @@ void Bootstrap::Destroy()
     gBootstrap = nullptr;
 }
 
+BootstrapPtr Bootstrap::Get()
+{
+    std::lock_guard<std::mutex> guard(gMutex);
+    if (gBootstrap != nullptr) {
+        return gBootstrap;
+    }
+
+    ZBCCL_LOG_WARN("Get bootstrap failed as it is not created");
+    return nullptr;
+}
+
 ZResult Bootstrap::VerifyOptions() noexcept
 {
     ZBCCL_VALIDATE_RETURN(0 <= options_.btType && options_.btType < BOOT_BY_BUTT,
@@ -60,7 +70,7 @@ ZResult Bootstrap::VerifyOptions() noexcept
     ZBCCL_VALIDATE_RETURN(options_.deviceMemorySize < MEMORY_SIZE_CAP, "invalid options, memory size is too large",
                           Z_INVALID_PARAM);
 
-    if (options_.cclGroupCap * options_.cclMetaSpaceSize * 1024 >= options_.deviceMemorySize) {
+    if (static_cast<uint64_t>(options_.cclGroupCap) * options_.cclMetaSpaceSize * 1024 >= options_.deviceMemorySize) {
         ZBCCL_LOG_ERROR("total meta space size is GE total device memory size.");
         return Z_INVALID_PARAM;
     }
@@ -83,14 +93,14 @@ ZResult Bootstrap::Initialize() noexcept
     /* verify basic options */
     auto result = VerifyOptions();
     if (result != Z_OK) {
-        ZBCCL_LOG_ERROR("init bootstrap options invalid, ret=" << result);
+        ZBCCL_LOG_ERROR("Initialize bootstrap options invalid, ret=" << result);
         return result;
     }
 
-    /* create memory bootstrap */
+    /* create memory bootstrap, before create comm bootstrap */
     result = CreateMemBootstrap();
     if (result != Z_OK) {
-        ZBCCL_LOG_ERROR("create mem bootstrap failed. ret=" << result);
+        ZBCCL_LOG_ERROR("Create mem bootstrap failed. ret=" << result);
         return result;
     }
 
@@ -107,7 +117,7 @@ void Bootstrap::UnInitialize() noexcept
         return;
     }
 
-    /* destroy memory boostrap */
+    /* destroy memory bootstrap */
     DestroyMemoryBootstrap();
 
     /* set flag */
@@ -181,6 +191,26 @@ void Bootstrap::DestroyMemoryBootstrap() noexcept
 
     /* do un-initialize */
     tmpBootstrap->UnInitialize();
+}
+
+ZResult Bootstrap::AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept
+{
+    if (memBootstrap_ == nullptr) {
+        ZBCCL_LOG_DEBUG("Not bootstrapped");
+        return Z_NOT_BOOTSTRAPPED;
+    }
+
+    return memBootstrap_->AcquireCommGroupId(max, uniqueId);
+}
+
+void Bootstrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
+{
+    if (memBootstrap_ == nullptr) {
+        ZBCCL_LOG_DEBUG("Not bootstrapped");
+        return;
+    }
+
+    memBootstrap_->ReleaseCommGroupId(uniqueId);
 }
 }  // namespace bootstrap
 }  // namespace zbccl

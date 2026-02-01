@@ -46,6 +46,9 @@ mfSmemShmGlobalExitFunc DlMfApi::gMfSmemShmGlobalExit = nullptr;
 mfSmemShmSubgroupBarrierFunc DlMfApi::gMfSmemShmSubgroupBarrier = nullptr;
 mfSmemShmSubgroupAllGatherFunc DlMfApi::gMfSmemShmSubgroupAllGather = nullptr;
 
+mfSmemShmAtomicAllocValueFunc DlMfApi::gMfSmemShmAtomicAllocValue = nullptr;
+mfSmemShmAtomicReleaseValueFunc DlMfApi::gMfSmemShmAtomicReleaseValue = nullptr;
+
 ZResult DlMfApi::LoadLibrary(const std::string &libDirPath)
 {
     std::lock_guard<std::mutex> guard(gMutex);
@@ -98,6 +101,11 @@ ZResult DlMfApi::LoadLibrary(const std::string &libDirPath)
     DL_LOAD_SYM(gMfSmemShmSubgroupAllGather, mfSmemShmSubgroupAllGatherFunc, gMfSmemHandle,
                 "smem_shm_subgroup_allgather");
 
+    DL_LOAD_SYM(gMfSmemShmAtomicAllocValue, mfSmemShmAtomicAllocValueFunc, gMfSmemHandle,
+                "smem_shm_atomic_alloc_value");
+    DL_LOAD_SYM(gMfSmemShmAtomicReleaseValue, mfSmemShmAtomicReleaseValueFunc, gMfSmemHandle,
+                "smem_shm_atomic_release_value");
+
     gLoaded = true;
     return Z_OK;
 }
@@ -134,6 +142,9 @@ void DlMfApi::CleanupLibrary()
 
     gMfSmemShmSubgroupBarrier = nullptr;
     gMfSmemShmSubgroupAllGather = nullptr;
+
+    gMfSmemShmAtomicAllocValue = nullptr;
+    gMfSmemShmAtomicReleaseValue = nullptr;
 
     if (gMfSmemHandle != nullptr) {
         dlclose(gMfSmemHandle);

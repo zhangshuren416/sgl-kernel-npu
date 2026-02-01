@@ -13,54 +13,10 @@
 #define ZBCCL_MEM_BOOTSTRAP_H
 
 #include "zbccl_common_includes.h"
+#include "zbccl_bootstrap_types.h"
 
 namespace zbccl {
 namespace bootstrap {
-enum MemBoostrapType : uint16_t {
-    MBT_MEMFABRIC = 0,
-    MBT_ACLSHMEM,
-
-    MBT_BUTT
-};
-
-class MemBootstrap;
-using MemBootstrapPtr = ZRef<MemBootstrap>;
-
-struct MemBootstrapOptions {
-    MemBoostrapType boostrapType = MBT_MEMFABRIC; /* memory init type */
-    uint16_t deviceId = 0;                        /* device id */
-    uint32_t rankCount = 0;                       /* total rank count */
-    uint32_t rankId = 0;                          /* my rank id */
-    uint64_t totalMemSize = 0;                    /* total memory size */
-    uint32_t flags = 0;                           /* optional flags */
-    uint32_t dataOperationType = 0;               /* data operation type MTE etc */
-    std::string ipPort;                           /* SHM exchange ip port*/
-
-    friend std::ostream &operator<<(std::ostream &os, const MemBootstrapOptions &options)
-    {
-        os << "MemBootstrapOptions [boostrapType: " << options.boostrapType << ", deviceId: " << options.deviceId
-           << ", rankCount: " << options.rankCount << ", rankId: " << options.rankId
-           << ", totalMemSize: " << options.totalMemSize << ", flags: " << options.flags
-           << ", dataOperationType: " << options.dataOperationType << ", ipPort: " << options.ipPort << "]";
-
-        return os;
-    }
-};
-
-struct MemBootstrapOutput {
-    void *gvaDevice = nullptr;
-    void *myGvaDevice = nullptr;
-    uint64_t memorySizeDevice = 0;
-
-    friend std::ostream &operator<<(std::ostream &os, const MemBootstrapOutput &output)
-    {
-        os << "MemBootstrapOutput [deviceGva: " << output.gvaDevice << ", myDeviceGva: " << output.myGvaDevice
-           << ", memorySizeDevice: " << output.memorySizeDevice << "]";
-
-        return os;
-    }
-};
-
 class MemBootstrap : public ZReferable
 {
 public:
@@ -89,6 +45,24 @@ public:
      * @return output
      */
     const MemBootstrapOutput &GetOutput() const;
+
+    /**
+     * @brief Get an unique id for communicator (i.e. a group)
+     * which should start from 0
+     *
+     * @param max          [in] max number that the 'uniqueId' could be
+     * @param uniqueId     [in/out] id acquired
+     *
+     * @return 0 if successful
+     */
+    virtual ZResult AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept = 0;
+
+    /**
+     * @brief Release the id acquired by AcquireCommGroupId() function
+     *
+     * @param uniqueId     [in] the id to be released
+     */
+    virtual void ReleaseCommGroupId(uint32_t uniqueId) noexcept = 0;
 
 protected:
     MemBootstrap(const MemBootstrapOptions &options) : options_(options) {}

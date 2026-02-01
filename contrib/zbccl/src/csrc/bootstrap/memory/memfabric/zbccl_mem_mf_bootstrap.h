@@ -29,6 +29,9 @@ public:
     ZResult Initialize() noexcept override;
     void UnInitialize() noexcept override;
 
+    ZResult AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept override;
+    void ReleaseCommGroupId(uint32_t uniqueId) noexcept override;
+
 private:
     ZResult GetMemFabricLibPath(std::string &path) noexcept;
     ZResult GetAscendLibPath(std::string &path) noexcept;

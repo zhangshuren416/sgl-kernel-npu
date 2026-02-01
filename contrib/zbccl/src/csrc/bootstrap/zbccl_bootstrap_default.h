@@ -17,14 +17,12 @@
 
 namespace zbccl {
 namespace bootstrap {
-class Bootstrap;
-using BootstrapPtr = ZRef<Bootstrap>;
-
 class Bootstrap : public ZReferable
 {
 public:
     static BootstrapPtr Create(const zbccl_bootstrap_options_t &options);
     static void Destroy();
+    static BootstrapPtr Get();
 
 public:
     explicit Bootstrap(const zbccl_bootstrap_options_t &options) : options_(options) {}
@@ -52,15 +50,34 @@ public:
      */
     const zbccl_bootstrap_output_t &GetOutput();
 
+    /**
+     * @brief Get an unique id for communicator (i.e. a group)
+     * which should start from 0
+     *
+     * @param max          [in] max number that the 'uniqueId' could be
+     * @param uniqueId     [in/out] id acquired
+     *
+     * @return 0 if successful
+     */
+    ZResult AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept;
+
+    /**
+     * @brief Release the id acquired by AcquireCommGroupId() function
+     *
+     * @param uniqueId     [in] the id to be released
+     */
+    void ReleaseCommGroupId(uint32_t uniqueId) noexcept;
+
 private:
     ZResult VerifyOptions() noexcept;
+
     ZResult CreateMemBootstrap() noexcept;
     void DestroyMemoryBootstrap() noexcept;
 
 private:
-    MemBootstrapPtr memBootstrap_{nullptr}; /* inner memory bootstrap */
-    zbccl_bootstrap_options_t options_;     /* options from API */
-    zbccl_bootstrap_output_t output_;       /* output for API */
+    MemBootstrapPtr memBootstrap_{nullptr};   /* inner memory bootstrap */
+    zbccl_bootstrap_options_t options_;       /* options from API */
+    zbccl_bootstrap_output_t output_;         /* output for API */
 
     std::mutex mutex_;
     bool inited_{false};

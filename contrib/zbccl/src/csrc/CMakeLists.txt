@@ -45,24 +45,22 @@ add_subdirectory(ccl/npu/device/)
 # we seperated those files for ut with different modules
 
 if (NOT DEFINED DISABLE_ADAPTOR_COMPILE)
-        # PyTorch adaptor
-        file(GLOB_RECURSE PYTORCH_ADAPTOR_SRCS
-                ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp)
-        add_library(pytorch_adaptor_objects OBJECT ${PYTORCH_ADAPTOR_SRCS})
-        target_compile_options(pytorch_adaptor_objects PRIVATE -fPIC)
-endif()
+    # PyTorch adaptor
+    file(GLOB_RECURSE PYTORCH_ADAPTOR_SRCS ${ZBCCL_SRC_DIR}/csrc/adaptor/pytorch_npu/*.cpp)
+    add_library(pytorch_adaptor_objects OBJECT ${PYTORCH_ADAPTOR_SRCS})
+    target_compile_options(pytorch_adaptor_objects PRIVATE -fPIC)
+endif ()
 
 # deepep adaptor objects
-file(GLOB_RECURSE DEEPEP_ADAPTOR_SRCS 
-        ${ZBCCL_SRC_DIR}/csrc/adaptor/deepep/*.cpp)
+file(GLOB_RECURSE DEEPEP_ADAPTOR_SRCS ${ZBCCL_SRC_DIR}/csrc/adaptor/deepep/*.cpp)
 add_library(deepep_adaptor_objects OBJECT ${DEEPEP_ADAPTOR_SRCS})
 target_compile_options(deepep_adaptor_objects PRIVATE -fPIC)
 
 # boostrap objects
 file(GLOB_RECURSE BOOSTRAP_SRCS
-       ${ZBCCL_SRC_DIR}/csrc/bootstrap/*.cpp
-       ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp
-       ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/memfabric/*.cpp)
+        ${ZBCCL_SRC_DIR}/csrc/bootstrap/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/*.cpp
+        ${ZBCCL_SRC_DIR}/csrc/bootstrap/memory/memfabric/*.cpp)
 add_library(boostrap_objects OBJECT ${BOOSTRAP_SRCS})
 target_compile_options(boostrap_objects PRIVATE -fPIC)
 
@@ -80,14 +78,14 @@ file(GLOB_RECURSE COMMON_SRCS
 add_library(common_objects OBJECT ${COMMON_SRCS})
 target_compile_options(common_objects PRIVATE -fPIC)
 
-if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
-        # memory allocator objects
-        file(GLOB_RECURSE ALLOCATOR_SRCS
-                ${ZBCCL_SRC_DIR}/csrc/dma/*.cpp
-                ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp)
-        add_library(allocator_objects OBJECT ${ALLOCATOR_SRCS})
-        target_compile_options(allocator_objects PRIVATE -fPIC)
-endif()
+if (NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+    # memory allocator objects
+    file(GLOB_RECURSE ALLOCATOR_SRCS
+            ${ZBCCL_SRC_DIR}/csrc/dma/*.cpp
+            ${ZBCCL_SRC_DIR}/csrc/sma/*.cpp)
+    add_library(allocator_objects OBJECT ${ALLOCATOR_SRCS})
+    target_compile_options(allocator_objects PRIVATE -fPIC)
+endif ()
 
 # under api objects
 file(GLOB_RECURSE UNDER_API_SRCS
@@ -105,30 +103,30 @@ target_compile_options(zbccl_objects PRIVATE -fPIC)
 
 # static lib
 add_library(zbccl_static STATIC $<TARGET_OBJECTS:boostrap_objects>
-                                $<TARGET_OBJECTS:ccl_objects>
-                                $<TARGET_OBJECTS:common_objects>
-                                $<TARGET_OBJECTS:under_api_objects>
-                                $<TARGET_OBJECTS:zbccl_objects>
-                                $<TARGET_OBJECTS:deepep_adaptor_objects>
-                                )
+        $<TARGET_OBJECTS:ccl_objects>
+        $<TARGET_OBJECTS:common_objects>
+        $<TARGET_OBJECTS:under_api_objects>
+        $<TARGET_OBJECTS:zbccl_objects>
+        $<TARGET_OBJECTS:deepep_adaptor_objects>
+)
 
 target_link_libraries(zbccl_static PRIVATE zbccl_kernel tiling_api)
-if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
-        target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:allocator_objects>)
-endif()
-if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
-        target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
-endif()
+if (NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+    target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:allocator_objects>)
+endif ()
+if (NOT DEFINED DISABLE_ADAPTOR_COMPILE)
+    target_sources(zbccl_static PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
+endif ()
 set_target_properties(zbccl_static PROPERTIES OUTPUT_NAME "zbccl_core")
 
 # shared lib
 add_library(zbccl_shared SHARED $<TARGET_OBJECTS:boostrap_objects>
-                                $<TARGET_OBJECTS:ccl_objects>
-                                $<TARGET_OBJECTS:common_objects>
-                                $<TARGET_OBJECTS:under_api_objects>
-                                $<TARGET_OBJECTS:zbccl_objects>
-                                $<TARGET_OBJECTS:deepep_adaptor_objects>
-                                )
+        $<TARGET_OBJECTS:ccl_objects>
+        $<TARGET_OBJECTS:common_objects>
+        $<TARGET_OBJECTS:under_api_objects>
+        $<TARGET_OBJECTS:zbccl_objects>
+        $<TARGET_OBJECTS:deepep_adaptor_objects>
+)
 target_link_directories(zbccl_shared PUBLIC
         ${ASCEND_HOME_PATH}/lib64
         ${TORCH_DIR}/lib
@@ -136,13 +134,13 @@ target_link_directories(zbccl_shared PUBLIC
 )
 
 target_link_libraries(zbccl_shared PRIVATE zbccl_kernel)
-if(NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
-        target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:allocator_objects>)
-endif()
+if (NOT DEFINED DISABLE_ALLOCATOR_COMPILE)
+    target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:allocator_objects>)
+endif ()
 
-if(NOT DEFINED DISABLE_ADAPTOR_COMPILE)
-        target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
-endif()
+if (NOT DEFINED DISABLE_ADAPTOR_COMPILE)
+    target_sources(zbccl_shared PRIVATE $<TARGET_OBJECTS:pytorch_adaptor_objects>)
+endif ()
 set_target_properties(zbccl_shared PROPERTIES OUTPUT_NAME "zbccl_core")
 target_link_libraries(zbccl_shared PUBLIC pthread tiling_api platform opapi)
 

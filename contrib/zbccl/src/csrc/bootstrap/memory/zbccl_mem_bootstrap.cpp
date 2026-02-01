@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_mem_bootstrap.h"
-#include "zbccl_mf_bootstrap.h"
+#include "zbccl_mem_mf_bootstrap.h"
 
 namespace zbccl {
 namespace bootstrap {
@@ -24,10 +24,9 @@ MemBootstrapPtr MemBootstrap::Create(const MemBootstrapOptions &options)
             return nullptr;
         }
         return bootstrap.Get();
-    } else if (options.boostrapType == MemBoostrapType::MBT_ACLSHMEM) {
-        ZBCCL_LOG_ERROR("Create ACLSHMEM bootstrap failed, as it is not supported");
-        return nullptr;
     }
+
+    ZBCCL_LOG_ERROR("Un-reachable path, probably the mem bootstrap type is not invalid");
 
     return nullptr;
 }

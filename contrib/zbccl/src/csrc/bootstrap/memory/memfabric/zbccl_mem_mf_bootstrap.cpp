@@ -9,10 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "zbccl_mf_bootstrap.h"
+#include "zbccl_mem_mf_bootstrap.h"
 #include "dl_mf_api.h"
 #include "dl_cann_api.h"
-#include "third_party/acl/inc/acl/acl_rt.h"
 
 namespace zbccl {
 namespace bootstrap {
@@ -193,6 +192,30 @@ void MemFabricBoostrap::UnInitialize() noexcept
     DlMfApi::CleanupLibrary();
 
     initialized_ = false;
+}
+
+ZResult MemFabricBoostrap::AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
+        return Z_MEM_NOT_BOOTSTRAP;
+    }
+    return DlMfApi::SmemShmAtomicAllocValue(shmHandle_, max, &uniqueId);
+}
+
+void MemFabricBoostrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
+        return;
+    }
+
+    auto result = DlMfApi::SmemShmAtomicReleaseValue(shmHandle_, uniqueId);
+    if (result != Z_OK) {
+        ZBCCL_LOG_WARN("Release unique id failed, result: " << result);
+    }
 }
 }  // namespace bootstrap
 }  // namespace zbccl

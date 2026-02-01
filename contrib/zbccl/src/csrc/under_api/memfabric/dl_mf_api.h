@@ -45,6 +45,8 @@ using mfSmemShmGlobalExitFunc = void (*)(smem_shm_t, int);
 using mfSmemShmSubgroupBarrierFunc = int32_t (*)(smem_shm_t, const char *, uint32_t, uint32_t);
 using mfSmemShmSubgroupAllGatherFunc = int32_t (*)(smem_shm_t, const char *, uint32_t, uint32_t, const char *, uint32_t,
                                                    char *, uint32_t);
+using mfSmemShmAtomicAllocValueFunc = int32_t (*)(smem_shm_t, uint32_t, uint32_t *);
+using mfSmemShmAtomicReleaseValueFunc = int32_t (*)(smem_shm_t, int32_t);
 
 class DlMfApi
 {
@@ -237,6 +239,25 @@ public:
                                             uint32_t rankId, const char *sendBuf, uint32_t sendSize, char *recvBuf,
                                             uint32_t recvSize);
 
+    /**
+     * @brief alloc one global number in the shm object which begin from zero
+     *
+     * @param handle           [in] shm object
+     * @param limit            [in] the returned number must be less than 'limit' (limit <= SMEM_SHM_ATOMIC_NUM_LIMIT)
+     * @param retVal           [out] alloced number
+     * @return 0 if successful
+     */
+    static ZResult SmemShmAtomicAllocValue(smem_shm_t handle, uint32_t limit, uint32_t *retVal);
+
+    /**
+     * @brief release one global number which is alloced
+     *
+     * @param handle           [in] shm object
+     * @param limit            [in] the number
+     * @return 0 if successful
+     */
+    static ZResult SmemShmAtomicReleaseValue(smem_shm_t handle, int32_t value);
+
 private:
     static std::mutex gMutex;
     static bool gLoaded;
@@ -268,114 +289,138 @@ private:
 
     static mfSmemShmSubgroupBarrierFunc gMfSmemShmSubgroupBarrier;
     static mfSmemShmSubgroupAllGatherFunc gMfSmemShmSubgroupAllGather;
+
+    static mfSmemShmAtomicAllocValueFunc gMfSmemShmAtomicAllocValue;
+    static mfSmemShmAtomicReleaseValueFunc gMfSmemShmAtomicReleaseValue;
 };
 
 inline ZResult DlMfApi::SmemInit(uint32_t flags)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemInit != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemInit(flags);
 }
 
 inline ZResult DlMfApi::SmemSetExternLogger(void (*func)(int level, const char *msg))
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemSetExternLogger != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemSetExternLogger(func);
 }
 
 inline ZResult DlMfApi::SmemSetLoggerLevel(int level)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemSetLogLevel != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemSetLogLevel(level);
 }
 
 inline void DlMfApi::SmemUnInit(void)
 {
+    ZBCCL_ASSERT_RET_VOID(gMfSmemUnInit != nullptr);
     gMfSmemUnInit();
 }
 
 inline const char *DlMfApi::SmemGetLastErrMsg(void)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemGetLastErrMsg != nullptr, "");
     return gMfSmemGetLastErrMsg();
 }
 
 inline const char *DlMfApi::SmemGetAndClearLastErrMsg(void)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemGetAndClearErrMsg != nullptr, "");
     return gMfSmemGetAndClearErrMsg();
 }
 
 inline ZResult DlMfApi::SmemShmConfigInit(smem_shm_config_t *config)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmConfigInit != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmConfigInit(config);
 }
 
 inline ZResult DlMfApi::SmemShmInit(const char *configStoreIpPort, uint32_t worldSize, uint32_t rankId,
                                     uint16_t deviceId, smem_shm_config_t *config)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmInit != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmInit(configStoreIpPort, worldSize, rankId, deviceId, config);
 }
 
 inline void DlMfApi::SmemShmUnInit(uint32_t flags)
 {
+    ZBCCL_ASSERT_RET_VOID(gMfSmemShmUnInit != nullptr);
     gMfSmemShmUnInit(flags);
 }
 
 inline uint32_t DlMfApi::SmemShmQuerySupportDataOperation(void)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmQuerySupportDataOperation != nullptr, 0);
     return gMfSmemShmQuerySupportDataOperation();
 }
 
 inline smem_shm_t DlMfApi::SmemShmCreate(uint32_t id, uint32_t rankSize, uint32_t rankId, uint64_t symmetricSize,
                                          smem_shm_data_op_type dataOpType, uint32_t flags, void **gva)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmCreate != nullptr, nullptr);
     return gMfSmemShmCreate(id, rankSize, rankId, symmetricSize, dataOpType, flags, gva);
 }
 
 inline ZResult DlMfApi::SmemShmDestroy(smem_shm_t handle, uint32_t flags)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmDestroy != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmDestroy(handle, flags);
 }
 
 inline ZResult DlMfApi::SmemShmSetExtraContext(smem_shm_t handle, const void *context, uint32_t size)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmSetExtraContext != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmSetExtraContext(handle, context, size);
 }
 
 inline uint32_t DlMfApi::SmemShmGetGlobalRank(smem_shm_t handle)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmGetGlobalRank != nullptr, 0);
     return gMfSmemShmGetGlobalRank(handle);
 }
 
 inline uint32_t DlMfApi::SmemShmGetGlobalRankSize(smem_shm_t handle)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmGetGlobalRankSize != nullptr, 0);
     return gMfSmemShmGetGlobalRankSize(handle);
 }
 
 inline ZResult DlMfApi::SmemShmControlBarrier(smem_shm_t handle)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmControlBarrier != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmControlBarrier(handle);
 }
 
 inline ZResult DlMfApi::SmemShmControlAllGather(smem_shm_t handle, const char *sendBuf, uint32_t sendSize,
                                                 char *recvBuf, uint32_t recvSize)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmControlAllGather != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmControlAllGather(handle, sendBuf, sendSize, recvBuf, recvSize);
 }
 
 inline ZResult DlMfApi::SmemShmTopologyCanReach(smem_shm_t handle, uint32_t remoteRank, uint32_t *reachInfo)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmTopologyCanReach != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmTopologyCanReach(handle, remoteRank, reachInfo);
 }
 
 inline ZResult DlMfApi::SmemShmRegisterExit(smem_shm_t handle, void (*exit)(int))
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmRegisterExit != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmRegisterExit(handle, exit);
 }
 
 inline void DlMfApi::SmemShmGlobalExit(smem_shm_t handle, int status)
 {
+    ZBCCL_ASSERT_RET_VOID(gMfSmemShmGlobalExit != nullptr);
     gMfSmemShmGlobalExit(handle, status);
 }
 
 inline ZResult DlMfApi::SmemShmSubGroupBarrier(smem_shm_t handle, const std::string &key, uint32_t rankSize,
                                                uint32_t rankId)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmSubgroupBarrier != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmSubgroupBarrier(handle, key.c_str(), rankSize, rankId);
 }
 
@@ -383,8 +428,22 @@ inline ZResult DlMfApi::SmemShmSubGroupAllGather(smem_shm_t handle, const std::s
                                                  uint32_t rankId, const char *sendBuf, uint32_t sendSize, char *recvBuf,
                                                  uint32_t recvSize)
 {
+    ZBCCL_ASSERT_RETURN(gMfSmemShmSubgroupAllGather != nullptr, Z_DL_FUNCTION_UNLOAD);
     return gMfSmemShmSubgroupAllGather(handle, key.c_str(), rankSize, rankId, sendBuf, sendSize, recvBuf, recvSize);
 }
+
+inline ZResult DlMfApi::SmemShmAtomicAllocValue(smem_shm_t handle, uint32_t limit, uint32_t *retVal)
+{
+    ZBCCL_ASSERT_RETURN(gMfSmemShmAtomicAllocValue != nullptr, Z_DL_FUNCTION_UNLOAD);
+    return gMfSmemShmAtomicAllocValue(handle, limit, retVal);
+}
+
+inline ZResult DlMfApi::SmemShmAtomicReleaseValue(smem_shm_t handle, int32_t value)
+{
+    ZBCCL_ASSERT_RETURN(gMfSmemShmAtomicReleaseValue != nullptr, Z_DL_FUNCTION_UNLOAD);
+    return gMfSmemShmAtomicReleaseValue(handle, value);
+}
+
 }  // namespace underapi
 }  // namespace zbccl
 
