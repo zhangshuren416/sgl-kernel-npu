@@ -146,11 +146,11 @@ ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& stor
     }
     opTimeout_ = timeoutMill;
 
-    options_ = c10::make_intrusive<Options>(options->is_high_priority_stream);
+    options_ = c10::make_intrusive<Options>(options->isHighPriorityStream);
     options_->opTimeout = options->opTimeout;
-    options_->is_high_priority_stream = options->is_high_priority_stream;
-    options_->global_ranks_in_group = options->global_ranks_in_group;
-    options_->group_id = options->group_id;
+    options_->isHighPriorityStream = options->isHighPriorityStream;
+    options_->globalRanksInGroup = options->globalRanksInGroup;
+    options_->groupId = options->groupId;
 
     auto ret = PrepareCommunicator();
     if (ret != Z_OK) {
@@ -182,7 +182,7 @@ int32_t ProcessGroupZBCCL::PrepareResources(const std::vector<at::Device> &devic
 
 std::string ProcessGroupZBCCL::ConstructCommName() noexcept
 {
-    std::vector<uint32_t> rankList = options_->global_ranks_in_group;
+    std::vector<uint32_t> rankList = options_->globalRanksInGroup;
     if (rankList.empty()) {
         rankList.reserve(size_);
         for (uint32_t i = 0; i < size_; i++) {
@@ -204,7 +204,7 @@ int32_t ProcessGroupZBCCL::PrepareCommunicator() noexcept
     std::string curCommName = ConstructCommName();
     zbccl_comm_options_t opt;
     opt.backendType = ZBCCL_ASCEND_NPU;
-    opt.isWorldGroup = options_->global_ranks_in_group.empty() ? 1 : 0;
+    opt.isWorldGroup = options_->globalRanksInGroup.empty() ? 1 : 0;
     opt.groupSize = size_;
     opt.groupRankId = rank_;
     opt.name = const_cast<char *>(curCommName.c_str());
@@ -419,8 +419,7 @@ std::string ProcessGroupZBCCL::getZBCCLCommName() noexcept
 
 ProcessGroupZBCCL::Options::Options(bool isHighPriorityStream)
     : c10d::Backend::Options(ZBCCL_BACKEND_NAME),
-      opTimeout(WORKER_MAX_TIMEOUT),
-      is_high_priority_stream(isHighPriorityStream)
+      opTimeout(WORKER_MAX_TIMEOUT), isHighPriorityStream(isHighPriorityStream)
 {
 }
 

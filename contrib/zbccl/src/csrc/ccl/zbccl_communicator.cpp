@@ -102,6 +102,17 @@ ZResult Communicator::Lookup(const std::string &name, zbccl_comm_t *comm)
     return Z_OK;
 }
 
+ZResult Communicator::GetGlobalComm(uintptr_t &comm)
+{
+    if (gWorldCommunicator == nullptr) {
+        ZBCCL_LOG_ERROR("Can't found global comm.");
+        return Z_CCL_NOT_FOUND;
+    }
+
+    comm = reinterpret_cast<uintptr_t>(gWorldCommunicator.Get());
+    return Z_OK;
+}
+
 ZResult Communicator::GetCommProperty(const zbccl_comm_t comm, zbccl_comm_property_t *property)
 {
     CommunicatorPtr outComm = nullptr;

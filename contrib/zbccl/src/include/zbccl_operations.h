@@ -41,7 +41,7 @@ int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *proper
 
  * @return global comm handle if successfully or else nullptr
  */
-zbccl_comm_t zbccl_comm_get_global();
+uintptr_t zbccl_comm_get_global();
 
 /**
  * @brief Get communicator object by name

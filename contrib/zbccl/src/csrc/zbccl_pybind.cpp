@@ -21,6 +21,8 @@
 
 namespace py = pybind11;
 using namespace zbccl::adaptor::pytorch_npu;
+using ZOptions = ProcessGroupZBCCL::Options;
+using CBackend = c10d::Backend;
 
 static zbccl_bootstrap_output_t output;
 
@@ -109,19 +111,19 @@ void pybind11_comm_property(py::module_ &m)
 
 void pybind11_process_group(py::module_ &m)
 {
-    auto group = py::class_<ProcessGroupZBCCL, c10d::Backend, c10::intrusive_ptr<ProcessGroupZBCCL>>(
-        m, "ProcessGroupZBCCL")
-    .def(py::init<const c10::intrusive_ptr<::c10d::Store> &, int, int, c10::intrusive_ptr<ProcessGroupZBCCL::Options>>(),
-        py::call_guard<py::gil_scoped_release>())
-    .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);
+    auto group = py::class_<ProcessGroupZBCCL, CBackend, c10::intrusive_ptr<ProcessGroupZBCCL>>(m, "ProcessGroupZBCCL")
+        .def(py::init<const c10::intrusive_ptr<::c10d::Store> &,
+            int,
+            int,
+            c10::intrusive_ptr<ZOptions>>(), py::call_guard<py::gil_scoped_release>())
+        .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);
 
-    py::class_<ProcessGroupZBCCL::Options, c10d::Backend::Options, c10::intrusive_ptr<ProcessGroupZBCCL::Options>>(
-        group, "Options"
-    ).def(py::init<>())
-    .def_readwrite("op_timeout", &ProcessGroupZBCCL::Options::opTimeout)
-    .def_readwrite("is_high_priority_stream", &ProcessGroupZBCCL::Options::is_high_priority_stream)
-    .def_readwrite("global_ranks_in_group", &ProcessGroupZBCCL::Options::global_ranks_in_group)
-    .def_readwrite("group_id", &ProcessGroupZBCCL::Options::group_id);
+    py::class_<ZOptions, CBackend::Options, c10::intrusive_ptr<ZOptions>>(group, "Options")
+        .def(py::init<>())
+        .def_readwrite("op_timeout", &ZOptions::opTimeout)
+        .def_readwrite("is_high_priority_stream", &ZOptions::isHighPriorityStream)
+        .def_readwrite("global_ranks_in_group", &ZOptions::globalRanksInGroup)
+        .def_readwrite("group_id", &ZOptions::groupId);
 }
 
 void pybind11_definitions(py::module_ &m)
@@ -140,9 +142,7 @@ void pybind11_functions(py::module_ &m)
     m.def("zbccl_version", &zbccl_version);
 
     // communicator
-    m.def("zbccl_comm_get_global", []() -> uintptr_t {
-        return reinterpret_cast<uintptr_t>(zbccl_comm_get_global());
-    });
+    m.def("zbccl_comm_get_global", &zbccl_comm_get_global);
     m.def("zbccl_comm_get_by_name", [](const char* name) ->uintptr_t {
         return reinterpret_cast<uintptr_t>(zbccl_comm_get_by_name(name));
     });

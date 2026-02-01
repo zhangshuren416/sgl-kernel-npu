@@ -26,10 +26,12 @@ def _new_process_helper(dist_backend_opts, pg_options):
     store = dist_backend_opts.store
     group_rank = dist_backend_opts.group_rank
     group_size = dist_backend_opts.group_size
+
     if pg_options is None or not isinstance(pg_options, ProcessGroupZBCCL.Options):
         pg_options = ProcessGroupZBCCL.Options()
+
     pg_options.is_high_priority_stream = False
-    pg_options._timeout = dist_backend_opts.timeout
+    pg_options.op_timeout = dist_backend_opts.timeout
     pg_options.global_ranks_in_group = dist_backend_opts.global_ranks_in_group
     pg_options.group_id = dist_backend_opts.group_id
     return ProcessGroupZBCCL(store, group_rank, group_size, pg_options)

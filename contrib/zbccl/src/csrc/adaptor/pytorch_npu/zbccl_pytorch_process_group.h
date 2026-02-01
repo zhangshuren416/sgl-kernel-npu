@@ -143,11 +143,11 @@ public:
 
         MilliSeconds opTimeout;
 
-        bool is_high_priority_stream;
+        bool isHighPriorityStream;
 
-        std::vector<uint32_t> global_ranks_in_group;
+        std::vector<uint32_t> globalRanksInGroup;
 
-        std::string group_id;
+        std::string groupId;
     };
 
     ProcessGroupZBCCL(

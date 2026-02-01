@@ -95,6 +95,14 @@ public:
     static ZResult Lookup(const std::string &name, zbccl_comm_t *comm);
 
     /**
+     * @brief Get the global communicator
+     *
+     * @param comm         [in/out] the commnicator ptr
+     * @return 0 if successful or else error code
+     */
+    static ZResult GetGlobalComm(uintptr_t &comm);
+
+    /**
      * @brief Lookup communicator property
      *
      * @param comm         [in] communicator
@@ -247,10 +255,10 @@ private:
     static void DestroyAllInner();
     static ZResult LookupInner(const std::string &name, CommunicatorPtr &comm);
 
-    static CommunicatorPtr gWorldCommunicator;                              /* the world comm, i.e. the first one */
+    static CommunicatorPtr gWorldCommunicator;                           /* the world comm, i.e. the first one */
     static std::mutex gMutex;                                            /* mutex for world comm */
     static std::map<uintptr_t, CommunicatorPtr> gCommLookupMap_;         /* all comm object except the world comm */
-    static std::map<std::string, CommunicatorPtr> gCommLookupMapByName_; /* all comm object except the world comm */
+    static std::map<std::string, CommunicatorPtr> gCommLookupMapByName_; /* all comm object */
 };
 
 inline bool Communicator::IsWorldGroup() const noexcept

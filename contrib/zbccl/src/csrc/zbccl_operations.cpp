@@ -68,10 +68,14 @@ ZBCCL_API int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property
     return Communicator::GetCommProperty(comm, property);
 }
 
-ZBCCL_API zbccl_comm_t zbccl_comm_get_global()
+ZBCCL_API uintptr_t zbccl_comm_get_global()
 {
-    // TODO
-    return nullptr;
+    uintptr_t comm;
+    auto result = Communicator::GetGlobalComm(comm);
+    if (result != Z_OK) {
+        return reinterpret_cast<uintptr_t>(nullptr);
+    }
+    return comm;
 }
 
 ZBCCL_API zbccl_comm_t zbccl_comm_get_by_name(const char *name)
