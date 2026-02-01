@@ -143,28 +143,44 @@ public:
 
         uint32_t leftCopySize = lenPerCore * sizeof(T);
         AscendC::DataCopyPadExtParams<T> padParams;
-        SetAtomicOp<T>(atomicOp);
         uint32_t times = 0;
         uint32_t preCopyNum = UB_DMA_MAX_SIZE / sizeof(T);
 
-        do {
-            uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
-            AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
-            AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
-            AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
-            bindQueue.EnQue(xLocal);
-            xLocal = bindQueue.DeQue<T>();
-            AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
-            bindQueue.FreeTensor(xLocal);
-            leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
-            times++;
-        } while (leftCopySize > 0);
+        if (rank == coreTargetRank) {
+            AscendC::SetAtomicNone();
+            do {
+                uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
+                AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
+                AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
+                AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
+                bindQueue.EnQue(xLocal);
+                xLocal = bindQueue.DeQue<T>();
+                AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
+                bindQueue.FreeTensor(xLocal);
+                leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
+                times++;
+            } while (leftCopySize > 0);
+            AscendC::SyncAll<true>();
+        } else {
+            AscendC::SyncAll<true>();
+            SetAtomicOp<T>(atomicOp);
+            do {
+                uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
+                AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
+                AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
+                AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
+                bindQueue.EnQue(xLocal);
+                xLocal = bindQueue.DeQue<T>();
+                AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
+                bindQueue.FreeTensor(xLocal);
+                leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
+                times++;
+            } while (leftCopySize > 0);
 
-        AscendC::SetAtomicNone();
-        // Sync Ensure Corresponding Tasks Done.
-        // last param useless.
+            AscendC::SetAtomicNone();
+        }
         zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&groupInfo->counter,
-                          (__gm__ uint64_t *)&groupInfo->barrier, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+                       (__gm__ uint64_t *)&groupInfo->barrier, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
 #endif
     }
 

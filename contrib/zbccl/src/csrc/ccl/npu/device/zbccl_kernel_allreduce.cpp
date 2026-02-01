@@ -167,8 +167,6 @@ public:
         } while (leftCopySize > 0);
 
         AscendC::SetAtomicNone();
-        // Sync Ensure Corresponding Tasks Done.
-        // last param useless.
         zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&(groupInfo->counter),
                           (__gm__ uint64_t *)&(groupInfo->barrier), (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
 #endif

@@ -83,7 +83,6 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
         groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
-    zbccl::underapi::DlCannApi::AclrtMemset(recv_buff, recv_count, 0, recv_count);
     auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
     return ret;
 }
