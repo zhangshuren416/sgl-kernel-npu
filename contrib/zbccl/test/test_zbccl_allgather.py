@@ -10,8 +10,7 @@ torch_npu.npu.config.allow_internal_format = True
 
 def test_init_zbccl_pg():
     local_rank = int(os.environ["LOCAL_RANK"])
-    world_size = int(os.environ["WORLD_SIZE"] or 2)
-    os.environ["ASCEND_LAUNCH_BLOCKING"] = "1"
+    world_size = int(os.environ["WORLD_SIZE"] or 4)
 
     zbccl_set_logger_level(0)
     mem_128M = 256 * 1024 * 1024
@@ -21,8 +20,20 @@ def test_init_zbccl_pg():
     else:
         print(f"zbccl_init success on rank {local_rank}\n")
 
-    group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
-    print(f"init zbccl group success on rank {local_rank=} {world_size=}")
+    dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
+    global_group = dist.group.WORLD
+    backend = global_group._get_backend(torch.device("npu", local_rank))
+    global_group_name = backend.get_zbccl_comm_name()
+
+    sub_group_rank = [0, 2]
+    sub_group_name = ""
+    if local_rank in sub_group_rank:
+        sub_group = dist.new_group(sub_group_rank, backend="zbccl")
+        backend = sub_group._get_backend(torch.device("npu", local_rank))
+        sub_group_name = backend.get_zbccl_comm_name()
+        dist.destroy_process_group(sub_group)
+    print(f"init zbccl group success on rank {local_rank=} {world_size=} {global_group_name=} {sub_group_name=}")
+
     try:
         success_cnt = 0
         total_cnt = 10
@@ -46,7 +57,7 @@ def test_init_zbccl_pg():
                 success_cnt += 1
         print(f"{success_cnt}/{total_cnt} tests run success")
     finally:
-        dist.destroy_process_group(group)
+        dist.destroy_process_group(global_group)
 
     if not zbccl_uninit():
         print("zbccl uninit failed.")

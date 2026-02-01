@@ -11,6 +11,7 @@
  */
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "c10_npu_dma.h"
 #include "zbccl_pytorch_process_group.h"
@@ -19,6 +20,7 @@
 #include "zbccl.h"
 
 namespace py = pybind11;
+using namespace zbccl::adaptor::pytorch_npu;
 
 static zbccl_bootstrap_output_t output;
 
@@ -27,14 +29,17 @@ int32_t zbccl_bootstrap_wrapper(zbccl_bootstrap_options_t &opt)
     return zbccl_bootstrap(&opt, &output);
 }
 
-void pybind11_definitions(py::module_ &m)
+void pybind11_enums(py::module_ &m)
 {
     py::enum_<zbccl_bootstrap_type_t>(m, "ZBCCLBootstrapType")
         .value("BOOT_BY_MEMFABRIC", zbccl_bootstrap_type_t::BOOT_BY_MEMFABRIC);
 
     py::enum_<zbccl_backend_t>(m, "ZBCCLBackendType")
         .value("ZBCCL_ASCEND_NPU", zbccl_backend_t::ZBCCL_ASCEND_NPU);
+}
 
+void pybind11_bootstrap_options(py::module_ &m)
+{
     py::class_<zbccl_bootstrap_options_t>(m, "ZBCCLBootstrapOption")
         .def(py::init<>())
         .def_readwrite("flags", &zbccl_bootstrap_options_t::flags)
@@ -56,7 +61,10 @@ void pybind11_definitions(py::module_ &m)
             std::copy(ipPort.begin(), ipPort.end(), opt.ipPort);
             opt.ipPort[ipPort.size()] = '\0';
         });
+}
 
+void pybind11_comm_property(py::module_ &m)
+{
     py::class_<zbccl_comm_property_t>(m, "ZBCCLCommProperty")
         .def(py::init<>())
         .def_readwrite("backendType", &zbccl_comm_property_t::backendType)
@@ -99,6 +107,31 @@ void pybind11_definitions(py::module_ &m)
         });
 }
 
+void pybind11_process_group(py::module_ &m)
+{
+    auto group = py::class_<ProcessGroupZBCCL, c10d::Backend, c10::intrusive_ptr<ProcessGroupZBCCL>>(
+        m, "ProcessGroupZBCCL")
+    .def(py::init<const c10::intrusive_ptr<::c10d::Store> &, int, int, c10::intrusive_ptr<ProcessGroupZBCCL::Options>>(),
+        py::call_guard<py::gil_scoped_release>())
+    .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);
+
+    py::class_<ProcessGroupZBCCL::Options, c10d::Backend::Options, c10::intrusive_ptr<ProcessGroupZBCCL::Options>>(
+        group, "Options"
+    ).def(py::init<>())
+    .def_readwrite("op_timeout", &ProcessGroupZBCCL::Options::opTimeout)
+    .def_readwrite("is_high_priority_stream", &ProcessGroupZBCCL::Options::is_high_priority_stream)
+    .def_readwrite("global_ranks_in_group", &ProcessGroupZBCCL::Options::global_ranks_in_group)
+    .def_readwrite("group_id", &ProcessGroupZBCCL::Options::group_id);
+}
+
+void pybind11_definitions(py::module_ &m)
+{
+    pybind11_enums(m);
+    pybind11_bootstrap_options(m);
+    pybind11_comm_property(m);
+    pybind11_process_group(m);
+}
+
 void pybind11_functions(py::module_ &m)
 {
     m.def("zbccl_bootstrap", &zbccl_bootstrap_wrapper);
@@ -130,9 +163,7 @@ PYBIND11_MODULE(zbccl, m) {
     m.doc() = "zbccl package";
 
     auto allocator = m.def_submodule("allocator", "zbccl allocator");
-    auto npu_adaptor = m.def_submodule("npu_adaptor", "zbccl npu pytorch adaptor");
 
     pybind11_allocator(allocator);
-    pybind11_adaptor(npu_adaptor);
     pybind11_bootstrap(m);
 }

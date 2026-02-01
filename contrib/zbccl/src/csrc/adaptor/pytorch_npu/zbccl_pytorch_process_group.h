@@ -23,6 +23,7 @@
 #include <c10d/Work.hpp>
 #include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <torch/csrc/THP.h>
 #include <torch/python.h>
@@ -47,6 +48,8 @@ namespace pytorch_npu {
 
 const std::string ZBCCL_BACKEND_NAME = "zbccl";
 constexpr std::chrono::milliseconds WORKER_MAX_TIMEOUT{600000};
+using RSOptions = c10d::ReduceScatterOptions;
+using MilliSeconds = std::chrono::milliseconds;
 
 class ProcessGroupZBCCL : public c10d::Backend
 {
@@ -130,9 +133,28 @@ public:
         friend class ProcessGroupZBCCL;
     };
 
-    ProcessGroupZBCCL(int rank, int size);
+    struct Options : c10d::Backend::Options {
+        explicit Options(bool isHighPriorityStream = false);
 
-    ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store, int rank, int size, std::chrono::milliseconds tm);
+        static c10::intrusive_ptr<Options> create(bool isHigh = false, MilliSeconds tm = WORKER_MAX_TIMEOUT)
+        {
+            return c10::make_intrusive<Options>(isHigh);
+        }
+
+        MilliSeconds opTimeout;
+
+        bool is_high_priority_stream;
+
+        std::vector<uint32_t> global_ranks_in_group;
+
+        std::string group_id;
+    };
+
+    ProcessGroupZBCCL(
+        const c10::intrusive_ptr<c10d::Store>& store,
+        int rank,
+        int size,
+        c10::intrusive_ptr<Options> options = Options::create());
 
     ~ProcessGroupZBCCL() override;
 
@@ -142,36 +164,26 @@ public:
     }
 
     c10::intrusive_ptr<c10d::Work> allreduce(std::vector<at::Tensor> &tensors,
-        const c10d::AllreduceOptions &opts = c10d::AllreduceOptions()) override;
+                                             const c10d::AllreduceOptions &opts = c10d::AllreduceOptions()) override;
 
     c10::intrusive_ptr<c10d::Work> _allgather_base(at::Tensor &output, at::Tensor &input,
-        const c10d::AllgatherOptions &opt = c10d::AllgatherOptions());
+                                                   const c10d::AllgatherOptions &opt = c10d::AllgatherOptions());
 
     c10::intrusive_ptr<c10d::Work> allgather(std::vector<std::vector<at::Tensor>> &outputTensors,
-        std::vector<at::Tensor> &inputTensors,
-        const c10d::AllgatherOptions &opts = c10d::AllgatherOptions()) override;
+                                             std::vector<at::Tensor> &inputTensors,
+                                             const c10d::AllgatherOptions &opts = c10d::AllgatherOptions()) override;
 
     c10::intrusive_ptr<c10d::Work> broadcast(std::vector<at::Tensor> &tensors,
                                              const c10d::BroadcastOptions &opts = c10d::BroadcastOptions()) override;
 
-    c10::intrusive_ptr<c10d::Work>
-    reduce_scatter(std::vector<at::Tensor> &outputTensors, std::vector<std::vector<at::Tensor>> &inputTensors,
-                   const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
-    
+    c10::intrusive_ptr<c10d::Work> reduce_scatter(std::vector<at::Tensor> &outputTensors,
+                                                  std::vector<std::vector<at::Tensor>> &inputTensors,
+                                                  const RSOptions &opts = RSOptions()) override;
+
     c10::intrusive_ptr<c10d::Work> _reduce_scatter_base(at::Tensor &output, at::Tensor &input,
-        const c10d::ReduceScatterOptions &opts = c10d::ReduceScatterOptions()) override;
+                                                        const RSOptions &opts = RSOptions()) override;
 
-    static const int64_t kProcessGroupZBcclOpTimeoutMillis;
-
-    static c10::intrusive_ptr<c10d::Backend> createBackend(const c10::intrusive_ptr<::c10d::Store> &store, int rank,
-                                                           int size, const std::chrono::duration<float> &timeout);
-
-    static void ProcessGroupZBcclConstructor() __attribute__((constructor))
-    {
-        py::object module = py::module::import("torch.distributed");
-        py::object register_backend = module.attr("Backend").attr("register_backend");
-        register_backend("zbccl", py::cpp_function(ProcessGroupZBCCL::createBackend), py::arg("devices") = "npu");
-    }
+    std::string getZBCCLCommName() noexcept;
 
 protected:
     bool blockingWait_ = false;
@@ -179,13 +191,13 @@ protected:
     c10::intrusive_ptr<c10d::Store> store_;
     std::unordered_map<std::string, std::vector<c10_npu::NPUStream>> zbcclStreams_;
     std::unordered_map<std::string, std::vector<c10_npu::NPUEvent>> zbcclEvents_;
-    std::unordered_map<std::string, std::vector<zbccl_comm_t>> devZBCCLCommMap_;
     std::mutex mutext_;
+    c10::intrusive_ptr<Options> options_;
 
-    int32_t GetZBCCLComm(const std::string &key, const std::vector<at::Device> &devs, std::vector<zbccl_comm_t> &comms);
 
 private:
-    zbccl_comm_t comm_{nullptr};
+    zbccl_comm_t groupComm_{nullptr};
+    std::string groupName_;
 
 private:
     template <typename Fn, typename PreProcess, typename PostProcess>
@@ -197,12 +209,15 @@ private:
         PostProcess post,
         c10d::OpType opType);
 
+    int32_t PrepareCommunicator() noexcept;
+
+    std::string ConstructCommName() noexcept;
+
+    int32_t PrepareResources(const std::vector<at::Device> &devs) noexcept;
 };
 
 }  // namespace pytorch_npu
 }  // namespace adaptor
 }  // namespace zbccl
-
-void pybind11_adaptor(pybind11::module &m);
 
 #endif  // ZBCCL_PROCESS_GROUP_H

@@ -134,39 +134,36 @@ c10::intrusive_ptr<c10::ivalue::Future> ProcessGroupZBCCL::WorkZBCCL::getFuture(
     return future_;
 }
 
-const int64_t ProcessGroupZBCCL::kProcessGroupZBcclOpTimeoutMillis = 10 * 1000;
 
-ProcessGroupZBCCL::ProcessGroupZBCCL(int rank, int size) : c10d::Backend(rank, size), store_(nullptr) {}
-
-ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store> &store,
-    int rank, int size, std::chrono::milliseconds timeout) : c10d::Backend(rank, size), store_(store)
+ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& store,
+                                     int rank, int size, c10::intrusive_ptr<Options> options)
+                                     : c10d::Backend(rank, size), store_(store)
 {
-    auto timeoutMill = timeout * 1000;
+    auto timeoutMill = options->opTimeout * 1000;
     if (timeoutMill > WORKER_MAX_TIMEOUT) {
         timeoutMill = WORKER_MAX_TIMEOUT;
-        auto inputTm = static_cast<int>(timeout.count());
-        ZBCCL_LOG_WARN("timeout " << inputTm << " exceed, set to default value");
+        ZBCCL_LOG_WARN("timeout " << static_cast<int>(timeoutMill.count()) << " exceed, set to default value");
     }
     opTimeout_ = timeoutMill;
+
+    options_ = c10::make_intrusive<Options>(options->is_high_priority_stream);
+    options_->opTimeout = options->opTimeout;
+    options_->is_high_priority_stream = options->is_high_priority_stream;
+    options_->global_ranks_in_group = options->global_ranks_in_group;
+    options_->group_id = options->group_id;
+
+    auto ret = PrepareCommunicator();
+    if (ret != Z_OK) {
+        throw std::runtime_error("create zbccl process group failed.");
+    }
 }
 
-int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
-                                        const std::vector<at::Device> &devices,
-                                        std::vector<zbccl_comm_t> &zbcclComms)
+int32_t ProcessGroupZBCCL::PrepareResources(const std::vector<at::Device> &devices) noexcept
 {
-    if (devices.empty()) {
-        ZBCCL_LOG_ERROR("input devices is empty.");
+    if (devices.size() != 1) {
+        ZBCCL_LOG_ERROR("input devices is invalid, only 1 device is supported.");
         return Z_INVALID_PARAM;
     }
-
-    {
-        std::lock_guard<std::mutex> lock(mutext_);
-        if (devZBCCLCommMap_.find(key) != devZBCCLCommMap_.end()) {
-            zbcclComms = devZBCCLCommMap_[key];
-            return Z_OK;
-        }
-    }
-    zbcclComms.resize(devices.size());
 
     c10_npu::OptionalNPUGuard npuGuard;
     std::vector<c10_npu::NPUStream> streamVal;
@@ -174,29 +171,51 @@ int32_t ProcessGroupZBCCL::GetZBCCLComm(const std::string &key,
 
     for (size_t i = 0; i < devices.size(); ++i) {
         npuGuard.set_index(devices[i].index());
-        std::string curCommKey = ZBCCL_BACKEND_NAME + "_" + key + "_dev:" + std::to_string(i);
-
-        zbccl_comm_options_t opt;
-        opt.backendType = ZBCCL_ASCEND_NPU;
-        opt.isWorldGroup = 1;
-        opt.groupSize = size_;
-        opt.groupRankId = rank_;
-        opt.name = const_cast<char *>(curCommKey.c_str());
-        auto ret = zbccl_comm_create(&opt, &zbcclComms[i]);
-        if (ret != Z_OK || zbcclComms[i] == nullptr) {
-            ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
-                << size_ << ", key=" << curCommKey);
-            return Z_CREATE_COMM_FAILED;
-        }
-
-        ZBCCL_LOG_DEBUG("create comm success, rank=" << rank_ << ", size=" << size_ << ", key=" << curCommKey);
         streamVal.push_back(c10_npu::getNPUStreamFromPool(devices[i].index()));
     }
 
     std::lock_guard<std::mutex> lock(mutext_);
-    zbcclStreams_.emplace(key, std::move(streamVal));
-    zbcclEvents_.emplace(std::piecewise_construct, std::make_tuple(key), std::make_tuple(devices.size()));
-    devZBCCLCommMap_.emplace(key, zbcclComms);
+    zbcclStreams_.emplace(groupName_, std::move(streamVal));
+    zbcclEvents_.emplace(std::piecewise_construct, std::make_tuple(groupName_), std::make_tuple(devices.size()));
+    return Z_OK;
+}
+
+std::string ProcessGroupZBCCL::ConstructCommName() noexcept
+{
+    std::vector<uint32_t> rankList = options_->global_ranks_in_group;
+    if (rankList.empty()) {
+        rankList.reserve(size_);
+        for (uint32_t i = 0; i < size_; i++) {
+            rankList.push_back(i);
+        }
+    }
+
+    std::sort(rankList.begin(), rankList.end());
+    std::string commName = "";
+    std::ostringstream oss;
+    for (auto &rank : rankList) {
+        oss << rank << "_";
+    }
+    return ZBCCL_BACKEND_NAME + "_" + oss.str() + "group";
+}
+
+int32_t ProcessGroupZBCCL::PrepareCommunicator() noexcept
+{
+    std::string curCommName = ConstructCommName();
+    zbccl_comm_options_t opt;
+    opt.backendType = ZBCCL_ASCEND_NPU;
+    opt.isWorldGroup = options_->global_ranks_in_group.empty() ? 1 : 0;
+    opt.groupSize = size_;
+    opt.groupRankId = rank_;
+    opt.name = const_cast<char *>(curCommName.c_str());
+    auto ret = zbccl_comm_create(&opt, &groupComm_);
+    if (ret != Z_OK || groupComm_ == nullptr) {
+        ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
+                        << size_ << ", key=" << curCommName);
+        return Z_CREATE_COMM_FAILED;
+    }
+    ZBCCL_LOG_DEBUG("create comm success, rank=" << rank_ << ", size=" << size_ << ", key=" << curCommName);
+    groupName_ = curCommName;
     return Z_OK;
 }
 
@@ -206,13 +225,12 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::collective(std::vector<at::Ten
                                                              PostProcess post, c10d::OpType opType)
 {
     const auto devices = GetDeviceList(inputs);
-    auto key = GetKeyFromDevices(devices);
 
-    std::vector<zbccl_comm_t> zbcclComms;
-    ZBCCL_CHECK_S(GetZBCCLComm(key, devices, zbcclComms) == Z_OK, "get zbccl comm failed.");
+    std::vector<zbccl_comm_t> zbcclComms = {groupComm_};
+    ZBCCL_CHECK_S(PrepareResources(devices) == Z_OK, "prepare zbccl resource failed.");
 
-    auto &zbcclStreams = zbcclStreams_[key];
-    SyncStreams(devices, zbcclEvents_[key], zbcclStreams);
+    auto &zbcclStreams = zbcclStreams_[groupName_];
+    SyncStreams(devices, zbcclEvents_[groupName_], zbcclStreams);
 
     auto work = c10::make_intrusive<ProcessGroupZBCCL::WorkZBCCL>(devices, rank_, opType);
     work->outputs_ = std::make_shared<std::vector<at::Tensor>>(outputs);
@@ -394,13 +412,16 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::reduce_scatter(std::vector<at:
     return nullptr;
 }
 
-c10::intrusive_ptr<c10d::Backend> ProcessGroupZBCCL::createBackend(const c10::intrusive_ptr<::c10d::Store> &store,
-                                                                   int rank, int size,
-                                                                   const std::chrono::duration<float> &timeout)
+std::string ProcessGroupZBCCL::getZBCCLCommName() noexcept
 {
-    auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(timeout);
-    auto backend = c10::make_intrusive<ProcessGroupZBCCL>(store, rank, size, tm);
-    return backend;
+    return groupName_;
+}
+
+ProcessGroupZBCCL::Options::Options(bool isHighPriorityStream)
+    : c10d::Backend::Options(ZBCCL_BACKEND_NAME),
+      opTimeout(WORKER_MAX_TIMEOUT),
+      is_high_priority_stream(isHighPriorityStream)
+{
 }
 
 ProcessGroupZBCCL::~ProcessGroupZBCCL() {}
@@ -408,8 +429,3 @@ ProcessGroupZBCCL::~ProcessGroupZBCCL() {}
 }  // namespace pytorch_npu
 }  // namespace adaptor
 }  // namespace zbccl
-
-void pybind11_adaptor(py::module &m)
-{
-    m.def("createProcessGroupZBCCL", &zbccl::adaptor::pytorch_npu::ProcessGroupZBCCL::createBackend);
-}
