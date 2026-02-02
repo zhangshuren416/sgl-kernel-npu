@@ -38,6 +38,11 @@ public:
 
     void ConstructCommGroupInfo(const CommGroupOptions &opt) noexcept override {}
 
+    ZResult AssignGatherGroupId(AutoReleaseGroupId &id) noexcept override
+    {
+        return Z_OK;
+    }
+
     int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
                       zbccl_reduce_op_t op, aclrtStream stream) noexcept override
     {
@@ -65,8 +70,8 @@ public:
     int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
                                  const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
                                  const zbccl_tensor_info_t *recvTokensPerExpert,
-                                 const zbccl_tensor_info_t *pushTargetOffset, 
-                                 const zbccl_tensor_info_t *balanceMatrix, int64_t flags) noexcept
+                                 const zbccl_tensor_info_t *pushTargetOffset, const zbccl_tensor_info_t *balanceMatrix,
+                                 int64_t flags) noexcept
     {
         return Z_OK;
     }
@@ -91,10 +96,9 @@ public:
 
     int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                           const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                          const zbccl_tensor_info_t *sendTokensIndex, 
-                          const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
-                          const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
-                          int64_t flags) noexcept
+                          const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *balanceMatrix,
+                          uint16_t expertNum, const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
+                          aclrtStream stream, int64_t flags) noexcept
     {
         return Z_OK;
     }

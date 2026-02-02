@@ -179,10 +179,18 @@ public:
      */
     virtual int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                                   const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
-                                  const zbccl_tensor_info_t *sendTokensIndex,
-                                  const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
-                                  const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
-                                  int64_t flags) noexcept = 0;
+                                  const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *balanceMatrix,
+                                  uint16_t expertNum, const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
+                                  aclrtStream stream, int64_t flags) noexcept = 0;
+
+    /**
+     * @brief Assign group id and gathered group info
+     *
+     * @param id           [in] group id which contained gathered group info
+     *
+     * @return 0 if successful
+     */
+    virtual ZResult AssignGatherGroupId(AutoReleaseGroupId &id) noexcept = 0;
 
     /**
      * @brief Check if it is world group
@@ -218,6 +226,8 @@ protected:
     CommGroupOptions options_{};          /* options */
     CommGroupInfo groupInfo_{};           /* meta info, which will be H2D to device, keep it simple */
     CommunicatorPtr worldGroup_{nullptr}; /* world group */
+    std::mutex mutex_;                    /* object mutex */
+    bool initialized_{false};             /* flag for initialization */
 
 private:
     static CommunicatorPtr CreateInner(zbccl_backend_t backendType, const CommGroupOptions &options, bool isWorldGroup);

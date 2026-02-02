@@ -67,6 +67,13 @@ public:
      */
     uint16_t Id() const noexcept;
 
+    /**
+     * @brief Get gathered group info
+     *
+     * @return info
+     */
+    const std::vector<CommGroupExchangeInfo> &GatheredGroupInfo() const noexcept;
+
     friend std::ostream &operator<<(std::ostream &os, const AutoReleaseGroupId &info)
     {
         os << "AutoReleaseGroupId [maxGroupCount_: " << info.maxGroupCount_ << ", rankSize_: " << info.rankSize_
@@ -90,20 +97,24 @@ private:
                                          std::vector<CommGroupExchangeInfo> &allInfo, uint32_t groupSize);
 
 private:
-    std::mutex mutex_;
-    const uint32_t maxGroupCount_;
-    const uint16_t rankSize_;
-    const uint16_t rankId_;
-    const uint16_t workRankId_;
-    uint16_t uniqueGroupId_ = UINT16_MAX;
-    const std::string groupName_;
-
-    std::vector<CommGroupExchangeInfo> gatheredGroupInfo_;
+    std::mutex mutex_;                                     /* mutex for guard */
+    const uint32_t maxGroupCount_;                         /* cap number of max group can be existed, in-mutable */
+    const uint16_t rankSize_;                              /* rank size of the group, in-mutable  */
+    const uint16_t rankId_;                                /* rank id in the group, in-mutable  */
+    const uint16_t workRankId_;                            /* rank id in world, in-mutable  */
+    uint16_t uniqueGroupId_ = UINT16_MAX;                  /* unique group id in the world */
+    const std::string groupName_;                          /* group name, in-mutable  */
+    std::vector<CommGroupExchangeInfo> gatheredGroupInfo_; /* allGathered info in the group */
 };
 
 inline uint16_t AutoReleaseGroupId::Id() const noexcept
 {
     return uniqueGroupId_;
+}
+
+inline const std::vector<CommGroupExchangeInfo> &AutoReleaseGroupId::GatheredGroupInfo() const noexcept
+{
+    return gatheredGroupInfo_;
 }
 }  // namespace ccl
 }  // namespace zbccl

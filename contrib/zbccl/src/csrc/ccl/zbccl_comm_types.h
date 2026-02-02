@@ -73,6 +73,25 @@ struct CommGroupExchangeInfo {
     }
 };
 
+static inline std::ostream &operator<<(std::ostream &os, const CommGroupInfo &info)
+{
+    os << "CommGroupInfo [groupSize: " << info.groupSize << ", myGroupRank: " << info.myGroupRank
+       << ", myMetaGva: " << info.myMetaGva << ", myParamDataGva: " << info.myParamDataGva
+       << ", myAddressExchangeGva: " << info.myAddressExchangeGva
+       << ", sizeForCommGroupInfo: " << info.sizeForCommGroupInfo << ", sizeForParam: " << info.sizeForParam
+       << ", sizeForExchangeAddress: " << info.sizeForExchangeAddress << ", fftsConfig: " << info.fftsConfig
+       << ", localDeviceMemSize: " << info.localDeviceMemSize << ", peerGroupRank2WorldRank: [";
+
+    auto size = std::min(info.groupSize + 1, ZBCCL_MAX_RANKS);
+    for (auto i = 0; i < size; ++i) {
+        os << info.peerGroupRank2WorldRank[i] << ",";
+    }
+
+    os << "]]";
+
+    return os;
+}
+
 }  // namespace ccl
 }  // namespace zbccl
 

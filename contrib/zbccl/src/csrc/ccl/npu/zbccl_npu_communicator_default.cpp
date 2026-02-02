@@ -26,6 +26,11 @@ NpuCommunicatorDefault::NpuCommunicatorDefault(const CommGroupOptions &options, 
 
 ZResult NpuCommunicatorDefault::Initialize() noexcept
 {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (initialized_) {
+        return Z_OK;
+    }
+
     /* get ffts address */
     uint32_t len = 0;
     auto result = DlCannApi::RtGetC2cCtrlAddr(&groupInfo_.fftsConfig, &len);
@@ -37,18 +42,25 @@ ZResult NpuCommunicatorDefault::Initialize() noexcept
     /* copy group info to meta area of communicator from host to device */
     ZBCCL_ASSERT_RETURN(sizeof(CommGroupInfo) == groupInfo_.sizeForCommGroupInfo, Z_ERROR);
     result = DlCannApi::AclrtMemcpy(reinterpret_cast<void *>(groupInfo_.myMetaGva), sizeof(CommGroupInfo), &groupInfo_,
-                                     sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
+                                    sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
     if (result != Z_OK) {
         ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result: " << result);
         return Z_FFTS_INIT_FAILED;
     }
+
+    initialized_ = true;
 
     return Z_OK;
 }
 
 void NpuCommunicatorDefault::UnInitialize() noexcept
 {
-    // TODO
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        return;
+    }
+
+    initialized_ = false;
 }
 
 void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &options) noexcept
@@ -66,12 +78,35 @@ void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &opti
     groupInfo_.peerGroupRank2WorldRank[options.myGroupRank] = options.myWorldRank;
 }
 
+ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noexcept
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        ZBCCL_LOG_ERROR("Assign group id failed, as communicator is not initialized");
+        return Z_NOT_INITIALIZED;
+    }
+
+    uniqueGroupId_.MoveIdAndGatheredInfo(id);
+
+    /* assign peer info from group id class */
+    auto &gatheredGroupInfo = uniqueGroupId_.GatheredGroupInfo();
+    ZBCCL_ASSERT_RETURN(gatheredGroupInfo.size() == groupInfo_.groupSize, Z_ERROR);
+    ZBCCL_ASSERT_RETURN(gatheredGroupInfo.size() <= ZBCCL_MAX_RANKS, Z_ERROR);
+
+    for (uint64_t i = 0; i < gatheredGroupInfo.size(); ++i) {
+        groupInfo_.peerGroupRank2WorldRank[i] = gatheredGroupInfo[i].myWorldRankId;
+    }
+
+    ZBCCL_LOG_DEBUG("Dump groupId_ " << uniqueGroupId_ << ", groupInfo_: " << groupInfo_);
+    return Z_OK;
+}
+
 int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-        groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
+                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
     return ret;
 }
@@ -82,7 +117,7 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
 {
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-        groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
+                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
     return ret;
 }
@@ -92,7 +127,7 @@ int32_t NpuCommunicatorDefault::AllGather(const void *send_buff, void *recv_buff
 {
     auto groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-        groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
+                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     return ZBCCLOpAllGather(send_buff, recv_buff, send_count, data_type, stream, groupInfo);
 }
 
@@ -109,24 +144,20 @@ int32_t NpuCommunicatorDefault::DispatchNormalNotify(const zbccl_tensor_info_t *
                                                      int64_t *totalRecvTokens,
                                                      const zbccl_tensor_info_t *recvTokensPerExpert,
                                                      const zbccl_tensor_info_t *pushTargetOffset,
-                                                     const zbccl_tensor_info_t *balanceMatrix,
-                                                     int64_t flags) noexcept
+                                                     const zbccl_tensor_info_t *balanceMatrix, int64_t flags) noexcept
 {
     // TODO
     return Z_OK;
 }
 
-int32_t NpuCommunicatorDefault::DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens,
-                                                     int64_t expertNum, int64_t topkNum,
-                                                     const zbccl_tensor_info_t *tokensPerRank,
-                                                     const zbccl_tensor_info_t *tokensPerExpert,
-                                                     const zbccl_tensor_info_t *isTokenInRank,
-                                                     const zbccl_tensor_info_t *sendTokensIndex,
-                                                     const zbccl_tensor_info_t *notifySendData, aclrtStream stream,
-                                                     int64_t flags) noexcept
+int32_t NpuCommunicatorDefault::DispatchNormalLayout(
+    const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum, int64_t topkNum,
+    const zbccl_tensor_info_t *tokensPerRank, const zbccl_tensor_info_t *tokensPerExpert,
+    const zbccl_tensor_info_t *isTokenInRank, const zbccl_tensor_info_t *sendTokensIndex,
+    const zbccl_tensor_info_t *notifySendData, aclrtStream stream, int64_t flags) noexcept
 {
-    return ZBCCLOpDispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
-                                   isTokenInRank, sendTokensIndex, notifySendData, stream, GetMetaInfo(), flags);
+    return ZBCCLOpDispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert, isTokenInRank,
+                                 sendTokensIndex, notifySendData, stream, GetMetaInfo(), flags);
     return Z_OK;
 }
 
@@ -142,14 +173,11 @@ int32_t NpuCommunicatorDefault::DispatchNormal(const zbccl_tensor_info_t *srcTok
     return Z_OK;
 }
 
-int32_t NpuCommunicatorDefault::CombineNormal(const zbccl_tensor_info_t *srcTokens,
-                                              const zbccl_tensor_info_t *srcTokensPerEp,
-                                              const zbccl_tensor_info_t *topKWeight,
-                                              const zbccl_tensor_info_t *topkIndex,
-                                              const zbccl_tensor_info_t *sendTokensIndex,
-                                              const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
-                                              const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
-                                              aclrtStream stream, int64_t flags) noexcept
+int32_t NpuCommunicatorDefault::CombineNormal(
+    const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
+    const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
+    const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *balanceMatrix, uint16_t expertNum,
+    const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream, int64_t flags) noexcept
 {
     // TODO
     return Z_OK;

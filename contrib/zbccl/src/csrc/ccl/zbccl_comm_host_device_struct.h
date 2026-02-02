@@ -9,11 +9,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef SGL_KERNEL_NPU_BAO_ZBCCL_COMM_STRUCT_H
-#define SGL_KERNEL_NPU_BAO_ZBCCL_COMM_STRUCT_H
+#ifndef ZBCCL_COMM_STRUCT_H
+#define ZBCCL_COMM_STRUCT_H
 
 #include <string>
-
 
 /**
  * @brief group info of this communicator, this struct will be copy to device, keep it simple
@@ -32,26 +31,6 @@ struct CommGroupInfo {
     uint64_t localDeviceMemSize;                            /* copy from CommGroupOptions.localDeviceMemSize */
     uint64_t counter[8];                                    /* sync value address and sync counter value */
     uint64_t barrier[8];
-
-    // friend std::ostream &operator<<(std::ostream &os, const CommGroupInfo &options)
-    // {
-    //     os << "CommGroupInfo [groupSize: " << options.groupSize << ", myGroupRank: " << options.myGroupRank
-    //        << ", myMetaGva: " << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
-    //        << ", myAddressExchangeGva: " << options.myAddressExchangeGva
-    //        << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
-    //        << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", fftsConfig: " << options.fftsConfig
-    //        << ", localDeviceMemSize: " << options.localDeviceMemSize << ", peerGroupRank2WorldRank: [";
-
-    //     for (auto i = 0; i < ZBCCL_MAX_RANKS; ++i) {
-    //         if (options.peerGroupRank2WorldRank[i] != 0) {
-    //             os << options.peerGroupRank2WorldRank[i] << ",";
-    //         }
-    //     }
-
-    //     os << "]]";
-
-    //     return os;
-    // }
 };
 
-#endif  // SGL_KERNEL_NPU_BAO_ZBCCL_COMM_STRUCT_H
+#endif  // ZBCCL_COMM_STRUCT_H

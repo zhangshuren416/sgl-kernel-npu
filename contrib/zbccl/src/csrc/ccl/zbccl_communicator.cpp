@@ -72,9 +72,10 @@ ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *
         return Z_CREATE_COMM_FAILED;
     }
 
-    *comm = commInner.Get();
+    result = commInner->AssignGatherGroupId(tmpGroupId);
+    ZBCCL_VALIDATE_RETURN(result == Z_OK, "Assign group id failed, result: " << result, result);
 
-    commInner->uniqueGroupId_.MoveIdAndGatheredInfo(tmpGroupId);
+    *comm = commInner.Get();
 
     ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: " << commInner.Get());
 
