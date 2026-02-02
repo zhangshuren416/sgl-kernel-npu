@@ -3992,10 +3992,10 @@ EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_s
         c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_pool_ =
                 std::make_shared<zbccl::sma::heap::MemoryHeap>(shmem_base_ptr, local_mem_size);
         c10_npu::dma::caching_allocator.device_allocator[device]->shmem_base_addr = shmem_base_ptr;
-        ZBCCL_LOG_DEBUG("set allocator mr success.");
+        ZBCCL_LOG_INFO("set allocator on device:" << device << " success.");
     }
     else {
-        ZBCCL_LOG_INFO("re-entrance into dma init, skip this time init");
+        ZBCCL_LOG_WARN("re-entrance into dma init, skip this time init");
     }
 }
 

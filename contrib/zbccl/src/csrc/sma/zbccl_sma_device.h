@@ -16,9 +16,13 @@
 #include "zbccl_sma_config.h"
 #include "zbccl_sma_device_pool.h"
 #include "zbccl_sma_mm_heap.h"
+#include "zbccl_sma_device_info.h"
 
 using ZEvent = std::unique_ptr<c10_npu::NPUEvent, std::function<void(c10_npu::NPUEvent *)>>;
 using CustomHeapPool = zbccl::sma::heap::SplitMemoryHeap;
+using TraceObserver = std::function<void(zbccl::sma::device::TraceAction, int64_t, size_t, aclrtStream, int)>;
+using SegmentObserver = std::function<void(const std::vector<const zbccl::sma::device::DeviceBlock*>&, int)>;
+
 
 namespace zbccl {
 namespace sma {
@@ -89,6 +93,11 @@ private:
     friend class ::zbccl::sma::device::GraphDeferPools;
     GraphDeferPools graph_defers_;
 
+    // alloc/free/emptyCache trace observer func & segmentsInfo observer
+    TraceObserver trace_observer_;
+    SegmentObserver segments_observer_;
+
+private:
     // All following private methods do not acquire the allocator mutex
     // move a founded block from pool into active_list, may get new block which split from found one
     DeviceBlock *alloc_found_block(DeviceAllocParams params, size_t orig_size, std::shared_ptr<c10::GatheredContext> context,
@@ -177,7 +186,7 @@ public:
     // returns cached blocks to the system allocator
     void emptyCache(int device, bool check_error);
 
-    // Retrieves info (total size + largest block) of the memory cache
+    // Retrieves info (total size + the largest block) of the memory cache
     void cacheInfo(size_t *total, size_t *largest);
 
     // free all event if count down to 0
@@ -205,6 +214,12 @@ public:
     inline void *getHeapBase() { return mem_heap_pool_->getBaseAddr();};
     inline uint64_t getHeapTotalSize() { return mem_heap_pool_->getTotalSize();};
     inline uint64_t getHeapInUsedSize() { return mem_heap_pool_->getInUsedSize();};
+
+    // attach observer functions
+    void attachSnapShotObserver(TraceObserver trace_ob_func, SegmentObserver segment_ob_func);
+
+    // manually take snapshot on current segmentInfos, remind this action use mutex
+    void snapshot(int device);
 };
 
 }  // namespace device

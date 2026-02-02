@@ -82,6 +82,7 @@ DeviceBlock *DeviceSMACachingAllocator::alloc_found_block(DeviceAllocParams para
         ZBCCL_LOG_WARN("Unsafe memory block is passively refreshed by releasing and allocating memory again");
     }
     block->is_safe_ = true;
+    trace_observer_(TraceAction::ALLOC, int64_t(block->ptr_), orig_size, block->stream_, block->deviceId_);
 
     block->context_when_allocated_ = std::move(context);
 
@@ -106,6 +107,8 @@ std::vector<const DeviceBlock *> DeviceSMACachingAllocator::get_all_blocks() con
 
 void DeviceSMACachingAllocator::free_block(DeviceBlock *block, const std::shared_ptr<c10::GatheredContext> &context, uint8_t allocator_type) {
     ZBCCL_ASSERT_S(!block->allocated_ && block->event_count_ == 0, Z_INVALID_VALUE);
+
+    trace_observer_(TraceAction::FREE_COMPLETED, int64_t(block->ptr_), block->requested_size_, block->stream_, block->deviceId_);
 
     block->context_when_allocated_ = nullptr;
     //size_t original_block_size = block->size_;
@@ -322,6 +325,7 @@ bool DeviceSMACachingAllocator::alloc_block(DeviceAllocParams &p, bool isRetry, 
     // p.block_ came from new, not npuMalloc. It should not be nullptr here.
     ZBCCL_ASSERT_S(p.block_ != nullptr && p.block_->ptr_ != nullptr, "block invalid!");
 
+    trace_observer_(TraceAction::SEGMENT_ALLOC, int64_t(p.block_->ptr_), p.block_->size_, p.stream(), p.device());
     p.block_->context_when_allocated_ = ctx;
     return true;
 }
@@ -376,6 +380,8 @@ bool DeviceSMACachingAllocator::release_available_cached_blocks(const DeviceAllo
 }
 
 void DeviceSMACachingAllocator::release_block(DeviceBlock *block, const std::shared_ptr<c10::GatheredContext> &context) {
+    trace_observer_(TraceAction::SEGMENT_FREE, int64_t(block->ptr_), block->size_, block->stream_, block->deviceId_);
+
     if (shmem_addrs_.count((void *)block->ptr_)) {
         ZBCCL_CHECK_S(zbccl::sma::CustomHeapRelease((void *)block->ptr_, mem_heap_pool_) == ACL_SUCCESS, "shmem heap free failed");
     } else {
@@ -613,12 +619,12 @@ DeviceBlock *DeviceSMACachingAllocator::malloc(int device, size_t orig_size, acl
             // Make sure taskqueue is empty, then execute release_cached_blocks
             c10_npu::npuSynchronizeDevice(true);
         }
-        // TODO fix context & free_phy bool
         block_found = (release_cached_blocks(true, nullptr) && alloc_block(params, true, context, lock));
     }
 
     if (!block_found) {
         if (params.result_ == Z_ERROR_ALLOC) {
+            trace_observer_(TraceAction::OOM, total_allocated_memory_, params.size(), params.stream(), params.device());
             // TODO fulfill current OOM state to be comparable to original allocator
             AT_ERROR("NPU out of memory. Tried to allocate ", format_size(alloc_size), " (NPU:", device,
                      "); with ", format_size(total_allocated_memory_), " total allocated. ");
@@ -640,6 +646,8 @@ void DeviceSMACachingAllocator::free(DeviceBlock *block, uint8_t allocator_type)
     //auto orig_block_ptr = block->ptr_;
     auto orig_block_size = block->size_;
     //auto orig_block_type = block->block_type_;
+
+    trace_observer_(TraceAction::FREE_REQUESTED, int64_t(block->ptr_), block->requested_size_, block->stream_, block->deviceId_);
 
     if (!block->stream_uses_.empty() && c10_npu::NpuSysCtrl::GetInstance().GetInitFlag()) {
         if (ZBCCL_UNLIKELY(!graph_defers_.captures_underway_.empty())) {
@@ -686,6 +694,7 @@ void DeviceSMACachingAllocator::setMemoryFraction(double fraction)
 
 void DeviceSMACachingAllocator::emptyCache(int device, bool check_error) {
     std::shared_ptr<c10::GatheredContext> context = nullptr;
+    trace_observer_(TraceAction::EMPTY_CACHE, 0, 0, 0, device);
     // Make sure event deque from taskqueue, then synchronize Event
     c10_npu::npuSynchronizeDevice(check_error);
     std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -756,6 +765,18 @@ void DeviceSMACachingAllocator::releasePool(c10_npu::MempoolId_t mempool_id)
         bool inserted = graph_defers_.graph_pools_freeable_.insert({ mempool_id, it->second.get() }).second;
         ZBCCL_ASSERT(inserted);
     }
+}
+
+void DeviceSMACachingAllocator::attachSnapShotObserver(TraceObserver trace_ob_func, SegmentObserver segment_ob_func) {
+    trace_observer_ = trace_ob_func;
+    segments_observer_ = segment_ob_func;
+}
+
+void DeviceSMACachingAllocator::snapshot(int device) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    const auto all_blocks = get_all_blocks();
+    device::DeviceInfoObserver::getInstance().takeSnapshot(all_blocks, device);
 }
 
 }  // namespace device

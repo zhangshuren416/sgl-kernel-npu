@@ -151,6 +151,15 @@ public:
      * @return 0 if successful
      */
     ZResult GetHeapState(size_t &in_used_size, size_t &total_size, int device = -1);
+
+    /**
+     * @brief get all device snapshot info
+     *
+     * @param device_info   [inout] result device_info)
+     * @param device        [in] checked device id, using current device if < 0
+     * @return 0 if successful
+     */
+    ZResult SnapShot(device::SnapshotDeviceInfo &device_info, int device = -1);
 };
 
 }  // namespace sma

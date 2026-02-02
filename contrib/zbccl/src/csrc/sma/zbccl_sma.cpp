@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "zbccl_sma.h"
+#include "zbccl_sma_device_info.h"
 
 namespace zbccl {
 namespace sma {
@@ -91,6 +92,24 @@ ZResult SecondaryMemoryAllocator::Initialize(zbccl_allocator_options_t *options,
         device_allocator_.resize(device_count);
         for (auto i = size; i < device_count; ++i) {
             device_allocator_[i] = std::make_unique<device::DeviceSMACachingAllocator>();
+            // TODO support outside callback later
+            auto& observer = device::DeviceInfoObserver::getInstance();
+            auto trace_cb =
+                    [&observer](device::TraceAction action,
+                                int64_t addr,
+                                size_t size,
+                                aclrtStream stream,
+                                int device) {
+                        observer.recordTrace(action, addr, size, stream, device);
+                    };
+
+            auto snapshot_cb =
+                    [&observer](const std::vector<const device::DeviceBlock*>& blocks,
+                                int dev) {
+                        observer.takeSnapshot(blocks, dev);
+                    };
+
+            device_allocator_[i]->attachSnapShotObserver(trace_cb, snapshot_cb);
         }
     }
     return Z_OK;
@@ -234,6 +253,24 @@ ZResult SecondaryMemoryAllocator::GetHeapState(size_t &in_used_size, size_t &tot
 
     in_used_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapInUsedSize();
     total_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapTotalSize();
+    return Z_OK;
+}
+
+ZResult SnapShot(zbccl::sma::device::SnapshotDeviceInfo &device_info, int device) {
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+
+    // take snapshot
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->snapshot(device_i);
+    // export snapshot + history
+    auto record_info = zbccl::sma::device::DeviceInfoObserver::getInstance().dumpSnapshot(device_i);
+
+    device_info.seg_infos_.insert(device_info.seg_infos_.end(), record_info.seg_infos_.begin(), record_info.seg_infos_.end());
+    device_info.trace_infos_.insert(device_info.trace_infos_.end(), record_info.trace_infos_.begin(), record_info.trace_infos_.end());
+
     return Z_OK;
 }
 
