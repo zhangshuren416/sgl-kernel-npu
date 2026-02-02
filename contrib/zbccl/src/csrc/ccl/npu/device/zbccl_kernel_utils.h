@@ -71,6 +71,57 @@ ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
+ZBCCL_KERNEL void Barrier(__gm__ void *paramAddr, uint16_t rankId, uint16_t groupSize, uint64_t localDeviceMemSize,
+                               __gm__ uint16_t *peerGroupRank2WorldRank)
+{
+    AscendC::SyncAll<true>();
+    __gm__ uint64_t *ctrlFlagsGM;
+    AscendC::LocalTensor<uint64_t> localSetTensor(AscendC::TPosition::VECIN, 8*64 + 32, 2);
+    AscendC::LocalTensor<uint64_t> localCheckTensor(AscendC::TPosition::VECIN, 9*64 + 32, 2);
+    AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
+    GlobalTensor<uint64_t> globalTensor;
+    if (GetBlockIdx() == 0) {
+        PipeBarrier<PIPE_ALL>();
+        // rankId = 0, targetRank = 1, rankId = 1, targetRank = 0,
+        for (int i = 1; i < groupSize; i++) {
+            uint32_t targetRank = (rankId + i) % groupSize;
+            auto ptr = zbccl_ptr((__gm__ uint64_t *)(paramAddr), rankId, targetRank, localDeviceMemSize, peerGroupRank2WorldRank);
+            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, BARRIER_FLAG_SIZE * groupSize);
+            localSetTensor.SetValue(0, 1212);
+            AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
+            AscendC::DataCopyPad(globalTensor[rankId * BARRIER_FLAG_SIZE], localSetTensor, copyParams);
+        }
+        PipeBarrier<PIPE_ALL>();
+        for (int i = 1; i < groupSize; i++) { //rankId = 1, targetRank = 0
+            uint32_t targetRank = (rankId + i) % groupSize;
+            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)paramAddr, BARRIER_FLAG_SIZE * groupSize);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+            while (true) {
+                AscendC::DataCopyPadExtParams<uint64_t> copyExtParams{false, 0U, 0U, 0U};
+                AscendC::DataCopyPad(localCheckTensor, globalTensor[targetRank * BARRIER_FLAG_SIZE], copyParams, copyExtParams);
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID0);
+                AscendC::WaitFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID0);
+                if (localCheckTensor.GetValue(0) == 1212) {
+                    break;
+                }
+            }
+        }
+        PipeBarrier<PIPE_ALL>();
+        for (int i = 1; i < groupSize; i++) {
+            uint32_t targetRank = (rankId + i) % groupSize;
+            globalTensor.SetGlobalBuffer((__gm__ uint64_t *)paramAddr, BARRIER_FLAG_SIZE * groupSize);
+            localSetTensor.SetValue(0, 0);
+            AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
+            AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
+            AscendC::DataCopyPad(globalTensor[targetRank * BARRIER_FLAG_SIZE], localSetTensor, copyParams);
+        }
+    }
+    AscendC::SyncAll<true>();
+}
+
 template<typename T>
 ZBCCL_KERNEL T zbccl_load(__gm__ T *addr)
 {

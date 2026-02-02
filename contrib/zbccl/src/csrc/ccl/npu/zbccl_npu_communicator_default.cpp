@@ -105,8 +105,6 @@ int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
     auto &groupInfo = GetMetaInfo();
-    zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
     return ret;
 }
@@ -116,8 +114,6 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
                                               aclrtStream stream) noexcept
 {
     auto &groupInfo = GetMetaInfo();
-    zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
     return ret;
 }

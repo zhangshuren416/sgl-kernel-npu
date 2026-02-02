@@ -56,13 +56,12 @@ ZBCCL_KERNEL void SetFlag(__gm__ void *metaAddr, int32_t val, uint32_t rank, uin
 ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputAddr, uint32_t aivIndex,
                                       uint32_t rank, uint32_t groupSize, __gm__ uint64_t *counterAddress,
                                       __gm__ uint64_t *barrierAddress, uint64_t localDeviceMemSize,
-                                      __gm__ uint16_t *peerGroupRank2WorldRank)
+                                      __gm__ uint16_t *peerGroupRank2WorldRank, __gm__ void *paramAddr)
 {
     if (aivIndex < groupSize) {
         SetFlag(metaAddr, 0, aivIndex, groupSize);
     }
-    // last param useless.
-    zbccl_barrier_all(rank, groupSize, localDeviceMemSize, counterAddress, barrierAddress, peerGroupRank2WorldRank);
+    Barrier(paramAddr, rank, groupSize, localDeviceMemSize, peerGroupRank2WorldRank);
     if (aivIndex < groupSize) {
         uint64_t dataAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(inputAddr));
         SetDataAddr(zbccl_ptr(metaAddr, rank, aivIndex, localDeviceMemSize, peerGroupRank2WorldRank), dataAddr, rank, groupSize);
@@ -87,6 +86,7 @@ public:
         auto groupInfo = reinterpret_cast<__gm__ CommGroupInfo *>(metaAddr);
         this->groupInfo = groupInfo;
         __gm__ void *exchangeAddr = (__gm__ void *)(groupInfo->myAddressExchangeGva);
+        __gm__ void *paramAddr = (__gm__ void *)(groupInfo->myParamDataGva);
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         const uint32_t aivIndex = AscendC::GetBlockIdx();
@@ -100,7 +100,8 @@ public:
 
         InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, aivIndex, rank, groupSize,
                             (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier,
-                            groupInfo->localDeviceMemSize, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+                            groupInfo->localDeviceMemSize, (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank,
+                            paramAddr);
         int32_t addrReadyFlag;
         do {
             addrReadyFlag = GetFlag((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
@@ -179,8 +180,8 @@ public:
 
             AscendC::SetAtomicNone();
         }
-        zbccl_barrier_all(rank, groupSize, groupInfo->localDeviceMemSize, (__gm__ uint64_t *)&groupInfo->counter,
-                       (__gm__ uint64_t *)&groupInfo->barrier, (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+        Barrier((__gm__ void *)(groupInfo->myParamDataGva), rank, groupSize, groupInfo->localDeviceMemSize,
+                (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank);
 #endif
     }
 
