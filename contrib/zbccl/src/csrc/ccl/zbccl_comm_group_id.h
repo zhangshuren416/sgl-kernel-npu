@@ -71,7 +71,14 @@ public:
     {
         os << "AutoReleaseGroupId [maxGroupCount_: " << info.maxGroupCount_ << ", rankSize_: " << info.rankSize_
            << ", rankId_: " << info.rankId_ << ", workRankId_: " << info.workRankId_
-           << ", uniqueGroupId_: " << info.uniqueGroupId_ << ", groupName_: " << info.groupName_ << "]";
+           << ", uniqueGroupId_: " << info.uniqueGroupId_ << ", groupName_: " << info.groupName_
+           << ", gatheredGroupInfo_: [size: " << info.gatheredGroupInfo_.size() << ", items: [";
+
+        for (auto &item : info.gatheredGroupInfo_) {
+            os << item << ",";
+        }
+
+        os << "]]]";
 
         return os;
     }

@@ -80,21 +80,31 @@ ZResult AutoReleaseGroupId::Acquire()
     exchangeInfo.myGroupRankId = rankId_;
 
     /* clean */
-    gatheredGroupInfo_.clear();
-    gatheredGroupInfo_.reserve(rankSize_);
+    std::vector<CommGroupExchangeInfo> tmpGatherGroupInfo;
+    tmpGatherGroupInfo.clear();
+    tmpGatherGroupInfo.reserve(rankSize_);
 
     ZBCCL_LOG_DEBUG("Exchange id by bootstrap for rank " << rankId_);
     /* do all gather to exchange id and rank info */
-    result = AllGatherExchangeInfo(groupName_, exchangeInfo, gatheredGroupInfo_, rankSize_);
+    result = AllGatherExchangeInfo(groupName_, exchangeInfo, tmpGatherGroupInfo, rankSize_);
     if (result != Z_OK) {
         ZBCCL_LOG_ERROR("Exchange info with bootstrap failed, result: " << result);
         return result;
     } else {
-        tmpGroupId = gatheredGroupInfo_[0].groupId;
+        tmpGroupId = tmpGatherGroupInfo[0].groupId;
+    }
+
+    /* copy tmpGatherGroupInfo */
+    gatheredGroupInfo_.clear();
+    gatheredGroupInfo_.reserve(rankSize_);
+    for (auto i = 0; i < rankSize_; i++) {
+        auto &item = tmpGatherGroupInfo[i];
+        gatheredGroupInfo_.emplace_back(item);
+        ZBCCL_LOG_DEBUG("Gathered group info, item " << i << ", " << item);
     }
 
     uniqueGroupId_ = static_cast<uint16_t>(tmpGroupId);
-    ZBCCL_LOG_DEBUG("Acquired unique id " << uniqueGroupId_);
+    ZBCCL_LOG_DEBUG("Dump after acquired, " << *this);
 
     return Z_OK;
 }
