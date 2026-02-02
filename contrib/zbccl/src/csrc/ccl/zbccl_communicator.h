@@ -13,49 +13,11 @@
 #define ZBCCL_COMMUNICATOR_H
 
 #include "zbccl_common_includes.h"
-#include "zbccl_comm_host_device_struct.h"
+#include "zbccl_comm_group_id.h"
+#include "zbccl_comm_types.h"
 
 namespace zbccl {
 namespace ccl {
-
-class Communicator;
-using CommunicatorPtr = ZRef<Communicator>;
-
-struct CommGroupOptions {
-    std::string name;                    /* name of group */
-    uint16_t worldSize = 0;              /* the ranks in the world */
-    uint16_t groupSize = 0;              /* the ranks in the group */
-    uint16_t myWorldRank = 0;            /* rank id in the world */
-    uint16_t myGroupRank = 0;            /* rank id in the group */
-    void *gva = nullptr;                 /* gva of the world */
-    uint64_t metaSize = 0;               /* size of meta */
-    uintptr_t myMetaGva = 0;             /* gva of mine */
-    uintptr_t myParamDataGva = 0;        /* gva of for param exchange of operation */
-    uintptr_t myAddressExchangeGva = 0;  /* gva of for param exchange of operation */
-    uint64_t sizeForCommGroupInfo = 0;   /* max memory size of passing param from host to device */
-    uint64_t sizeForParam = 0;           /* max memory size of passing param from host to device */
-    uint64_t sizeForExchangeAddress = 0; /* max memory size for exchange operation data addresses */
-    uint16_t deviceId = 0;               /* device Id */
-    uint32_t groupIndex = 0;             /* group index */
-    uint64_t fftsConfig = 0;             /* ffts config for operator in inner option*/
-    uint64_t localDeviceMemSize = 0;     /* local device memory size */
-
-    friend std::ostream &operator<<(std::ostream &os, const CommGroupOptions &options)
-    {
-        os << "CommGroupOptions [name: " << options.name << ", worldSize: " << options.worldSize
-           << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
-           << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva << ", metaSize: " << options.metaSize
-           << ", myMetaGva: " << std::hex << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
-           << ", myAddressExchangeGva: " << options.myAddressExchangeGva  << std::dec
-           << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
-           << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", deviceId: " << options.deviceId
-           << ", groupIndex: " << options.groupIndex << ", fftsConfig: " << options.fftsConfig
-           << ", localDeviceMemSize: " << options.localDeviceMemSize << "]";
-
-        return os;
-    }
-};
-
 class Communicator : public ZReferable
 {
 public:
@@ -243,8 +205,16 @@ public:
      */
     const std::string &Name() const noexcept;
 
+    /**
+     * @brief Get group id of communicator
+     *
+     * @return group id
+     */
+    uint16_t GroupId() const noexcept;
+
 protected:
     bool isWorldGroup_ = false;           /* if it is world group */
+    AutoReleaseGroupId uniqueGroupId_;    /* unique group id */
     CommGroupOptions options_{};          /* options */
     CommGroupInfo groupInfo_{};           /* meta info, which will be H2D to device, keep it simple */
     CommunicatorPtr worldGroup_{nullptr}; /* world group */
@@ -274,6 +244,11 @@ inline const CommGroupInfo &Communicator::GetMetaInfo() const noexcept
 inline const std::string &Communicator::Name() const noexcept
 {
     return options_.name;
+}
+
+inline uint16_t Communicator::GroupId() const noexcept
+{
+    return uniqueGroupId_.Id();
 }
 
 }  // namespace ccl

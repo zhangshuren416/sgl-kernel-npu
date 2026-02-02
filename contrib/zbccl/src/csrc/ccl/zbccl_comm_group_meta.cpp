@@ -91,5 +91,23 @@ void GroupMetaArranger::Move2NextGroup() noexcept
 {
     ++gGroupIndex;
 }
+
+ZResult GroupMetaArranger::GetGroupByIndex(uint32_t index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
+                                           uintptr_t &addressExchangeGVA) noexcept
+{
+    if (index >= cclGroupCap_) {
+        ZBCCL_LOG_DEBUG("Get group failed as out of bound, index: " << index << ", cclGroupCap_: " << cclGroupCap_);
+        return Z_ERROR;
+    }
+
+    groupMetaGVA = myMetaGVA_ + singleMetaSpaceSize_ * index;
+    paramGVA = groupMetaGVA + GetCommGroupInfoSpaceSize();
+    addressExchangeGVA = groupMetaGVA + OPERATE_PARAM_SIZE;
+
+    ZBCCL_LOG_DEBUG("Got group: " << index << ", group meta GVA: " << groupMetaGVA << ", paramGVA: " << paramGVA
+                                  << ", addressExchangeGVA： " << addressExchangeGVA);
+
+    return Z_OK;
+}
 }  // namespace ccl
 }  // namespace zbccl

@@ -84,6 +84,19 @@ public:
     void Move2NextGroup() noexcept;
 
     /**
+     * @brief Get addresses by index
+     *
+     * @param index                [in/out]
+     * @param groupMetaGVA         [in/out]
+     * @param paramGVA             [in/out]
+     * @param addressExchangeGVA   [in/out]
+     *
+     * @return 0 if successful, error if no more position
+     */
+    ZResult GetGroupByIndex(uint32_t index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
+                            uintptr_t &addressExchangeGVA) noexcept;
+
+    /**
      * @brief Check if initialized
      *
      * @return true if initialized successfully

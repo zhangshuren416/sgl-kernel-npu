@@ -15,6 +15,7 @@
 #include "zbccl_bootstrap_default.h"
 
 using namespace zbccl;
+using namespace zbccl::bootstrap;
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,11 @@ ZBCCL_API int32_t zbccl_set_logger_level(int level)
     }
 
     OutLogger::Instance().SetLogLevel(LogLevel(level));
+
+    auto bootstrap = Bootstrap::Get();
+    if (bootstrap != nullptr) {
+        bootstrap->SetLoggerLevel(level);
+    }
 
     return Z_OK;
 }

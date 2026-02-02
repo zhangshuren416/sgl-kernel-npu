@@ -13,6 +13,7 @@
 #include "zbccl_comm_group_meta.h"
 #include "zbccl_npu_communicator_default.h"
 #include "zbccl_communicator_dummy.h"
+#include "zbccl_comm_group_id.h"
 
 namespace zbccl {
 namespace ccl {
@@ -37,9 +38,18 @@ ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *
     commOptions.deviceId = extraState.deviceId;
 
     std::lock_guard<std::mutex> guard(gMutex);
+    /* try to unique id */
+    AutoReleaseGroupId tmpGroupId(extraState.cclGroupCap, commOptions.groupSize, commOptions.myGroupRank,
+                                  commOptions.myWorldRank, commOptions.name);
+    auto result = tmpGroupId.Acquire();
+    if (result != Z_OK) {
+        ZBCCL_LOG_AND_SET_LAST_ERROR("Get unique group id failed, result: " << result);
+        return result;
+    }
+
     /* init group meta arranger, already prevent initialize multiple time */
     auto &groupMetaArranger = GroupMetaArranger::Instance();
-    auto result = groupMetaArranger.Initialize(extraState);
+    result = groupMetaArranger.Initialize(extraState);
     if (result != Z_OK) {
         return result;
     }
@@ -52,8 +62,8 @@ ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *
     commOptions.localDeviceMemSize = ZBCCLInitState::Instance().ext_.localDeviceMemSize;
 
     /* get current index and myMetaGva */
-    result = groupMetaArranger.CurrentGroup(commOptions.groupIndex, commOptions.myMetaGva, commOptions.myParamDataGva,
-                                            commOptions.myAddressExchangeGva);
+    result = groupMetaArranger.GetGroupByIndex(tmpGroupId.Id(), commOptions.myMetaGva, commOptions.myParamDataGva,
+                                               commOptions.myAddressExchangeGva);
     ZBCCL_VALIDATE_RETURN(result == Z_OK, "Get meta range for group failed, probably out of range", result);
 
     /* create comm object */
@@ -64,10 +74,9 @@ ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *
 
     *comm = commInner.Get();
 
-    ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: " << commInner.Get());
+    commInner->uniqueGroupId_.MoveIdAndGatheredInfo(tmpGroupId);
 
-    /* move to next group */
-    groupMetaArranger.Move2NextGroup();
+    ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: " << commInner.Get());
 
     return Z_OK;
 }
@@ -129,9 +138,9 @@ ZResult Communicator::GetCommProperty(const zbccl_comm_t comm, zbccl_comm_proper
     }
 
     const CommGroupInfo &groupInfo = outComm->GetMetaInfo();
-    property->name[0] = '\0'; // TODO
+    property->name[0] = '\0';  // TODO
     property->backendType = ZBCCL_ASCEND_NPU;
-    property->isWorldGroup = 0; // TODO
+    property->isWorldGroup = 0;  // TODO
     property->groupSize = groupInfo.groupSize;
     property->groupRankId = groupInfo.myGroupRank;
     property->symmetricMetaGva = groupInfo.myMetaGva;

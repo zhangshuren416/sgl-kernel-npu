@@ -62,7 +62,35 @@ public:
      *
      * @param uniqueId     [in] the id to be released
      */
-    virtual void ReleaseCommGroupId(uint32_t uniqueId) noexcept = 0;
+    virtual ZResult ReleaseCommGroupId(uint32_t uniqueId) noexcept = 0;
+
+    /**
+     * @brief Do allGather operation with sub partition of world, there is no need to setup sub group firstly,
+     * just need to make sure the key is following the rule:
+     * a) key is a string
+     * b) key should be the same for all participators (i.e. same in the sub group)
+     * c) key should be different with other sub group, otherwise it will be messed up
+     *
+     * @param key          [in] key name for this barrier, which should be same in sub group but unique in the world
+     * @param rankSize     [in] rank size of the sub group
+     * @param rankId       [in] rank id in the sub group
+     * @param sendBuf      [in] input data buf
+     * @param sendSize     [in] input data buf size
+     * @param recvBuf      [in] output data buf
+     * @param recvSize     [in] output data buf size
+     * @return 0 if successful
+     */
+    virtual ZResult SubGroupAllGather(const std::string &key, uint32_t rankSize, uint32_t rankId, const char *sendBuf,
+                                      uint32_t sendSize, char *recvBuf, uint32_t recvSize) noexcept = 0;
+
+    /**
+     * @brief Level logger of bootstrap
+     *
+     * @param level        [in] level to be set
+     *
+     * @return 0 if successful
+     */
+    virtual ZResult SetLoggerLevel(int level) noexcept = 0;
 
 protected:
     MemBootstrap(const MemBootstrapOptions &options) : options_(options) {}

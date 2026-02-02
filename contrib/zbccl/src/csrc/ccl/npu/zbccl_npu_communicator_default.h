@@ -70,6 +70,10 @@ public:
                           int64_t flags) noexcept;
 
 private:
+
+    ZResult AcquireIdAndExchangeGroupInfo();
+
+private:
     void *kernelMetaH2DArea_ = nullptr;       /* dram space for exchange the meta of zbccl operators */
     void *kernelMetaH2DAreaDevice_ = nullptr; /* the device ptr of kernelMetaH2DArea */
 };

@@ -66,7 +66,36 @@ public:
      *
      * @param uniqueId     [in] the id to be released
      */
-    void ReleaseCommGroupId(uint32_t uniqueId) noexcept;
+    ZResult ReleaseCommGroupId(uint32_t uniqueId) noexcept;
+
+    /**
+     * @brief Do allGather operation with sub partition of world, there is no need to setup sub group firstly,
+     * just need to make sure the key is following the rule:
+     * a) key is a string
+     * b) key should be the same for all participators (i.e. same in the sub group)
+     * c) key should be different with other sub group, otherwise it will be messed up
+     *
+     * @param key          [in] key name for this barrier, which should be same in sub group but unique in the world
+     * @param rankSize     [in] rank size of the sub group
+     * @param rankId       [in] rank id in the sub group
+     * @param sendBuf      [in] input data buf
+     * @param sendSize     [in] input data buf size
+     * @param recvBuf      [in] output data buf
+     * @param recvSize     [in] output data buf size
+     *
+     * @return 0 if successful
+     */
+    ZResult SubGroupAllGather(const std::string &key, uint32_t rankSize, uint32_t rankId, const char *sendBuf,
+                              uint32_t sendSize, char *recvBuf, uint32_t recvSize);
+
+    /**
+     * @brief Set logger level
+     *
+     * @param level        [in] level to be set
+     *
+     * @return 0 if successful
+     */
+    ZResult SetLoggerLevel(int level);
 
 private:
     ZResult VerifyOptions() noexcept;
@@ -75,9 +104,9 @@ private:
     void DestroyMemoryBootstrap() noexcept;
 
 private:
-    MemBootstrapPtr memBootstrap_{nullptr};   /* inner memory bootstrap */
-    zbccl_bootstrap_options_t options_;       /* options from API */
-    zbccl_bootstrap_output_t output_;         /* output for API */
+    MemBootstrapPtr memBootstrap_{nullptr}; /* inner memory bootstrap */
+    zbccl_bootstrap_options_t options_;     /* options from API */
+    zbccl_bootstrap_output_t output_;       /* output for API */
 
     std::mutex mutex_;
     bool inited_{false};

@@ -30,7 +30,12 @@ public:
     void UnInitialize() noexcept override;
 
     ZResult AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept override;
-    void ReleaseCommGroupId(uint32_t uniqueId) noexcept override;
+    ZResult ReleaseCommGroupId(uint32_t uniqueId) noexcept override;
+
+    ZResult SubGroupAllGather(const std::string &key, uint32_t rankSize, uint32_t rankId, const char *sendBuf,
+                              uint32_t sendSize, char *recvBuf, uint32_t recvSize) noexcept override;
+
+    ZResult SetLoggerLevel(int level) noexcept override;
 
 private:
     ZResult GetMemFabricLibPath(std::string &path) noexcept;

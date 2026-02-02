@@ -132,6 +132,13 @@ ZResult MemFabricBoostrap::CreateSHMSpace() noexcept
     output_.myGvaDevice = reinterpret_cast<void *>(curGvaOffset);
     output_.memorySizeDevice = options_.totalMemSize;
 
+    /* set logger level */
+    auto loggerLevel = OutLogger::Instance().GetLogLevel();
+    result = DlMfApi::SmemSetLoggerLevel(loggerLevel);
+    if (result != Z_OK) {
+        ZBCCL_LOG_WARN("Set logger level of MemFabric to " << loggerLevel << " failed, no action required");
+    }
+
     ZBCCL_LOG_DEBUG("Initialized SHM space successfully");
     initialized_ = true;
     return Z_OK;
@@ -201,21 +208,56 @@ ZResult MemFabricBoostrap::AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) 
         ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
         return Z_MEM_NOT_BOOTSTRAP;
     }
+
     return DlMfApi::SmemShmAtomicAllocValue(shmHandle_, max, &uniqueId);
 }
 
-void MemFabricBoostrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
+ZResult MemFabricBoostrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
 {
     std::lock_guard<std::mutex> guard(mutex_);
     if (!initialized_) {
         ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
-        return;
+        return Z_MEM_NOT_BOOTSTRAP;
     }
 
-    auto result = DlMfApi::SmemShmAtomicReleaseValue(shmHandle_, uniqueId);
-    if (result != Z_OK) {
-        ZBCCL_LOG_WARN("Release unique id failed, result: " << result);
+    return DlMfApi::SmemShmAtomicReleaseValue(shmHandle_, uniqueId);
+}
+
+ZResult MemFabricBoostrap::SubGroupAllGather(const std::string &key, uint32_t rankSize, uint32_t rankId,
+                                             const char *sendBuf, uint32_t sendSize, char *recvBuf,
+                                             uint32_t recvSize) noexcept
+{
+    ZBCCL_ASSERT_RETURN(!key.empty(), Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(rankSize > 0, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(rankSize > rankId, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(sendBuf != nullptr, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(sendSize > 0, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(recvBuf != nullptr, Z_INVALID_PARAM);
+    ZBCCL_ASSERT_RETURN(recvSize > 0, Z_INVALID_PARAM);
+
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
+        return Z_MEM_NOT_BOOTSTRAP;
     }
+
+    ZBCCL_LOG_DEBUG("start sub group allGather, key: " << key << ", rankSize: " << rankSize << ", rankId: " << rankId
+                                                       << ", sendSize: " << sendSize << ", recvSize: " << recvSize);
+
+    return DlMfApi::SmemShmSubGroupAllGather(shmHandle_, key, rankSize, rankId, sendBuf, sendSize, recvBuf, recvSize);
+}
+
+ZResult MemFabricBoostrap::SetLoggerLevel(int level) noexcept
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (!initialized_) {
+        ZBCCL_LOG_INFO("MemFabric bootstrap not initialized, no action required");
+        return Z_MEM_NOT_BOOTSTRAP;
+    }
+
+    ZBCCL_LOG_DEBUG("Try to set logger level of MemFabric to " << level);
+
+    return DlMfApi::SmemSetLoggerLevel(level);
 }
 }  // namespace bootstrap
 }  // namespace zbccl

@@ -16,6 +16,7 @@
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <vector>
 #include <c10/util/flat_hash_map.h>  // TODO fix for pta depends
 
 #include "zbccl.h"

@@ -52,7 +52,7 @@ BootstrapPtr Bootstrap::Get()
         return gBootstrap;
     }
 
-    ZBCCL_LOG_WARN("Get bootstrap failed as it is not created");
+    ZBCCL_LOG_DEBUG("Get bootstrap failed as it is not created");
     return nullptr;
 }
 
@@ -195,6 +195,7 @@ void Bootstrap::DestroyMemoryBootstrap() noexcept
 
 ZResult Bootstrap::AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept
 {
+    std::lock_guard<std::mutex> guard(mutex_);
     if (memBootstrap_ == nullptr) {
         ZBCCL_LOG_DEBUG("Not bootstrapped");
         return Z_NOT_BOOTSTRAPPED;
@@ -203,14 +204,38 @@ ZResult Bootstrap::AcquireCommGroupId(uint32_t max, uint32_t &uniqueId) noexcept
     return memBootstrap_->AcquireCommGroupId(max, uniqueId);
 }
 
-void Bootstrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
+ZResult Bootstrap::ReleaseCommGroupId(uint32_t uniqueId) noexcept
 {
+    std::lock_guard<std::mutex> guard(mutex_);
     if (memBootstrap_ == nullptr) {
         ZBCCL_LOG_DEBUG("Not bootstrapped");
-        return;
+        return Z_NOT_BOOTSTRAPPED;
     }
 
-    memBootstrap_->ReleaseCommGroupId(uniqueId);
+    return memBootstrap_->ReleaseCommGroupId(uniqueId);
+}
+
+ZResult Bootstrap::SubGroupAllGather(const std::string &key, uint32_t rankSize, uint32_t rankId, const char *sendBuf,
+                                     uint32_t sendSize, char *recvBuf, uint32_t recvSize)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (memBootstrap_ == nullptr) {
+        ZBCCL_LOG_DEBUG("Not bootstrapped");
+        return Z_NOT_BOOTSTRAPPED;
+    }
+
+    return memBootstrap_->SubGroupAllGather(key, rankSize, rankId, sendBuf, sendSize, recvBuf, recvSize);
+}
+
+ZResult Bootstrap::SetLoggerLevel(int level)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (memBootstrap_ == nullptr) {
+        ZBCCL_LOG_DEBUG("Not bootstrapped");
+        return Z_NOT_BOOTSTRAPPED;
+    }
+
+    return memBootstrap_->SetLoggerLevel(level);
 }
 }  // namespace bootstrap
 }  // namespace zbccl
