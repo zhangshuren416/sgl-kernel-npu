@@ -140,10 +140,15 @@ ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& stor
                                      int rank, int size, c10::intrusive_ptr<Options> options)
                                      : c10d::Backend(rank, size), store_(store)
 {
+    if (rank < 0 || size <= 1 || rank >= size) {
+        ZBCCL_LOG_ERROR("invalid input rank=" << rank << ", size=" << size);
+        throw std::runtime_error("invalid arguments for process group creation");
+    }
+
     auto timeoutMill = options->opTimeout * 1000;
     if (timeoutMill > WORKER_MAX_TIMEOUT) {
         timeoutMill = WORKER_MAX_TIMEOUT;
-        ZBCCL_LOG_WARN("timeout " << static_cast<int>(timeoutMill.count()) << " exceed, set to default value");
+        ZBCCL_LOG_WARN(static_cast<int>(options->opTimeout.count()) << " exceed, set timeout to default value");
     }
     opTimeout_ = timeoutMill;
 
@@ -153,10 +158,13 @@ ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& stor
     options_->globalRanksInGroup = options->globalRanksInGroup;
     options_->groupId = options->groupId;
 
-    auto ret = PrepareCommunicator();
+    auto ret = PrepareCommunicator(rank, size);
     if (ret != Z_OK) {
         throw std::runtime_error("create zbccl process group failed.");
     }
+    ZBCCL_LOG_DEBUG("create process group success, groupId=" << options_->groupId << ", rank=" << rank_
+        << ", size=" << size_ << ", name=" << groupName_ << ", isHigh=" << options_->isHighPriorityStream
+        << ", timeout=" << static_cast<int>(opTimeout_.count()));
 }
 
 uint64_t ProcessGroupZBCCL::GetNextGroupCounter() noexcept
@@ -189,40 +197,44 @@ int32_t ProcessGroupZBCCL::PrepareResources(const std::vector<at::Device> &devic
 
 std::string ProcessGroupZBCCL::ConstructCommName() noexcept
 {
-    std::vector<uint32_t> rankList = options_->globalRanksInGroup;
-    if (rankList.empty()) {
-        rankList.reserve(size_);
-        for (uint32_t i = 0; i < size_; i++) {
-            rankList.push_back(i);
+    std::vector<uint32_t> &ranks = options_->globalRanksInGroup;
+
+    bool isGlobalGroup = ranks.empty();
+    uint32_t start = isGlobalGroup ? 0 : ranks.front();
+    uint32_t end = isGlobalGroup ? size_ - 1 : ranks.back();
+    uint32_t stride = (end - start) / (size_ - 1);
+
+    for (size_t i = 0; !isGlobalGroup && i < size_ - 1; ++i) {
+        if (ranks[i] + stride != ranks[i + 1]) {
+            ZBCCL_LOG_WARN("group ranks are not equal difference [" << ranks[i] << ", " << ranks[i + 1] << "]");
+            break;
         }
     }
 
-    std::sort(rankList.begin(), rankList.end());
-    std::string commName = "";
     std::ostringstream oss;
-    for (auto &rank : rankList) {
-        oss << rank << "_";
-    }
-    return ZBCCL_BACKEND_NAME + "_" + oss.str() + "group_" + std::to_string(GetNextGroupCounter());
+    oss << ZBCCL_BACKEND_NAME << "_" << start << ":" << end << ":" << stride
+        << "_group_" + std::to_string(GetNextGroupCounter());
+    return oss.str();
 }
 
-int32_t ProcessGroupZBCCL::PrepareCommunicator() noexcept
+int32_t ProcessGroupZBCCL::PrepareCommunicator(int rank, int size) noexcept
 {
     std::string curCommName = ConstructCommName();
     zbccl_comm_options_t opt;
     opt.backendType = ZBCCL_ASCEND_NPU;
     opt.isWorldGroup = options_->globalRanksInGroup.empty() ? 1 : 0;
-    opt.groupSize = size_;
-    opt.groupRankId = rank_;
+    opt.groupSize = size;
     opt.name = const_cast<char *>(curCommName.c_str());
+    opt.groupRankId = rank;
     auto ret = zbccl_comm_create(&opt, &groupComm_);
     if (ret != Z_OK || groupComm_ == nullptr) {
-        ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << rank_ << ", size="
-                        << size_ << ", key=" << curCommName);
+        ZBCCL_LOG_ERROR("create comm failed, ret=" << ret << ", rank=" << opt.groupRankId << ", size="
+                        << size << ", key=" << curCommName);
         return Z_CREATE_COMM_FAILED;
     }
-    ZBCCL_LOG_DEBUG("create comm success, rank=" << rank_ << ", size=" << size_ << ", key=" << curCommName);
+    ZBCCL_LOG_DEBUG("create comm success, rank=" << opt.groupRankId << ", size=" << size << ", key=" << curCommName);
     groupName_ = curCommName;
+    groupLocalId_ = opt.isWorldGroup ? rank : options_->globalRanksInGroup.at(rank);
     return Z_OK;
 }
 
@@ -430,7 +442,20 @@ ProcessGroupZBCCL::Options::Options(bool isHighPriorityStream)
 {
 }
 
-ProcessGroupZBCCL::~ProcessGroupZBCCL() {}
+ProcessGroupZBCCL::~ProcessGroupZBCCL()
+{
+    if (groupComm_ == nullptr) {
+        ZBCCL_LOG_INFO("group comm is empty");
+        return;
+    }
+
+    auto result = zbccl_comm_destroy(groupComm_, 0);
+    if (result != Z_OK) {
+        ZBCCL_LOG_WARN("~ process group: " << groupName_ << " on rank " << groupLocalId_ << " result " << result);
+        return;
+    }
+    ZBCCL_LOG_DEBUG("~ process group success: " << groupName_ << " on rank " << groupLocalId_);
+}
 
 }  // namespace pytorch_npu
 }  // namespace adaptor

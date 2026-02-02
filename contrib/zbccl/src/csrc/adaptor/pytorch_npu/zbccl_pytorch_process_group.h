@@ -198,6 +198,7 @@ protected:
 private:
     zbccl_comm_t groupComm_{nullptr};
     std::string groupName_;
+    int groupLocalId_;
     static std::atomic<uint64_t> groupCounter_;
 
 private:
@@ -212,7 +213,7 @@ private:
 
     uint64_t GetNextGroupCounter() noexcept;
 
-    int32_t PrepareCommunicator() noexcept;
+    int32_t PrepareCommunicator(int rank, int size) noexcept;
 
     std::string ConstructCommName() noexcept;
 

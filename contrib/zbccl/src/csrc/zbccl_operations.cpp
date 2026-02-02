@@ -55,7 +55,7 @@ ZBCCL_API int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t 
     }
 
     /* update init state */
-    state.CommunicatorCreated();
+    state.CommunicatorCreated(1);
 
     return Z_OK;
 }
@@ -102,9 +102,15 @@ ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
     }
 
     /* update init state */
-    ZBCCLInitState::Instance().CommunicatorDestroy();
+    ZBCCLInitState::Instance().CommunicatorDestroy(1);
 
     return Z_OK;
+}
+
+ZBCCL_API void zbccl_comm_destroy_all()
+{
+    ZBCCL_LOG_WARN("destroy all comm group");
+    Communicator::DestroyAll();
 }
 
 ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,

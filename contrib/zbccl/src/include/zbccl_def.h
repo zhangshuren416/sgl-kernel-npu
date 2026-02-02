@@ -102,7 +102,7 @@ typedef struct {
     uint32_t flags;              /* optional flags */
     uint16_t isWorldGroup;       /* if this is the world group, 1 means true, 0 means false */
     uint16_t groupSize;          /* how many rank in total */
-    uint16_t groupRankId;        /* my rank id in the world */
+    uint16_t groupRankId;        /* my rank id in the group */
     uint16_t symmetricMetaGva;   /* use symmetric memory for meta */
 } zbccl_comm_options_t;
 

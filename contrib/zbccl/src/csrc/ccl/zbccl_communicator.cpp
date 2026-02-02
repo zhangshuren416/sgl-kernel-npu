@@ -77,7 +77,8 @@ ZResult Communicator::Create(const zbccl_comm_options_t &options, zbccl_comm_t *
 
     *comm = commInner.Get();
 
-    ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: " << commInner.Get());
+    ZBCCL_LOG_DEBUG("Created communicator successfully, name: " << commInner->Name() << ", ptr: "
+        << commInner.Get() << " on rank:" << options.groupRankId);
 
     return Z_OK;
 }
@@ -248,11 +249,12 @@ ZResult Communicator::DestroyInner(CommunicatorPtr &comm)
     if (comm->isWorldGroup_) {
         if (gCommLookupMap_.size() != 0) {
             ZBCCL_LOG_AND_SET_LAST_ERROR("Destroy other non world communicator firstly, then destroy the world one");
-            return Z_ERROR;
+            return Z_CCL_DESTROY_GLOBAL_LAST;
         }
 
         if (gWorldCommunicator != nullptr) {
-            ZBCCL_LOG_INFO("Destroying the world communicator");
+            ZBCCL_LOG_INFO("Destroying the world communicator: " << gWorldCommunicator->Name()
+                           << " on rank " << gWorldCommunicator->GetMetaInfo().myGroupRank);
             gCommLookupMapByName_.erase(gWorldCommunicator->Name());
             gWorldCommunicator->DecreaseRef();
             gWorldCommunicator = nullptr;
@@ -263,13 +265,15 @@ ZResult Communicator::DestroyInner(CommunicatorPtr &comm)
     /* erase from lookup map directly */
     auto iter = gCommLookupMap_.find(reinterpret_cast<uintptr_t>(comm.Get()));
     if (iter == gCommLookupMap_.end()) {
-        ZBCCL_LOG_INFO("Destroy communicator failed as no such communicator existed");
+        ZBCCL_LOG_INFO("Destroy communicator find communicator not existed");
         return Z_OK;
     }
 
     if (iter->second != nullptr) {
         gCommLookupMapByName_.erase(iter->second->Name());
         gCommLookupMap_.erase(iter);
+        ZBCCL_LOG_INFO("Destroying the normal communicator: " << iter->second->Name()
+                       << " on rank " << iter->second->GetMetaInfo().myGroupRank);
     }
 
     return Z_OK;
@@ -280,6 +284,7 @@ void Communicator::DestroyAllInner()
     /* lock is acquired by caller already */
 
     /* clear all other world comm*/
+    ZBCCLInitState::Instance().CommunicatorDestroy(gCommLookupMapByName_.size());
     gCommLookupMap_.clear();
     gCommLookupMapByName_.clear();
 

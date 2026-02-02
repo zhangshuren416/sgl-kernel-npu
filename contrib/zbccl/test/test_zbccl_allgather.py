@@ -36,6 +36,7 @@ def test_init_zbccl_pg():
         backend = sub_group._get_backend(torch.device("npu", local_rank))
         sub_group_name = backend.get_zbccl_comm_name()
         dist.destroy_process_group(sub_group)
+        del sub_group
     print(f"init zbccl group success on rank {local_rank=} {world_size=} \
         {global_group_name=} {global_group_name2=} {sub_group_name=}")
 
@@ -63,6 +64,7 @@ def test_init_zbccl_pg():
         print(f"{success_cnt}/{total_cnt} tests run success")
     finally:
         dist.destroy_process_group(global_group)
+        del global_group
 
     if not zbccl_uninit():
         print("zbccl uninit failed.")

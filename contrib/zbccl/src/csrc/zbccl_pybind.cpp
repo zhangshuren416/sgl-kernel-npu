@@ -151,6 +151,10 @@ void pybind11_functions(py::module_ &m)
         zbccl_comm_get_property(reinterpret_cast<zbccl_comm_t>(comm), &prop);
         return prop;
     });
+    m.def("zbccl_comm_destroy_all", &zbccl_comm_destroy_all);
+    m.def("zbccl_comm_destroy", [](uintptr_t comm, uint32_t flags) {
+        return zbccl_comm_destroy(reinterpret_cast<zbccl_comm_t>(comm), flags);
+    });
 }
 
 void pybind11_bootstrap(py::module_ &m)

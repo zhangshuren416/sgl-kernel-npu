@@ -6,7 +6,7 @@ import torch_npu
 from enum import Enum
 from typing import Optional
 from zbccl.zbccl import ZBCCLBootstrapType, ZBCCLBootstrapOption
-from zbccl.zbccl import zbccl_version, zbccl_bootstrap, zbccl_unbootstrap
+from zbccl.zbccl import zbccl_version, zbccl_bootstrap, zbccl_unbootstrap, zbccl_comm_destroy_all
 from zbccl.zbccl.allocator import get_heap_stats
 
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -80,6 +80,7 @@ def zbccl_uninit(flags: int = 0):
     '''
 
     # un-init ccl
+    zbccl_comm_destroy_all()
 
     # un-init allocator
 

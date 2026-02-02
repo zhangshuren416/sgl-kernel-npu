@@ -61,6 +61,11 @@ zbccl_comm_t zbccl_comm_get_by_name(const char *name);
 int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags);
 
 /**
+ * @brief Destroy all communicators
+ */
+void zbccl_comm_destroy_all();
+
+/**
  * @brief Do all reduce operation
  *
  * @param sendBuff             [in] pointer of send buffer
