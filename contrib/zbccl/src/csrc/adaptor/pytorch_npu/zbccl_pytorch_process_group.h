@@ -198,6 +198,7 @@ protected:
 private:
     zbccl_comm_t groupComm_{nullptr};
     std::string groupName_;
+    static std::atomic<uint64_t> groupCounter_;
 
 private:
     template <typename Fn, typename PreProcess, typename PostProcess>
@@ -208,6 +209,8 @@ private:
         PreProcess pre,
         PostProcess post,
         c10d::OpType opType);
+
+    uint64_t GetNextGroupCounter() noexcept;
 
     int32_t PrepareCommunicator() noexcept;
 

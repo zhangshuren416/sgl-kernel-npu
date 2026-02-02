@@ -19,6 +19,7 @@ namespace adaptor {
 namespace pytorch_npu {
 
 constexpr int64_t kSynchronizeBusyWaitMillis = 10;
+std::atomic<uint64_t> ProcessGroupZBCCL::groupCounter_{0ULL};
 
 ProcessGroupZBCCL::WorkZBCCL::WorkZBCCL(const std::vector<at::Device> &devices, int rank, c10d::OpType opType)
     : Work(rank, opType), devices_(devices), workStartTime_(std::chrono::steady_clock::now())
@@ -158,6 +159,12 @@ ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& stor
     }
 }
 
+uint64_t ProcessGroupZBCCL::GetNextGroupCounter() noexcept
+{
+    ++groupCounter_;
+    return groupCounter_.load();
+}
+
 int32_t ProcessGroupZBCCL::PrepareResources(const std::vector<at::Device> &devices) noexcept
 {
     if (devices.size() != 1) {
@@ -196,7 +203,7 @@ std::string ProcessGroupZBCCL::ConstructCommName() noexcept
     for (auto &rank : rankList) {
         oss << rank << "_";
     }
-    return ZBCCL_BACKEND_NAME + "_" + oss.str() + "group";
+    return ZBCCL_BACKEND_NAME + "_" + oss.str() + "group_" + std::to_string(GetNextGroupCounter());
 }
 
 int32_t ProcessGroupZBCCL::PrepareCommunicator() noexcept

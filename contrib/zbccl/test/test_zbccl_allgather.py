@@ -25,6 +25,10 @@ def test_init_zbccl_pg():
     backend = global_group._get_backend(torch.device("npu", local_rank))
     global_group_name = backend.get_zbccl_comm_name()
 
+    global_group2 = dist.new_group(list(range(world_size)), backend="zbccl")
+    backend2 = global_group2._get_backend(torch.device("npu", local_rank))
+    global_group_name2 = backend2.get_zbccl_comm_name()
+
     sub_group_rank = [0, 2]
     sub_group_name = ""
     if local_rank in sub_group_rank:
@@ -32,7 +36,8 @@ def test_init_zbccl_pg():
         backend = sub_group._get_backend(torch.device("npu", local_rank))
         sub_group_name = backend.get_zbccl_comm_name()
         dist.destroy_process_group(sub_group)
-    print(f"init zbccl group success on rank {local_rank=} {world_size=} {global_group_name=} {sub_group_name=}")
+    print(f"init zbccl group success on rank {local_rank=} {world_size=} \
+        {global_group_name=} {global_group_name2=} {sub_group_name=}")
 
     try:
         success_cnt = 0
