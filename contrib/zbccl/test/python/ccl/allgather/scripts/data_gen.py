@@ -20,7 +20,7 @@ def gen_random_data(size, dtype):
 
 def golden_generate(data_len, rank_size, data_type, current_dir):
     golden_dir = f"allgather_{data_len}_{rank_size}"
-    cmd = f"mkdir golden/{golden_dir}"
+    cmd = f"mkdir -p {current_dir}/golden/{golden_dir}"
     os.system(cmd)
 
     input_gm = np.zeros((rank_size, data_len), dtype=data_type)

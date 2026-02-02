@@ -104,7 +104,7 @@ ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noex
 int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
-    auto groupInfo = GetMetaInfo();
+    auto &groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
                                             groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
@@ -115,7 +115,7 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
                                               zbccl_datatype_t data_type, zbccl_reduce_op_t op,
                                               aclrtStream stream) noexcept
 {
-    auto groupInfo = GetMetaInfo();
+    auto &groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
                                             groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
@@ -125,7 +125,7 @@ int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_
 int32_t NpuCommunicatorDefault::AllGather(const void *send_buff, void *recv_buff, size_t send_count,
                                           zbccl_datatype_t data_type, aclrtStream stream) noexcept
 {
-    auto groupInfo = GetMetaInfo();
+    auto &groupInfo = GetMetaInfo();
     zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
                                             groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
     return ZBCCLOpAllGather(send_buff, recv_buff, send_count, data_type, stream, groupInfo);

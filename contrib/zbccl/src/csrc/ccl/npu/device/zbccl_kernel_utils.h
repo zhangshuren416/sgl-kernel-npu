@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details.
 
 #define ZBCCL_KERNEL __attribute__((always_inline)) __aicore__ __inline__
 
-constexpr int64_t FLAG_SIZE = 16;
+constexpr int64_t FLAG_SIZE = 8;
 constexpr int64_t BARRIER_FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 using namespace AscendC;
@@ -183,31 +183,26 @@ ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t gr
 template<typename T>
 ZBCCL_KERNEL void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTensor<T> inputGT, uint64_t count)
 {
-    uint32_t copyUbSize = UB_DMA_MAX_SIZE / 2;
+    uint32_t copyUbSize = UB_DMA_MAX_SIZE;
     uint32_t copyUbNum = copyUbSize / sizeof(T);
-    AscendC::LocalTensor<T> pingBuff(AscendC::TPosition::VECIN, 1024 + 32, copyUbNum);
-    AscendC::LocalTensor<T> pongBuff(AscendC::TPosition::VECIN, 96 * 1024 + 32, copyUbNum);
+    AscendC::LocalTensor<T> buf(AscendC::TPosition::VECIN, 1024 + 32, copyUbNum);
 
     uint64_t curOffset = 0;
     AscendC::DataCopyPadExtParams<T> copyExtParams;
-    uint8_t pingpongId = 0;
     while (count > 0) {
-        AscendC::TEventID EVENT_ID = pingpongId == 0 ? EVENT_ID0 : EVENT_ID1;
-        AscendC::LocalTensor<T> buf = pingpongId == 0 ? pingBuff : pongBuff;
         uint64_t curCount = count > copyUbNum ? copyUbNum : count;
         AscendC::DataCopyExtParams copyParams(1, curCount * sizeof(T), 0, 0, 0);
 
         AscendC::DataCopyPad(buf, inputGT[curOffset], copyParams, copyExtParams);
-        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID);
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
         AscendC::DataCopyPad(outputGT[curOffset], buf, copyParams);
         if (count > copyUbNum) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
         }
         count -= curCount;
         curOffset += curCount;
-        pingpongId = 1 - pingpongId;
     }
     return;
 }
