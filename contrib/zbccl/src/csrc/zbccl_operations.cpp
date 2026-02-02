@@ -62,8 +62,8 @@ ZBCCL_API int32_t zbccl_comm_create(zbccl_comm_options_t *options, zbccl_comm_t 
 
 ZBCCL_API int32_t zbccl_comm_get_property(zbccl_comm_t comm, zbccl_comm_property_t *property)
 {
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Get property as comm is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(property != nullptr, "Get property as property is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Get property failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(property != nullptr, "Get property failed as property is null", Z_INVALID_PARAM);
 
     return Communicator::GetCommProperty(comm, property);
 }
@@ -93,7 +93,7 @@ ZBCCL_API zbccl_comm_t zbccl_comm_get_by_name(const char *name)
 
 ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
 {
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Create communicator failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "Destroy communicator failed as comm is null", Z_INVALID_PARAM);
 
     /* destroy one */
     auto result = Communicator::Destroy(comm, flags);
@@ -110,14 +110,14 @@ ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
 ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
                                    zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllReduce failed, send_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllReduce failed, recv_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(count > 0, "AllReduce failed, count " << count << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllReduce failed as send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllReduce failed as recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(count > 0, "AllReduce failed as count " << count << " is invalid", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
-                          "AllReduce failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "AllReduce failed, op " << op << " is invalid",
+                          "AllReduce failed as data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "AllReduce failed as op " << op << " is invalid",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllReduce failed, comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllReduce failed as comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
@@ -128,15 +128,15 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
                                        zbccl_datatype_t data_type, zbccl_reduce_op_t op, zbccl_comm_t comm,
                                        aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "ReduceScatter failed, send_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "ReduceScatter failed, recv_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(recv_count > 0, "ReduceScatter failed, recv_count " << recv_count << " is invalid",
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "ReduceScatter failed as send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "ReduceScatter failed as recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_count > 0, "ReduceScatter failed as recv_count " << recv_count << " is invalid",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
-                          "ReduceScatter failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "ReduceScatter failed, op " << op << " is invalid",
+                          "ReduceScatter failed as data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "ReduceScatter failed as op " << op << " is invalid",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "ReduceScatter failed, comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "ReduceScatter failed as comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
@@ -146,13 +146,13 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
 ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count,
                                    zbccl_datatype_t data_type, zbccl_comm_t comm, aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllGather failed, send_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllGather failed, recv_buff is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(send_count > 0, "AllGather failed, send_count " << send_count << " is invalid",
+    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllGather failed as send_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllGather failed as recv_buff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(send_count > 0, "AllGather failed as send_count " << send_count << " is invalid",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
-                          "AllGather failed, data_type " << data_type << " is invalid", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllGather failed, comm is null", Z_INVALID_PARAM);
+                          "AllGather failed as data_type " << data_type << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllGather failed as comm is null", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
@@ -180,21 +180,23 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
                                                const zbccl_tensor_info_t *tokensPerExpert,
                                                const zbccl_tensor_info_t *isTokenInRank,
                                                const zbccl_tensor_info_t *sendTokensIndex,
-                                               const zbccl_tensor_info_t *notifySendData,
-                                               zbccl_comm_t comm, aclrtStream stream, int64_t flags)
+                                               const zbccl_tensor_info_t *notifySendData, zbccl_comm_t comm,
+                                               aclrtStream stream, int64_t flags)
 {
-    ZBCCL_VALIDATE_RETURN(topkIndex != nullptr, "DispatchLayout failed, topkIndex is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(tokensPerRank != nullptr, "DispatchLayout failed, tokensPerRank is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(tokensPerExpert != nullptr, "DispatchLayout failed, tokensPerExpert is null",
+    ZBCCL_VALIDATE_RETURN(topkIndex != nullptr, "DispatchLayout failed as topkIndex is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(tokensPerRank != nullptr, "DispatchLayout failed as tokensPerRank is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(tokensPerExpert != nullptr, "DispatchLayout failed as tokensPerExpert is null",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(isTokenInRank != nullptr, "DispatchLayout failed, isTokenInRank is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "DispatchLayout failed, sendTokensIndex is null",
+    ZBCCL_VALIDATE_RETURN(isTokenInRank != nullptr, "DispatchLayout failed as isTokenInRank is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "DispatchLayout failed as sendTokensIndex is null",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(notifySendData != nullptr, "DispatchLayout failed, notifySendData is null", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(tokens > 0, "DispatchLayout failed, tokens " << tokens << " is invalid", Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(expertNum > 0, "DispatchLayout failed, expertNum " << expertNum << " is invalid",
+    ZBCCL_VALIDATE_RETURN(notifySendData != nullptr, "DispatchLayout failed as notifySendData is null",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(topkNum > 0, "DispatchLayout failed, topkNum " << topkNum << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(tokens > 0, "DispatchLayout failed as tokens " << tokens << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(expertNum > 0, "DispatchLayout failed as expertNum " << expertNum << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(topkNum > 0, "DispatchLayout failed as topkNum " << topkNum << " is invalid",
+                          Z_INVALID_PARAM);
 
     // 校验tensor信息
 
@@ -203,7 +205,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->DispatchNormalLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
-        isTokenInRank, sendTokensIndex, notifySendData, stream, flags);
+                                           isTokenInRank, sendTokensIndex, notifySendData, stream, flags);
     return Z_OK;
 }
 
