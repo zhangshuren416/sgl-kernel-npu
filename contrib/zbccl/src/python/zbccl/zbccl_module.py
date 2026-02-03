@@ -80,7 +80,7 @@ def zbccl_uninit(flags: int = 0):
     '''
 
     # un-init ccl
-    zbccl_comm_destroy_all()
+    zbccl_comm_destroy_all(flags)
 
     # un-init allocator
 

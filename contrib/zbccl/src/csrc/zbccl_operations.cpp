@@ -107,8 +107,9 @@ ZBCCL_API int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags)
     return Z_OK;
 }
 
-ZBCCL_API void zbccl_comm_destroy_all()
+ZBCCL_API void zbccl_comm_destroy_all(uint32_t flags)
 {
+    (void)flags;
     ZBCCL_LOG_WARN("destroy all comm group");
     Communicator::DestroyAll();
 }

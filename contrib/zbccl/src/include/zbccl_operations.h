@@ -62,8 +62,10 @@ int32_t zbccl_comm_destroy(zbccl_comm_t comm, uint32_t flags);
 
 /**
  * @brief Destroy all communicators
+ *
+ * @param flags                [in] optional flags
  */
-void zbccl_comm_destroy_all();
+void zbccl_comm_destroy_all(uint32_t flags);
 
 /**
  * @brief Do all reduce operation
