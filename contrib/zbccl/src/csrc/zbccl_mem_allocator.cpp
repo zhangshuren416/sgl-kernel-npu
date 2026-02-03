@@ -91,6 +91,16 @@ ZBCCL_API void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream
     }
 }
 
+// deprecated
+ZBCCL_API void *zbccl_get_shmem_base_addr()
+{
+    ZBCCL_LOG_WARN("base addr no longer stands for meta if inited from bootstrap, will be deprecated soon");
+    if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+        return dma_get_base_addr();
+    } else {
+        return sma_get_base_addr();
+    }
+}
 
 ZBCCL_API void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
     if(!zbccl::sma::SMAConfig::use_sma_allocator()) {

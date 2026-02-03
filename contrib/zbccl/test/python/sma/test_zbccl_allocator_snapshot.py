@@ -7,8 +7,11 @@ from zbccl import record_memory_history, dump_snapshot
 import sys
 import os
 
+local_rank = 0
+world_size = 1
 
 def init():
+    global local_rank, world_size
     # This will allocate memory in the device using the new allocator
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
@@ -58,5 +61,5 @@ if __name__ == "__main__":
     new_snapshot = dump_snapshot()
     record_memory_history(None, 1)
     import pickle
-    with open("snapshot.json", 'wb') as f:
+    with open(f"snapshot.{local_rank}.pkl", 'wb') as f:
         pickle.dump(new_snapshot, f)
