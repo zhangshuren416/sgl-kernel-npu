@@ -104,6 +104,12 @@ const SnapshotDeviceInfo& DeviceInfoObserver::dumpSnapshot(int device) {
     return snapshots_[device];
 }
 
+
+void DeviceInfoObserver::recordHistory(bool record_history, int64_t max_size) {
+    record_history_ = record_history;
+    max_trace_len_ = max_size;
+}
+
 }  // namespace device
 }  // namespace sma
 }  // namespace zbccl

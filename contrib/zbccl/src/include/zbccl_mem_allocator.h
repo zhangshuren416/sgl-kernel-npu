@@ -15,6 +15,9 @@
 #include "zbccl_def.h"
 #include "zbccl_defines.h"
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -87,5 +90,7 @@ void zbccl_pluggable_empty_cache(bool check_error);
 #ifdef __cplusplus
 }
 #endif
+
+void pybind11_allocator(pybind11::module_ &m);
 
 #endif  // ZBCCL_MEM_ALLOCATOR_H_

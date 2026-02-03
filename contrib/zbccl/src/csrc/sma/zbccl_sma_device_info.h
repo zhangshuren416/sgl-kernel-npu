@@ -105,6 +105,9 @@ public:
     // export snapshot
     const SnapshotDeviceInfo& dumpSnapshot(int device);
 
+    // begin record trace with max size
+    void recordHistory(bool record_history, int64_t max_size);
+
 
 private:
     // use mutex to fix device A write trace into device B cases, which should not happen in zbccl
@@ -112,10 +115,10 @@ private:
 
     std::vector<SnapshotDeviceInfo> snapshots_;
 
-    int max_trace_len_{kMaxTraceLen};
+    int64_t max_trace_len_{kMaxTraceLen};
     size_t trace_next_ = 0;
 
-    bool record_history_{kRecordHistory};
+    bool record_history_{false};
 
 };
 

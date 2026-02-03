@@ -20,7 +20,6 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <pybind11/stl.h>
 
 #include <c10/core/Allocator.h>
 #include <c10/util/flat_hash_map.h>
@@ -4016,11 +4015,10 @@ EXPORT_API void dma_get_heap_stats(size_t &in_used_size, size_t &total_size, int
 
 }
 
-
-void record_memory_history(std::optional<std::string> enabled, size_t max_entries) {
+void dma_record_memory_history(std::optional<std::string> enabled, int64_t max_entries) {
     if (enabled) {
         if (!(enabled == "state" || enabled == "all")) {
-            TORCH_INTERNAL_ASSERT(false, "[E]shmem allocator snapshot expected enabled to be 'state' or 'all'");
+            TORCH_INTERNAL_ASSERT(false, "dma snapshot expected enabled to be 'state' or 'all'");
         }
     }
     max_entries = (enabled && *enabled == "all") ? max_entries : 1;
@@ -4028,7 +4026,7 @@ void record_memory_history(std::optional<std::string> enabled, size_t max_entrie
 }
 
 namespace py = pybind11;
-py::dict dump_snapshot() {
+py::dict dma_dump_snapshot() {
 
     using c10_npu::dma::BlockInfo;
     using c10_npu::dma::SegmentInfo;
@@ -4165,21 +4163,3 @@ py::dict dump_snapshot() {
 
     return result;
 }
-
-void pybind11_allocator(pybind11::module_ &m)
-{
-    m.doc() = "ZBCCL DMA Stats API";
-
-    m.def("record_memory_history", &record_memory_history);
-    m.def("dump_snapshot", &dump_snapshot);
-    m.def("get_heap_stats", [](int device) {
-        size_t in_used_size = 0;
-        size_t total_size = 0;
-
-        dma_get_heap_stats(in_used_size, total_size, device);
-
-        return std::make_tuple(in_used_size, total_size);
-        }, py::arg("device") = -1,
-      "get heap stats，return (used_size, total_size)");
-}
-

@@ -14,6 +14,7 @@
 #define EXPORT_API __attribute__((visibility("default")))
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <c10/core/Allocator.h>
 #include <c10/util/Registry.h>
 #include <c10/util/SmallVector.h>
@@ -317,3 +318,7 @@ EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_s
 
 EXPORT_API void dma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device = -1);
 }
+
+void dma_record_memory_history(std::optional<std::string> enabled, int64_t max_entries);
+
+pybind11::dict dma_dump_snapshot();

@@ -48,10 +48,9 @@ constexpr size_t kMB = 1024 * 1024;                   // 1 MB
 constexpr size_t kSmallHeapSize = 512 * kMB;          // 512MB for small heap size in dualHeap allocator
 constexpr size_t kSmallThreshold = 1 * kMB;           // 1MB to tell which is small in dualHeap/splitHeap allocator
 
-constexpr int kMaxTraceLen = -1;                      // max trace len per device for trace_record observer, use rolling update
+constexpr int64_t kMaxTraceLen = -1;                    // max trace len per device for trace_record observer, use rolling update
 // note that export segments cause lock action and heavily reduce the performance & take large memory to cache
 //constexpr size_t kMaxSegmentsLen = 8;                 // max segments len per device for segments observer, use rolling update
-constexpr bool kRecordHistory = true;                   // whether automatically save history trace
 
 }  // namespace sma
 }  // namespace zbccl

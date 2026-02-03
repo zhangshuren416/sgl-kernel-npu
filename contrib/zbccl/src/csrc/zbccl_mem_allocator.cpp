@@ -91,19 +91,8 @@ ZBCCL_API void zbccl_pluggable_erase_stream(void *ptr, c10_npu::NPUStream stream
     }
 }
 
-// deprecated
-ZBCCL_API void *zbccl_get_shmem_base_addr()
-{
-    ZBCCL_LOG_WARN("base addr no longer stands for meta if inited from bootstrap, will be deprecated soon");
-    if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
-        return dma_get_base_addr();
-    } else {
-        return sma_get_base_addr();
-    }
-}
 
-
-void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
+ZBCCL_API void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id, std::function<bool(aclrtStream)> filter) {
     if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
         dma_begin_allocate_to_pool(device, mempool_id, filter);
     } else {
@@ -111,7 +100,7 @@ void zbccl_pluggable_begin_allocate_to_pool(int device, c10_npu::MempoolId_t mem
     }
 }
 
-void zbccl_pluggable_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
+ZBCCL_API void zbccl_pluggable_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempool_id) {
     if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
         dma_end_allocate_to_pool(device, mempool_id);
     } else {
@@ -119,7 +108,7 @@ void zbccl_pluggable_end_allocate_to_pool(int device, c10_npu::MempoolId_t mempo
     }
 }
 
-void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
+ZBCCL_API void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
     if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
         dma_release_pool(device, mempool_id);
     } else {
@@ -130,3 +119,41 @@ void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mempool_id) {
 #ifdef __cplusplus
 }
 #endif
+
+pybind11::dict dump_snapshot() {
+    if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+        dma_dump_snapshot();
+    } else {
+        sma_dump_snapshot();
+    }
+}
+
+void pybind11_allocator(pybind11::module_ &m)
+{
+    m.doc() = "ZBCCL Allocator Stats API";
+
+    m.def("record_memory_history", [](std::optional<std::string> enabled, int64_t max_entries) {
+        if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+            dma_record_memory_history(enabled, max_entries);
+        } else {
+            sma_record_memory_history(enabled, max_entries);
+        }
+        return;
+    }, "begin record memory with history");
+
+    m.def("get_heap_stats", [](int device) {
+        size_t in_used_size = 0;
+        size_t total_size = 0;
+
+        if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+          dma_get_heap_stats(in_used_size, total_size, device);
+        } else {
+          sma_get_heap_stats(in_used_size, total_size, device);
+        }
+
+        return std::make_tuple(in_used_size, total_size);
+    }, pybind11::arg("device") = -1,
+    "get heap stats，return (used_size, total_size)");
+
+    m.def("dump_snapshot", &dump_snapshot, "dump snapshot");
+}

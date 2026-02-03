@@ -12,6 +12,9 @@
 #ifndef ZBCCL_SMA_H
 #define ZBCCL_SMA_H
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
 #include "zbccl_sma_common.h"
 #include "zbccl_sma_device.h"
 #include "zbccl_sma_device_pool.h"
@@ -190,6 +193,10 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size);
 
 ZBCCL_API void sma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device = -1);
 }
+
+void sma_record_memory_history(std::optional<std::string> enabled, int64_t max_entries);
+
+pybind11::dict sma_dump_snapshot();
 
 #endif  // ZBCCL_SMA_H
 

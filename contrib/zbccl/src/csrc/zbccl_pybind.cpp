@@ -13,7 +13,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "c10_npu_dma.h"
+#include "zbccl_mem_allocator.h"
 #include "zbccl_pytorch_process_group.h"
 #include "zbccl_def.h"
 #include "zbccl_bootstrap.h"
