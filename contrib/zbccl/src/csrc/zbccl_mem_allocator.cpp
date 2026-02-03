@@ -130,14 +130,6 @@ ZBCCL_API void zbccl_pluggable_release_pool(int device, c10_npu::MempoolId_t mem
 }
 #endif
 
-pybind11::dict dump_snapshot() {
-    if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
-        dma_dump_snapshot();
-    } else {
-        sma_dump_snapshot();
-    }
-}
-
 void pybind11_allocator(pybind11::module_ &m)
 {
     m.doc() = "ZBCCL Allocator Stats API";
@@ -165,5 +157,11 @@ void pybind11_allocator(pybind11::module_ &m)
     }, pybind11::arg("device") = -1,
     "get heap stats，return (used_size, total_size)");
 
-    m.def("dump_snapshot", &dump_snapshot, "dump snapshot");
+    m.def("dump_snapshot", []() {
+        if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+            return dma_dump_snapshot();
+        } else {
+            return sma_dump_snapshot();
+        }
+    }, "dump snapshot, return pkl dict");
 }

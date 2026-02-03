@@ -256,7 +256,7 @@ ZResult SecondaryMemoryAllocator::GetHeapState(size_t &in_used_size, size_t &tot
     return Z_OK;
 }
 
-ZResult SnapShot(zbccl::sma::device::SnapshotDeviceInfo &device_info, int device) {
+ZResult SecondaryMemoryAllocator::SnapShot(zbccl::sma::device::SnapshotDeviceInfo &device_info, int device) {
     int device_i = 0;
     if (device < 0)
         c10_npu::GetDevice(&device_i);
@@ -264,7 +264,7 @@ ZResult SnapShot(zbccl::sma::device::SnapshotDeviceInfo &device_info, int device
         device_i = device;
 
     // take snapshot
-    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->snapshot(device_i);
+    device_allocator_[device_i]->snapshot(device_i);
     // export snapshot + history
     auto record_info = zbccl::sma::device::DeviceInfoObserver::getInstance().dumpSnapshot(device_i);
 
@@ -428,7 +428,8 @@ py::dict sma_dump_snapshot() {
         return segmentDict;
     };
 
-    auto snapshot = zbccl::sma::device::DeviceInfoObserver::getInstance().dumpSnapshot(device);
+    zbccl::sma::device::SnapshotDeviceInfo snapshot;
+    zbccl::sma::SecondaryMemoryAllocator::GetInstance()->SnapShot(snapshot, device);
     py::list segments;
 
     for (const auto& segmentInfo : snapshot.seg_infos_) {
