@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details.
 #define ZBCCL_KERNEL __attribute__((always_inline)) __aicore__ __inline__
 
 constexpr int64_t FLAG_SIZE = 8;
+constexpr int64_t BARRIER_FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 using namespace AscendC;
 

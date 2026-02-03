@@ -47,7 +47,8 @@ enum ZResultErrorCode : ZResult {
     Z_FFTS_INIT_FAILED = -22,
     Z_MEM_NOT_BOOTSTRAP = -23,
     Z_NOT_INITIALIZED = -24,
-    Z_COMM_GROUP_H2D_FAILED = -25,
+    Z_CCL_DESTROY_GLOBAL_LAST = -25,
+    Z_COMM_GROUP_H2D_FAILED = -26,
 };
 
 #define USE_GITCODE_SHMEM
