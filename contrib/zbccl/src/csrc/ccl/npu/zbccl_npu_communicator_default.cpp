@@ -39,15 +39,6 @@ ZResult NpuCommunicatorDefault::Initialize() noexcept
         return Z_FFTS_INIT_FAILED;
     }
 
-    /* copy group info to meta area of communicator from host to device */
-    ZBCCL_ASSERT_RETURN(sizeof(CommGroupInfo) == groupInfo_.sizeForCommGroupInfo, Z_ERROR);
-    result = DlCannApi::AclrtMemcpy(reinterpret_cast<void *>(groupInfo_.myMetaGva), sizeof(CommGroupInfo), &groupInfo_,
-                                    sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
-    if (result != Z_OK) {
-        ZBCCL_LOG_ERROR("get c2c ctrl addr failed, result: " << result);
-        return Z_FFTS_INIT_FAILED;
-    }
-
     initialized_ = true;
 
     return Z_OK;
@@ -75,7 +66,6 @@ void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &opti
     groupInfo_.sizeForExchangeAddress = options.sizeForExchangeAddress;
     groupInfo_.fftsConfig = options.fftsConfig;
     groupInfo_.localDeviceMemSize = options.localDeviceMemSize;
-    groupInfo_.peerGroupRank2WorldRank[options.myGroupRank] = options.myWorldRank;
 }
 
 ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noexcept
@@ -97,6 +87,15 @@ ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noex
         groupInfo_.peerGroupRank2WorldRank[i] = gatheredGroupInfo[i].myWorldRankId;
     }
 
+    /* copy group info to meta area of communicator from host to device */
+    ZBCCL_ASSERT_RETURN(sizeof(CommGroupInfo) == groupInfo_.sizeForCommGroupInfo, Z_ERROR);
+    auto result = DlCannApi::AclrtMemcpy(reinterpret_cast<void *>(groupInfo_.myMetaGva), sizeof(CommGroupInfo), &groupInfo_,
+                                    sizeof(CommGroupInfo), ACL_MEMCPY_HOST_TO_DEVICE);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("CommGroupInfo h2d copy failed, result: " << result);
+        return Z_COMM_GROUP_H2D_FAILED;
+    }
+
     ZBCCL_LOG_DEBUG("Dump groupId_ " << uniqueGroupId_ << ", groupInfo_: " << groupInfo_);
     return Z_OK;
 }
@@ -104,27 +103,20 @@ ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noex
 int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
-    auto &groupInfo = GetMetaInfo();
-    auto ret = ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, groupInfo);
-    return ret;
+    return ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, GetMetaInfo());
 }
 
 int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count,
                                               zbccl_datatype_t data_type, zbccl_reduce_op_t op,
                                               aclrtStream stream) noexcept
 {
-    auto &groupInfo = GetMetaInfo();
-    auto ret = ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, groupInfo);
-    return ret;
+    return ZBCCLOpReduceScatter(send_buff, recv_buff, recv_count, data_type, stream, op, GetMetaInfo());
 }
 
 int32_t NpuCommunicatorDefault::AllGather(const void *send_buff, void *recv_buff, size_t send_count,
                                           zbccl_datatype_t data_type, aclrtStream stream) noexcept
 {
-    auto &groupInfo = GetMetaInfo();
-    zbccl::underapi::DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo.myAddressExchangeGva),
-                                            groupInfo.sizeForExchangeAddress, 0, groupInfo.sizeForExchangeAddress);
-    return ZBCCLOpAllGather(send_buff, recv_buff, send_count, data_type, stream, groupInfo);
+    return ZBCCLOpAllGather(send_buff, recv_buff, send_count, data_type, stream, GetMetaInfo());
 }
 
 int32_t NpuCommunicatorDefault::All2All(const void *sendBuff, void *recvBuff, uint64_t data_count,

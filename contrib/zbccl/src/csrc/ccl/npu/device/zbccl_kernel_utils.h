@@ -19,7 +19,6 @@ See the Mulan PSL v2 for more details.
 #define ZBCCL_KERNEL __attribute__((always_inline)) __aicore__ __inline__
 
 constexpr int64_t FLAG_SIZE = 8;
-constexpr int64_t BARRIER_FLAG_SIZE = 16;
 constexpr int64_t UB_DMA_MAX_SIZE = 190 * 1024;
 using namespace AscendC;
 
@@ -64,10 +63,10 @@ ZBCCL_KERNEL void dcciCacheline(__gm__ uint8_t *addr)
 ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize, 
                                     __gm__ uint16_t *peerGroupRank2WorldRank)
 {
-    uint16_t worldDstPe = *((__gm__ uint16_t *)(peerGroupRank2WorldRank + dstPe));
-    uint16_t worldCurPe = *((__gm__ uint16_t *)(peerGroupRank2WorldRank + curPe));
+    int worldDstPe = static_cast<int>(*((__gm__ uint16_t *)(peerGroupRank2WorldRank + dstPe)));
+    int worldCurPe = static_cast<int>(*((__gm__ uint16_t *)(peerGroupRank2WorldRank + curPe)));
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
-    uint64_t dstPtr = curPtr + (dstPe - curPe) * localMemSize;
+    uint64_t dstPtr = curPtr + (worldDstPe - worldCurPe) * localMemSize;
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
@@ -197,38 +196,19 @@ ZBCCL_KERNEL void zbccl_barrier_all(__gm__ CommGroupInfo *groupInfo)
                       (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
 }
 
-ZBCCL_KERNEL void ExchangeInputAddr(GM_ADDR inputGM, GM_ADDR metaGM, uint16_t groupSize, uint16_t myGroupRank,
-                                    uint64_t flagMagic, uint64_t localDeviceMemSize, 
-                                    __gm__ uint16_t *peerGroupRank2WorldRank)
+template <AscendC::HardEvent event>
+ZBCCL_KERNEL void SyncFunc()
 {
-    const int64_t aivNum = AscendC::GetBlockNum();
-    const int64_t aivIndex = AscendC::GetBlockIdx();
+    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
+    AscendC::SetFlag<event>(eventID);
+    AscendC::WaitFlag<event>(eventID);
+}
 
-    int64_t addrOffset = myGroupRank * FLAG_SIZE;
-
-    AscendC::LocalTensor<uint64_t> inputBuff(AscendC::TPosition::VECIN, 32, 1);
-    inputBuff(0) = reinterpret_cast<uint64_t>(inputGM);
-    AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-    AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-
-    AscendC::LocalTensor<uint64_t> flagbuff(AscendC::TPosition::VECIN, 96, 1);
-    flagbuff(0) = flagMagic;
-    AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-    AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-    AscendC::GlobalTensor<uint64_t> metaAddrTensor;
-
-    if (aivIndex < groupSize) {
-        // write addr
-        auto exchangeAddr = reinterpret_cast<__gm__ CommGroupInfo *>(metaGM)->myAddressExchangeGva;
-        auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex, localDeviceMemSize, peerGroupRank2WorldRank);
-        metaAddrTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE * 2); 
-        AscendC::DataCopyExtParams copyParams = {1U, static_cast<uint32_t>(64), 0, 0, 0};
-        AscendC::DataCopyPad(metaAddrTensor[addrOffset], inputBuff, copyParams);
-
-        //write flag
-        AscendC::PipeBarrier<PIPE_ALL>();
-        AscendC::DataCopyPad(metaAddrTensor[addrOffset + groupSize * FLAG_SIZE], flagbuff, copyParams);
-    }
+template <AscendC::HardEvent event>
+ZBCCL_KERNEL void SyncFunc(int32_t eventID)
+{
+    AscendC::SetFlag<event>(eventID);
+    AscendC::WaitFlag<event>(eventID);
 }
 
 template<typename T>
@@ -245,25 +225,15 @@ ZBCCL_KERNEL void CpGM2GM(AscendC::GlobalTensor<T> outputGT, AscendC::GlobalTens
         AscendC::DataCopyExtParams copyParams(1, curCount * sizeof(T), 0, 0, 0);
 
         AscendC::DataCopyPad(buf, inputGT[curOffset], copyParams, copyExtParams);
-        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
+        SyncFunc<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
         AscendC::DataCopyPad(outputGT[curOffset], buf, copyParams);
         if (count > copyUbNum) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+            SyncFunc<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
         }
         count -= curCount;
         curOffset += curCount;
     }
     return;
-}
-
-template <AscendC::HardEvent event>
-ZBCCL_KERNEL void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
 }
 
 #endif // ZBCCL_KERNEL_UTILS_H

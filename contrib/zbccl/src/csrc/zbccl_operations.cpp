@@ -117,7 +117,9 @@ ZBCCL_API void zbccl_comm_destroy_all(uint32_t flags)
 ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
                                    zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllReduce failed as send_buff is null", Z_INVALID_PARAM);
+    if (send_buff == nullptr) {
+        return Z_OK;
+    }
     ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllReduce failed as recv_buff is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(count > 0, "AllReduce failed as count " << count << " is invalid", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(data_type >= 0 && data_type < ZBCCL_DATA_TYPE_BUTT,
@@ -135,7 +137,9 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
                                        zbccl_datatype_t data_type, zbccl_reduce_op_t op, zbccl_comm_t comm,
                                        aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "ReduceScatter failed as send_buff is null", Z_INVALID_PARAM);
+    if (send_buff == nullptr) {
+        return Z_OK;
+    }
     ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "ReduceScatter failed as recv_buff is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(recv_count > 0, "ReduceScatter failed as recv_count " << recv_count << " is invalid",
                           Z_INVALID_PARAM);
@@ -153,7 +157,9 @@ ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, s
 ZBCCL_API int32_t zbccl_all_gather(const void *send_buff, void *recv_buff, size_t send_count,
                                    zbccl_datatype_t data_type, zbccl_comm_t comm, aclrtStream stream)
 {
-    ZBCCL_VALIDATE_RETURN(send_buff != nullptr, "AllGather failed as send_buff is null", Z_INVALID_PARAM);
+    if (send_buff == nullptr) {
+        return Z_OK;
+    }
     ZBCCL_VALIDATE_RETURN(recv_buff != nullptr, "AllGather failed as recv_buff is null", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(send_count > 0, "AllGather failed as send_count " << send_count << " is invalid",
                           Z_INVALID_PARAM);
