@@ -46,23 +46,61 @@ def test_zbccl_allgather():
 
     group = dist.init_process_group("zbccl", rank=local_rank, world_size=world_size)
     print(f"init zbccl group success on rank {local_rank=} {world_size=}")
+    enable_profiling = os.getenv("ENABLE_PROFILING", "0") == "1"
+    if enable_profiling:
+        prof_cnt = 0
+        experimental_config = torch_npu.profiler._ExperimentalConfig(
+            aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
+            profiler_level=torch_npu.profiler.ProfilerLevel.Level2,
+            l2_cache=False,
+            data_simplification=False,
+        )
+        profiling_path = f"{current_dir}/profiling/"
+        prof = torch_npu.profiler.profile(
+            activities=[
+                torch_npu.profiler.ProfilerActivity.CPU,
+                torch_npu.profiler.ProfilerActivity.NPU,
+            ],
+            on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
+                profiling_path
+            ),
+            schedule=torch_npu.profiler.schedule(
+                    wait=1, warmup=1, active=10, repeat=1, skip_first=1
+                ),
+                record_shapes=True,
+                profile_memory=True,
+                with_stack=False,
+                with_flops=False,
+                with_modules=False,
+                experimental_config=experimental_config,
+        )
     try:
         ret = 0
+        prof_cnt = 0
+        if enable_profiling:
+            prof.start()
         for i in range(0, case_num):
-            data_len = 6 * (2 ** i)
-            golden_dir = f"allgather_{data_len}_{world_size}"
-            data = np.fromfile(f"{current_dir}/golden/{golden_dir}/input_gm_{local_rank}.bin", dtype=data_type)
-            in_tensor = torch.from_numpy(data).to(tensor_data_type).npu()
-            gold_data = np.fromfile(f"{current_dir}/golden/{golden_dir}/golden.bin", dtype=data_type)
-            gold_tensor = torch.from_numpy(gold_data).to(tensor_data_type).npu()
-            out_tensor = torch.zeros(data_len * world_size, dtype=tensor_data_type).npu()
-            dist.all_gather_into_tensor(out_tensor, in_tensor)
-            if not torch.allclose(gold_tensor, out_tensor, rtol=1e-4, atol=1e-8):
-                print(f"[ERROR] rank {local_rank}, case {i} allgather result not correct\n")
-                ret = 1
-                break
+            for k in range(0, 50):
+                if enable_profiling and prof_cnt > 1:
+                    prof.step()
+                data_len = 6 * (2 ** i)
+                golden_dir = f"allgather_{data_len}_{world_size}"
+                data = np.fromfile(f"{current_dir}/golden/{golden_dir}/input_gm_{local_rank}.bin", dtype=data_type)
+                in_tensor = torch.from_numpy(data).to(tensor_data_type).npu()
+                gold_data = np.fromfile(f"{current_dir}/golden/{golden_dir}/golden.bin", dtype=data_type)
+                gold_tensor = torch.from_numpy(gold_data).to(tensor_data_type).npu()
+                out_tensor = torch.zeros(data_len * world_size, dtype=tensor_data_type).npu()
+                dist.all_gather_into_tensor(out_tensor, in_tensor)
+                prof_cnt = prof_cnt + 1
+                if not torch.allclose(gold_tensor, out_tensor, rtol=1e-4, atol=1e-8):
+                    print(f"[ERROR] rank {local_rank}, case {i} allgather result not correct\n")
+                    ret = 1
+                    break
         if ret == 0:
             print(f"[INFO] rank {local_rank}, allgather run all case success\n")
+        if enable_profiling:
+            torch.npu.synchronize()
+            prof.stop()
     finally:
         dist.destroy_process_group(group)
 

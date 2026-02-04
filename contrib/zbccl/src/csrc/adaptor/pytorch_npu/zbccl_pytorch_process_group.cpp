@@ -140,7 +140,7 @@ ProcessGroupZBCCL::ProcessGroupZBCCL(const c10::intrusive_ptr<c10d::Store>& stor
                                      int rank, int size, c10::intrusive_ptr<Options> options)
                                      : c10d::Backend(rank, size), store_(store)
 {
-    if (rank < 0 || size <= 1 || rank >= size) {
+    if (rank < 0 || size < 1 || rank >= size) {
         ZBCCL_LOG_ERROR("invalid input rank=" << rank << ", size=" << size);
         throw std::runtime_error("invalid arguments for process group creation");
     }
