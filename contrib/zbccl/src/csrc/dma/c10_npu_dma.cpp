@@ -2924,6 +2924,7 @@ private:
         // }
 
         if (shmem_addrs.count((void *)block->ptr)) {
+            shmem_addrs.erase((void *)block->ptr);
             TORCH_CHECK(zbccl::sma::HeapRelease((void *)block->ptr, mem_heap_pool_) == ACL_ERROR_NONE, "mm heap free failed. shmem");
         } else {
             aclrtFree((void *)block->ptr);

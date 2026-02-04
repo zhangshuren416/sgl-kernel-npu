@@ -28,6 +28,7 @@ static const char* SegmentSizeMB = "segment_size_mb";
 static const char* UseSMAAllocator = "use_sma_allocator";
 static const char* SmallHeapSize = "small_heap_size";
 static const char* SmallHeapThreshold = "small_heap_threshold";
+static const char* UseVMMForStaticMemory = "use_vmm_for_static_memory";
 
 class SMAConfig
 {
@@ -58,6 +59,11 @@ public:
         return instance().use_sma_allocator_;
     }
 
+    static bool use_vmm_for_static_memory()
+    {
+        return instance().use_vmm_for_static_memory_;
+    }
+
     static size_t small_heap_size()
     {
         return instance().small_heap_size_;
@@ -85,6 +91,7 @@ private:
     // size_t base_addr_aligned_size_ = kAlignRoundLarge;
     size_t segment_size_mb_;
     bool use_sma_allocator_;
+    bool use_vmm_for_static_memory_;
     size_t small_heap_size_;
     size_t small_heap_threshold_;
 
@@ -94,6 +101,7 @@ private:
         // base_addr_aligned_size_(kAlignRoundLarge),
         segment_size_mb_(0),
         use_sma_allocator_(false),
+        use_vmm_for_static_memory_(false),
         small_heap_size_(kSmallHeapSize),
         small_heap_threshold_(kSmallThreshold)
     {}
@@ -108,6 +116,7 @@ private:
     // size_t parseAddrAlignSize(const std::vector<std::string> &config, size_t i);
     size_t parseSegmentSizeMb(const std::vector<std::string> &config, size_t i);
     size_t parseUseSMAAllocator(const std::vector<std::string> &config, size_t i);
+    size_t parseUseVMMForStaticMemory(const std::vector<std::string> &config, size_t i);
     size_t parseSmallHeapSize(const std::vector<std::string> &config, size_t i);
     size_t parseSmallHeapThresHold(const std::vector<std::string> &config, size_t i);
 };

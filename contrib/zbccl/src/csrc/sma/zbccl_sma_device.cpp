@@ -383,6 +383,7 @@ void DeviceSMACachingAllocator::release_block(DeviceBlock *block, const std::sha
     trace_observer_(TraceAction::SEGMENT_FREE, int64_t(block->ptr_), block->size_, block->stream_, block->deviceId_);
 
     if (shmem_addrs_.count((void *)block->ptr_)) {
+        shmem_addrs_.erase((void *)block->ptr_);
         ZBCCL_CHECK_S(zbccl::sma::CustomHeapRelease((void *)block->ptr_, mem_heap_pool_) == ACL_SUCCESS, "shmem heap free failed");
     } else {
         ZBCCL_LOG_ERROR("sma miss this ptr, using aclRT instead(this may be a undefined behavior)");

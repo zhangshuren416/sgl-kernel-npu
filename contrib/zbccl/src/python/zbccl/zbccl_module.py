@@ -15,7 +15,7 @@ ZBCCL_LIB = list(CURRENT_DIR.glob("zbccl.*.so"))[0]
 __version__ = zbccl_version()
 
 def zbccl_init(world_size: int,
-               gpu_id: int,
+               device_id: int,
                rank_id: int,
                device_mem_size: int,
                bootstrap_type: ZBCCLBootstrapType = ZBCCLBootstrapType.BOOT_BY_MEMFABRIC,
@@ -29,6 +29,7 @@ def zbccl_init(world_size: int,
     Initialize zbccl library
 
     :param world_size: size of ranks to init zbccl
+    :param device_id: current device id
     :param rank_id: current rank id
     :param bootstrap_type: under memory bootstrap type, memfabric support only
     :param start_config_server: whether to start config server
@@ -52,8 +53,9 @@ def zbccl_init(world_size: int,
 
 
     # init mem allocator, switch before set_device
-    switch_to_allocator()
-    torch.npu.set_device(gpu_id)
+    if torch.npu.memory.get_allocator_backend() == 'native':
+        switch_to_allocator()
+    torch.npu.set_device(device_id)
 
     # bootstrap
     opt = ZBCCLBootstrapOption()
@@ -62,7 +64,7 @@ def zbccl_init(world_size: int,
     opt.ipPort = ip_port
     opt.worldSize = world_size
     opt.rankId = rank_id
-    opt.deviceId = gpu_id
+    opt.deviceId = device_id
     opt.startConfigServer = start_config_server
     opt.deviceMemorySize = device_mem_size
     opt.dataOperationType = data_op_type

@@ -17,7 +17,7 @@ def test_zbccl_reducescatter():
     current_dir = os.getenv("CURRENT_DIR", ".")
     case_num = int(os.environ["CASE_NUM"] or 16)
     os.environ["ASCEND_LAUNCH_BLOCKING"] = "1"
-    gpu_id = local_rank
+    device_id = local_rank
 
     type_map = {
         "int": np.int32,
@@ -40,7 +40,7 @@ def test_zbccl_reducescatter():
 
     zbccl_set_logger_level(0)
     mem_128M = 256 * 1024 * 1024
-    if not zbccl_init(world_size, gpu_id, local_rank, mem_128M):
+    if not zbccl_init(world_size, device_id, local_rank, mem_128M):
         print(f"zbccl_init failed on rank {local_rank}.")
         return
     else:

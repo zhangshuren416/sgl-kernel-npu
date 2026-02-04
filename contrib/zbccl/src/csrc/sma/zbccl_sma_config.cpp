@@ -39,6 +39,8 @@ void SMAConfig::parseEnv(const char *env)
         //    i = parseAddrAlignSize(config, i);
         } else if (config[i] == UseSMAAllocator) {
             i = parseUseSMAAllocator(config, i);
+        } else if (config[i] == UseVMMForStaticMemory) {
+            i = parseUseVMMForStaticMemory(config, i);
         } else if (config[i] == SmallHeapSize) {
             i = parseSmallHeapSize(config, i);
         } else if (config[i] == SmallHeapThreshold) {
@@ -150,6 +152,18 @@ size_t SMAConfig::parseUseSMAAllocator(const std::vector<std::string> &config, s
         use_sma_allocator_ = (config[i] == "True");
     } else {
         ZBCCL_CHECK_S(false, "Error, expecting use_sma_allocator value");
+    }
+    return i;
+}
+
+size_t SMAConfig::parseUseVMMForStaticMemory(const std::vector<std::string> &config, size_t i) {
+    consumeToken(config, ++i, ':');
+    if (++i < config.size()) {
+        ZBCCL_CHECK_S(i < config.size() && (config[i] == "True" || config[i] == "False"),
+                      "Expected a single True/False argument for use_vmm_for_static_memory");
+        use_vmm_for_static_memory_ = (config[i] == "True");
+    } else {
+        ZBCCL_CHECK_S(false, "Error, expecting use_vmm_for_static_memory value");
     }
     return i;
 }
