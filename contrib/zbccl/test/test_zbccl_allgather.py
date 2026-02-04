@@ -11,10 +11,11 @@ torch_npu.npu.config.allow_internal_format = True
 def test_init_zbccl_pg():
     local_rank = int(os.environ["LOCAL_RANK"])
     world_size = int(os.environ["WORLD_SIZE"] or 4)
+    gpu_id = local_rank
 
     zbccl_set_logger_level(0)
     mem_128M = 256 * 1024 * 1024
-    if not zbccl_init(world_size, local_rank, mem_128M):
+    if not zbccl_init(world_size, gpu_id, local_rank, mem_128M):
         print(f"zbccl_init failed on rank {local_rank}.")
         return
     else:

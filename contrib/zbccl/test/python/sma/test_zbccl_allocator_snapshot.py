@@ -15,10 +15,11 @@ def init():
     # This will allocate memory in the device using the new allocator
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
+    gpu_id = local_rank
 
     zbccl.zbccl_set_logger_level(2)
     mem = 1024 * 1024 * 1024
-    if not zbccl.zbccl_init(world_size, local_rank, mem):
+    if not zbccl.zbccl_init(world_size, gpu_id, local_rank, mem):
         print(f"zbccl_init failed on rank {local_rank}.")
         exit(-1)
     else:
