@@ -257,7 +257,7 @@ int32_t ZBCCLOpReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl
                            aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo)
 {
     /* define the block dim */
-    uint32_t blockDim = 16;
+    uint32_t blockDim = 32;
     uint32_t dataTypeNum = static_cast<uint32_t>(dataType);
     uint32_t reduceOpNum = static_cast<uint32_t>(reduceOp);
 

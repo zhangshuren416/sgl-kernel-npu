@@ -192,7 +192,7 @@ void ZBCCLAllGatherInner(GM_ADDR input, GM_ADDR output, size_t elements, int dat
 int32_t ZBCCLOpAllGather(const void *sendBuff, void *recvBuff, size_t sendCount, zbccl_datatype_t dataType,
                            aclrtStream stream, const CommGroupInfo &groupInfo)
 {
-    int32_t blockDim = 16;
+    int32_t blockDim = 32;
     int dataTypeInt = static_cast<int>(dataType);
     uint8_t *metaAddr = reinterpret_cast<uint8_t *>(groupInfo.myMetaGva);
     uint8_t *realSendBuff = reinterpret_cast<uint8_t *>(const_cast<void *>(sendBuff));
