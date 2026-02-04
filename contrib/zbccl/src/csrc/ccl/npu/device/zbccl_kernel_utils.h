@@ -17,6 +17,9 @@ See the Mulan PSL v2 for more details.
 #include "zbccl_comm_host_device_struct.h"
 
 #define ZBCCL_KERNEL __attribute__((always_inline)) __aicore__ __inline__
+#define ZBCCL_CORE_BARRIER_SHIFT 2
+
+typedef int32_t zbccl_barrier_bit[ZBCCL_SCALAR_CACHELINE_SIZE / sizeof(int32_t)];
 
 constexpr int64_t FLAG_SIZE = 8;
 constexpr int64_t UB_PAD_COUNT = 4;
@@ -63,13 +66,13 @@ ZBCCL_KERNEL void dcciCacheline(__gm__ uint8_t *addr)
     __asm__ __volatile__("");
 }
 
-ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe, uint64_t localMemSize, 
-                                    __gm__ uint16_t *peerGroupRank2WorldRank)
+ZBCCL_KERNEL __gm__ void *zbccl_ptr(__gm__ void *ptr, int curPe, int dstPe,
+                                    uint64_t localSize, __gm__ uint16_t *peerRanks)
 {
-    int worldDstPe = static_cast<int>(*((__gm__ uint16_t *)(peerGroupRank2WorldRank + dstPe)));
-    int worldCurPe = static_cast<int>(*((__gm__ uint16_t *)(peerGroupRank2WorldRank + curPe)));
+    int worldDstPe = static_cast<int>(*((__gm__ uint16_t *)(peerRanks + dstPe)));
+    int worldCurPe = static_cast<int>(*((__gm__ uint16_t *)(peerRanks + curPe)));
     uint64_t curPtr = reinterpret_cast<uint64_t>(ptr);
-    uint64_t dstPtr = curPtr + (worldDstPe - worldCurPe) * localMemSize;
+    uint64_t dstPtr = curPtr + (worldDstPe - worldCurPe) * localSize;
     return reinterpret_cast<__gm__ void *>(dstPtr);
 }
 
@@ -86,66 +89,87 @@ ZBCCL_KERNEL void zbccl_store(__gm__ T *addr, T value)
     *((__gm__ T *)addr) = value;
 }
 
-ZBCCL_KERNEL void zbccl_single_set(__gm__ uint64_t *addr, uint64_t val)
+template<typename T>
+ZBCCL_KERNEL void zbccl_single_set(__gm__ T *addr, T val)
 {
     zbccl_store(addr, val);
     dcciCacheline((__gm__ uint8_t *) addr);
 }
 
-ZBCCL_KERNEL void zbccl_single_wait_until_eq(__gm__ uint64_t *syncAddr, uint64_t cmp_val)
+template<typename T>
+ZBCCL_KERNEL void zbccl_single_wait_until_eq(__gm__ T *syncAddr, T cmp_val)
 {
-    uint64_t cur_val;
+    T cur_val;
     do {
         dcciCacheline((__gm__ uint8_t *)syncAddr);
         cur_val = *syncAddr;
     } while(!(cur_val == cmp_val || cur_val == (cmp_val + 1)));
 }
 
-ZBCCL_KERNEL void zbccl_barrier_npu(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
-                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress, 
-                                    __gm__ uint16_t *peerGroupRank2WorldRank)
+ZBCCL_KERNEL void zbccl_barrier_core_soft(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
+                                          __gm__ uint8_t *counterAddress, __gm__ uint8_t *barrierAddress)
 {
-    int vecId = AscendC::GetBlockIdx();
-    int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
-
-    int k = 8;
-    k = k < groupSize ? k : groupSize;
-    k = k < vecSize ? k : vecSize;
-
-    uint64_t count = zbccl_load<uint64_t>(counterAddress) + 1;
-    if (vecId == rankId % vecSize) {
-        zbccl_single_set(barrierAddress, count);
+    if ASCEND_IS_AIC {
+        return;
     }
 
-    for (int i = vecId; i < groupSize; i += k) {
-        __gm__ uint64_t *target_addr = (__gm__ uint64_t *)zbccl_ptr((__gm__ void *)barrierAddress, rankId, i, localSize, 
-                                                                    peerGroupRank2WorldRank);
-        zbccl_single_wait_until_eq(target_addr, count);
-    }
+    int32_t block_idx = AscendC::GetBlockIdx();
+    int32_t block_dim = AscendC::GetBlockNum() * AscendC::GetTaskRation();
+    auto coreBarrier = (__gm__ zbccl_barrier_bit *)barrierAddress;
+    auto coreCounter = (__gm__ zbccl_barrier_bit *)counterAddress;
+    int32_t count = zbccl_load<int32_t>((__gm__ int32_t *)coreCounter) + 1;
 
-    if (vecId == rankId % vecSize) {
-        zbccl_single_set(counterAddress, count);
+    int32_t shift = 1;
+    int32_t offset = 0;
+    while (shift < block_dim) {
+        int32_t next = (block_idx + shift) % block_dim;
+        zbccl_single_set((__gm__ int32_t *)(coreBarrier + next * ZBCCL_AIV_MAX_EXP_NUM + offset), count);
+        zbccl_single_wait_until_eq((__gm__ int32_t *)(coreBarrier + block_idx * ZBCCL_AIV_MAX_EXP_NUM + offset), count);
+        shift *= ZBCCL_CORE_BARRIER_SHIFT;
+        offset++;
     }
+    zbccl_store((__gm__ int32_t *)coreCounter, count);
+}
+
+ZBCCL_KERNEL void zbccl_barrier_core(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
+                                     __gm__ uint8_t *counterAddress, __gm__ uint8_t *barrierAddress)
+{
+#ifdef __CCE_AICORE_ENABLE_MIX__
+    AscendC::SyncAll<true>();
+#else
+    zbccl_barrier_core_soft(rankId, groupSize, localSize, counterAddress, barrierAddress);
+#endif
 }
 
 ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
                                     __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress,
-                                    __gm__ uint16_t *peerGroupRank2WorldRank)
+                                    __gm__ uint8_t *coreCounterAddress, __gm__ uint8_t *coreBarrierAddress,
+                                    __gm__ uint16_t *peerRanks)
 {
-    AscendC::SyncAll<true>();
+    int vecId = AscendC::GetBlockIdx();
+    int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
+    uint64_t count = zbccl_load<uint64_t>(counterAddress) + 1;
+    int k = 8;
+    k = k < groupSize ? k : groupSize;
+    k = k < vecSize ? k : vecSize;
+
+    zbccl_barrier_core(rankId, groupSize, localSize, coreCounterAddress, coreBarrierAddress);
 
     if ASCEND_IS_AIV {
-        zbccl_barrier_npu(rankId, groupSize, localSize, counterAddress, barrierAddress, peerGroupRank2WorldRank);
+        if (vecId == rankId) {
+            zbccl_single_set(barrierAddress, count);
+        }
+        for (int i = vecId; i < groupSize; i += k) {
+            __gm__ void *dst = zbccl_ptr((__gm__ void *)barrierAddress, rankId, i, localSize, peerRanks);
+            __gm__ uint64_t *target_addr = (__gm__ uint64_t *)dst;
+            zbccl_single_wait_until_eq(target_addr, count);
+        }
+        if (vecId == rankId) {
+            zbccl_single_set(counterAddress, count);
+        }
     }
 
-    AscendC::SyncAll<true>();
-}
-
-ZBCCL_KERNEL void zbccl_barrier_all(__gm__ CommGroupInfo *groupInfo)
-{
-    zbccl_barrier_all(groupInfo->myGroupRank, groupInfo->groupSize, groupInfo->localDeviceMemSize,
-                      (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier, 
-                      (__gm__ uint16_t *)&groupInfo->peerGroupRank2WorldRank);
+    zbccl_barrier_core(rankId, groupSize, localSize, coreCounterAddress, coreBarrierAddress);
 }
 
 template <AscendC::HardEvent event>
@@ -163,43 +187,43 @@ ZBCCL_KERNEL void SyncFunc(int32_t eventID)
     AscendC::WaitFlag<event>(eventID);
 }
 
-ZBCCL_KERNEL void SetMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint64_t value, uint16_t groupSize, 
+ZBCCL_KERNEL void SetMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint64_t value, uint16_t groupSize,
                                AscendC::LocalTensor<uint64_t> localTensor)
 {
     GlobalTensor<uint64_t> globalTensor;
-    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE); 
-    localTensor.SetValue(0, value); 
+    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE);
+    localTensor.SetValue(0, value);
     SyncFunc<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-    AscendC::DataCopy(globalTensor[rankId * FLAG_SIZE], localTensor, UB_PAD_COUNT); 
+    AscendC::DataCopy(globalTensor[rankId * FLAG_SIZE], localTensor, UB_PAD_COUNT);
 }
 
-ZBCCL_KERNEL void WaitMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint64_t value, uint16_t groupSize, 
+ZBCCL_KERNEL void WaitMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint64_t value, uint16_t groupSize,
                                AscendC::LocalTensor<uint64_t> localTensor)
 {
     GlobalTensor<uint64_t> globalTensor;
-    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE); 
+    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE);
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-    while (true) { 
-        AscendC::DataCopy(localTensor, globalTensor[rankId * FLAG_SIZE], UB_PAD_COUNT); 
-        SyncFunc<AscendC::HardEvent::MTE2_S>(EVENT_ID0); 
-        if (localTensor.GetValue(0) == value) { 
+    while (true) {
+        AscendC::DataCopy(localTensor, globalTensor[rankId * FLAG_SIZE], UB_PAD_COUNT);
+        SyncFunc<AscendC::HardEvent::MTE2_S>(EVENT_ID0);
+        if (localTensor.GetValue(0) == value) {
             break;
         }
     }
 }
 
-ZBCCL_KERNEL void GetMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint16_t groupSize, 
+ZBCCL_KERNEL void GetMetaValue(__gm__ uint64_t *ptr, uint32_t rankId, uint16_t groupSize,
                                AscendC::LocalTensor<uint64_t> localTensor)
 {
     GlobalTensor<uint64_t> globalTensor;
-    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE); 
+    globalTensor.SetGlobalBuffer((__gm__ uint64_t *)ptr, groupSize * FLAG_SIZE);
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-    AscendC::DataCopy(localTensor, globalTensor[rankId * FLAG_SIZE], UB_PAD_COUNT); 
+    AscendC::DataCopy(localTensor, globalTensor[rankId * FLAG_SIZE], UB_PAD_COUNT);
 }
 
-ZBCCL_KERNEL void Barrier(__gm__ void *paramAddr, uint16_t myGroupRank, uint16_t groupSize, 
+ZBCCL_KERNEL void Barrier(__gm__ void *paramAddr, uint16_t myGroupRank, uint16_t groupSize,
                           uint64_t localDeviceMemSize, __gm__ uint16_t *peerGroupRank2WorldRank)
-{ 
+{
     AscendC::SyncAll<true>();
     const uint64_t barrierMagic = 1024;
     const uint64_t BarrierOffset = 512;
@@ -211,13 +235,13 @@ ZBCCL_KERNEL void Barrier(__gm__ void *paramAddr, uint16_t myGroupRank, uint16_t
         AscendC::LocalTensor<uint64_t> localSetTensor(AscendC::TPosition::VECIN, BarrierOffset + UB_ALIGN_SIZE, UB_PAD_COUNT);
         SetMetaValue((__gm__ uint64_t *)ptr, myGroupRank, barrierMagic, groupSize, localSetTensor);
         AscendC::PipeBarrier<PIPE_ALL>();
-        AscendC::LocalTensor<uint64_t> localCheckTensor(AscendC::TPosition::VECIN, 
+        AscendC::LocalTensor<uint64_t> localCheckTensor(AscendC::TPosition::VECIN,
                                                         BarrierOffset + UB_BUFF_INTERVAL + UB_ALIGN_SIZE, UB_PAD_COUNT);
         WaitMetaValue((__gm__ uint64_t *)(paramAddr), aivIndex, barrierMagic, groupSize, localCheckTensor);
         AscendC::PipeBarrier<PIPE_ALL>();
         SetMetaValue((__gm__ uint64_t *)(paramAddr), aivIndex, 0, groupSize, localSetTensor);
-    } 
-    AscendC::SyncAll<true>(); 
+    }
+    AscendC::SyncAll<true>();
 }
 
 template<typename T>

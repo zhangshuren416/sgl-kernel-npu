@@ -31,15 +31,15 @@ def test_zbccl_allgather():
         "int": torch.int32,
         "int32_t": torch.int32,
         "float16_t": torch.float16,
-        "float": torch.float32,  
+        "float": torch.float32,
         "bfloat16_t": torch.bfloat16
     }
 
     tensor_data_type = torch_type_map.get(test_type, 'int')
 
     zbccl_set_logger_level(0)
-    mem_128M = 256 * 1024 * 1024
-    if not zbccl_init(world_size, device_id, local_rank, mem_128M):
+    local_mem = 256 * 1024 * 1024
+    if not zbccl_init(world_size, device_id, local_rank, local_mem):
         print(f"zbccl_init failed on rank {local_rank}.")
         return
     else:

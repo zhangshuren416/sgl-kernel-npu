@@ -49,7 +49,7 @@ def zbccl_init(world_size: int,
         mem_fabric_lib_path = mf.get_lib_path()
         if mem_fabric_lib_path is not None:
             os.environ["MEMFABRIC_HYBRID_LIBRARY_PATH"] = mem_fabric_lib_path
-            print(f"Set MEMFABRIC_HYBRID_LIBRARY_PATH to {mem_fabric_lib_path}")
+            print(f"Set MEMFABRIC_HYBRID_LIBRARY_PATH to {mem_fabric_lib_path} on rank {rank_id}")
 
 
     # init mem allocator, switch before set_device

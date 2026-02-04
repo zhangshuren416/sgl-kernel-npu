@@ -54,6 +54,10 @@ def _find_sheme_home():
 def _find_python_include():
     return sysconfig.get_path('include')
 
+def _get_version(version_dir):
+    with open(f"{version_dir}/VERSION", "r", encoding="utf-8") as f:
+        version = f.read().strip()
+        return version
 
 ascend_home = Path(_find_ascend_home()).resolve()
 shmem_home = Path(_find_sheme_home()).resolve()
@@ -62,6 +66,7 @@ torch_dir = Path(os.path.dirname(torch.__file__)).resolve()
 torch_npu_dir = Path(os.path.dirname(torch_npu.__file__)).resolve()
 repo_root = Path(__file__).parent.parent.parent.parent.parent  # sgl-kernel-npu/
 zbccl_root = repo_root / "contrib/zbccl/"
+versoin = _get_version(version_dir=zbccl_root)
 
 # allocator compile inputs
 include_dirs = [
@@ -182,7 +187,7 @@ class CustomBuildExtension(BuildExtension):
 
 setup(
     name="zbccl",
-    version="0.0.1",
+    version=versoin,
     ext_modules=[
         CppExtension(
             name="zbccl.zbccl",  # TORCH_EXTENSION_NAME

@@ -30,11 +30,15 @@ public:
         this->inputAddrSize = groupSize * FLAG_SIZE;
         this->peerGroupRank2WorldRank = reinterpret_cast<__gm__ uint16_t *>(comm->peerGroupRank2WorldRank);
         this->exchangeAddr = comm->myAddressExchangeGva;
-        this->paramAddr = comm->myParamDataGva; 
+        this->paramAddr = comm->myParamDataGva;
         this->aivNum = AscendC::GetBlockNum() * AscendC::GetTaskRation();
         this->input = input;
         this->output = output;
         this->elements = elements;
+        this->counterAddress = reinterpret_cast<__gm__ uint64_t *>(comm->vecCounter);
+        this->barrierAddress = reinterpret_cast<__gm__ uint64_t *>(comm->vecBarrier);
+        this->coreCounterAddress = reinterpret_cast<__gm__ uint8_t *>(comm->coreCounter);
+        this->coreBarrierAddress = reinterpret_cast<__gm__ uint8_t *>(comm->coreBarrier);
 #endif
     }
 
@@ -47,7 +51,7 @@ public:
         if (aivIndex < groupSize) {
             // write addr
             auto exchangeAddr = comm->myAddressExchangeGva;
-            auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex, 
+            auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, aivIndex,
                                  localDeviceMemSize, peerGroupRank2WorldRank);
             SetMetaValue((__gm__ uint64_t *)ptr, myGroupRank, reinterpret_cast<uint64_t>(inputGM), groupSize, inputInBuff);
 
@@ -64,12 +68,13 @@ public:
         const int64_t aivIndex = AscendC::GetBlockIdx();
         AscendC::LocalTensor<uint64_t> flagClearBuff(AscendC::TPosition::VECIN, 2*UB_BUFF_INTERVAL + UB_ALIGN_SIZE, UB_PAD_COUNT);
         if (aivIndex < groupSize) {
-            auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank, 
+            auto ptr = zbccl_ptr((__gm__ uint64_t *)(exchangeAddr), myGroupRank,
                             aivIndex, localDeviceMemSize, peerGroupRank2WorldRank);
             SetMetaValue((__gm__ uint64_t *)ptr + inputAddrSize, myGroupRank, 0, groupSize, flagClearBuff);
         }
 
-        //zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, counterAddress, barrierAddress, peerGroupRank2WorldRank);
+        // zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, counterAddress,
+                        //  barrierAddress, coreCounterAddress, coreBarrierAddress, peerGroupRank2WorldRank);
         Barrier((__gm__ uint64_t *)paramAddr, myGroupRank, groupSize, localDeviceMemSize, peerGroupRank2WorldRank);
 
         uint64_t flagMagic = 1024;
@@ -117,6 +122,10 @@ private:
     __gm__ void *output;
     __gm__ CommGroupInfo *comm;
     __gm__ uint16_t *peerGroupRank2WorldRank;
+    __gm__ uint64_t *counterAddress;
+    __gm__ uint64_t *barrierAddress;
+    __gm__ uint8_t *coreCounterAddress;
+    __gm__ uint8_t *coreBarrierAddress;
 };
 
 extern "C" __global__ __aicore__

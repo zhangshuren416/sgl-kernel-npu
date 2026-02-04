@@ -99,7 +99,8 @@ public:
         coreTargetRank = aivIndex / corePerRank;
 
         InitDataAddrAndFlag(exchangeAddr, (__gm__ void *)x, aivIndex, rank, groupSize,
-                            (__gm__ uint64_t *)&groupInfo->counter, (__gm__ uint64_t *)&groupInfo->barrier,
+                            reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecCounter),
+                            reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecBarrier),
                             groupInfo->localDeviceMemSize, (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank,
                             paramAddr);
         int32_t addrReadyFlag;

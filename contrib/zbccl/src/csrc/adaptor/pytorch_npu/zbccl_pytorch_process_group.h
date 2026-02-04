@@ -198,7 +198,7 @@ protected:
 private:
     zbccl_comm_t groupComm_{nullptr};
     std::string groupName_;
-    int groupLocalId_;
+    int myWorldRank_;
     static std::atomic<uint64_t> groupCounter_;
 
 private:

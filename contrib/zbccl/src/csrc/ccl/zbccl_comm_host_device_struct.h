@@ -14,6 +14,12 @@
 
 #include <string>
 
+#define ZBCCL_MAX_AIV_SIZE_PER_NPU          48
+#define ZBCCL_SCALAR_CACHELINE_SIZE         64
+#define ZBCCL_AIV_MAX_EXP_NUM               6                 // ceil(log2(48))
+#define ZBCCL_CORE_BARRIER_SIZE 1 // (ZBCCL_MAX_AIV_SIZE_PER_NPU * ZBCCL_AIV_MAX_EXP_NUM * ZBCCL_SCALAR_CACHELINE_SIZE)
+#define ZBCCL_U64_CACHELINE_SIZE (ZBCCL_SCALAR_CACHELINE_SIZE / sizeof(uint64_t))
+
 /**
  * @brief group info of this communicator, this struct will be copy to device, keep it simple
  */
@@ -29,8 +35,10 @@ struct CommGroupInfo {
     uint64_t fftsConfig;                                    /* copy from CommGroupOptions.fftsConfig */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
     uint64_t localDeviceMemSize;                            /* copy from CommGroupOptions.localDeviceMemSize */
-    uint64_t counter[8];                                    /* sync value address and sync counter value */
-    uint64_t barrier[8];
+    uint64_t vecCounter[ZBCCL_U64_CACHELINE_SIZE];          /* vector counter space */
+    uint64_t vecBarrier[ZBCCL_U64_CACHELINE_SIZE];          /* vector barrier space */
+    uint8_t coreCounter[ZBCCL_CORE_BARRIER_SIZE];           /* core counter space */
+    uint8_t coreBarrier[ZBCCL_CORE_BARRIER_SIZE];           /* core barrier space */
 };
 
 #endif  // ZBCCL_COMM_STRUCT_H

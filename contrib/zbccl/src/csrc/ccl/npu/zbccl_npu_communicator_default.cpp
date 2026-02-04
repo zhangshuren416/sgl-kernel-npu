@@ -66,6 +66,20 @@ void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &opti
     groupInfo_.sizeForExchangeAddress = options.sizeForExchangeAddress;
     groupInfo_.fftsConfig = options.fftsConfig;
     groupInfo_.localDeviceMemSize = options.localDeviceMemSize;
+
+    auto vecCounterAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecCounter);
+    auto vecBarrierAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecBarrier);
+    auto coreCounterAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreCounter);
+    auto coreBarrierAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreBarrier);
+
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(vecCounterAddress),
+                                 ZBCCL_SCALAR_CACHELINE_SIZE, 0, ZBCCL_SCALAR_CACHELINE_SIZE);
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(vecBarrierAddress),
+                                 ZBCCL_SCALAR_CACHELINE_SIZE, 0, ZBCCL_SCALAR_CACHELINE_SIZE);
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(coreCounterAddress),
+                                 ZBCCL_CORE_BARRIER_SIZE, 0, ZBCCL_CORE_BARRIER_SIZE);
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(coreBarrierAddress),
+                                 ZBCCL_CORE_BARRIER_SIZE, 0, ZBCCL_CORE_BARRIER_SIZE);
 }
 
 ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noexcept

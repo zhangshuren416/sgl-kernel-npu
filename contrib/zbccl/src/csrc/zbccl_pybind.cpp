@@ -116,7 +116,8 @@ void pybind11_process_group(py::module_ &m)
             int,
             int,
             c10::intrusive_ptr<ZOptions>>(), py::call_guard<py::gil_scoped_release>())
-        .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);
+        .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName)
+        .def("get_hccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);   // for compatibility profiler
 
     py::class_<ZOptions, CBackend::Options, c10::intrusive_ptr<ZOptions>>(group, "Options")
         .def(py::init<>())
