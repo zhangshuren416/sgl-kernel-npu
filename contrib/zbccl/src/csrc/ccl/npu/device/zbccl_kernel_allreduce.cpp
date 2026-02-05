@@ -69,6 +69,36 @@ ZBCCL_KERNEL void InitDataAddrAndFlag(__gm__ void *metaAddr, __gm__ void *inputA
     }
 }
 
+ZBCCL_KERNEL void zbccl_barrier_all_for_ar(uint16_t rankId, uint16_t groupSize, uint64_t localSize,
+                                    __gm__ uint64_t *counterAddress, __gm__ uint64_t *barrierAddress,
+                                    __gm__ uint16_t *peerRanks)
+{
+    int vecId = AscendC::GetBlockIdx();
+    int vecSize = AscendC::GetBlockNum() * AscendC::GetTaskRation();
+    uint64_t count = zbccl_load<uint64_t>(counterAddress) + 1;
+    int k = 8;
+    k = k < groupSize ? k : groupSize;
+    k = k < vecSize ? k : vecSize;
+
+    AscendC::SyncAll<true>();
+
+    if ASCEND_IS_AIV {
+        if (vecId == rankId) {
+            zbccl_single_set(barrierAddress, count);
+        }
+        for (int i = vecId; i < groupSize; i += k) {
+            __gm__ void *dst = zbccl_ptr((__gm__ void *)barrierAddress, rankId, i, localSize, peerRanks);
+            __gm__ uint64_t *target_addr = (__gm__ uint64_t *)dst;
+            zbccl_single_wait_until_eq(target_addr, count);
+        }
+        if (vecId == rankId) {
+            zbccl_single_set(counterAddress, count);
+        }
+    }
+
+    AscendC::SyncAll<true>();
+}
+
 template <typename T>
 class ZeroBuffAllReduceKernel
 {
@@ -155,8 +185,8 @@ public:
                 AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
                 bindQueue.EnQue(xLocal);
             }
-            Barrier((__gm__ void *)(groupInfo->myParamDataGva), rank, groupSize, groupInfo->localDeviceMemSize,
-                    (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank);
+            zbccl_barrier_all_for_ar(rank, groupSize, groupInfo->localDeviceMemSize, reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecCounter),
+                                    reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecBarrier), reinterpret_cast<__gm__ uint16_t *>(groupInfo->peerGroupRank2WorldRank));
             if (rank != coreTargetRank) {
                 xLocal = bindQueue.DeQue<T>();
                 AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
@@ -243,7 +273,7 @@ int32_t ZBCCLOpAllReduce(const void *inp, void *out, size_t numel, zbccl_datatyp
                            aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo)
 {
     /* define the block dim */
-    uint32_t blockDim = 16;
+    uint32_t blockDim = 32;
     uint32_t dataTypeNum = static_cast<uint32_t>(dataType);
     uint32_t reduceOpNum = static_cast<uint32_t>(reduceOp);
 
