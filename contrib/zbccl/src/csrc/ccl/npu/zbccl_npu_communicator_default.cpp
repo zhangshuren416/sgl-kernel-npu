@@ -160,7 +160,6 @@ int32_t NpuCommunicatorDefault::DispatchNormalLayout(
 {
     return ZBCCLOpDispatchLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert, isTokenInRank,
                                  sendTokensIndex, notifySendData, stream, GetMetaInfo(), flags);
-    return Z_OK;
 }
 
 int32_t NpuCommunicatorDefault::DispatchNormal(const zbccl_tensor_info_t *srcTokens,

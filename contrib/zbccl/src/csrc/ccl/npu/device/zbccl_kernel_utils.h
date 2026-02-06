@@ -172,13 +172,7 @@ ZBCCL_KERNEL void zbccl_barrier_all(uint16_t rankId, uint16_t groupSize, uint64_
     zbccl_barrier_core(rankId, groupSize, localSize, coreCounterAddress, coreBarrierAddress);
 }
 
-template <AscendC::HardEvent event>
-ZBCCL_KERNEL void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
+
 
 template <AscendC::HardEvent event>
 ZBCCL_KERNEL void SyncFunc(int32_t eventID)

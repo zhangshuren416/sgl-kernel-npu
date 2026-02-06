@@ -9,6 +9,10 @@ from zbccl.zbccl import ProcessGroupZBCCL
 from zbccl.zbccl import ZBCCLBootstrapType, zbccl_set_logger_level
 import torch, torch_npu
 
+from zbccl.zbccl.deepep_adaptor import Config
+from .zbccl_buffer import Buffer
+from .zbccl_utils import EventOverlap
+
 __all__ = [
     "switch_to_allocator",
     "zbccl_get_shmem_base_addr",

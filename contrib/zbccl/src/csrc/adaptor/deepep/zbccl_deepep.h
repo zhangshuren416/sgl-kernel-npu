@@ -20,6 +20,7 @@
 #include <tuple>
 #include <vector>
 #include <optional>
+#include <pybind11/pybind11.h>
 #include "aclnn/opdev/platform.h"
 
 #include "zbccl_deepep_config.h"
@@ -80,22 +81,11 @@ public:
     std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> intranode_combine(
         const torch::Tensor &x, const torch::Tensor &topk_idx, const std::optional<torch::Tensor> &topk_weights,
         const torch::Tensor &put_offset, const torch::Tensor &balance_matrix);
-
-    std::tuple<at::Tensor, std::optional<at::Tensor>, at::Tensor, at::Tensor, at::Tensor, std::optional<EventHandle>,
-               std::optional<std::function<void()>>>
-    low_latency_dispatch(const at::Tensor &x, const at::Tensor &topk_idx,
-                         const std::optional<at::Tensor> &cumulative_local_expert_recv_stats,
-                         int64_t num_max_dispatch_tokens_per_rank, int64_t num_experts, bool use_fp8, bool round_scale,
-                         bool use_ue8m0, bool async, bool return_recv_hook);
-
-    std::tuple<at::Tensor, std::optional<EventHandle>, std::optional<std::function<void()>>> low_latency_combine(
-        const at::Tensor &x, const at::Tensor &topk_idx, const at::Tensor &topk_weights, const at::Tensor &src_info,
-        const at::Tensor &layout_range, int64_t num_max_dispatch_tokens_per_rank, int64_t num_experts,
-        const at::Tensor &packed_recv_count, bool zero_copy, bool async, bool return_recv_hook,
-        const std::optional<at::Tensor> &out);
 };
 }  // namespace deep_ep
 }  // namespace adaptor
 }  // namespace zbccl
+
+void pybind11_deepep_adaptor(pybind11::module_ &m);
 
 #endif  // ZBCCL_DEEPEP_H_

@@ -8,7 +8,6 @@ ascendc_library(zbccl_kernel STATIC
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE
-        $ENV{SHMEM_HOME_PATH}/shmem/include
         $ENV{SHMEM_HOME_PATH}/memfabric_hybrid/include/smem/device
         ${ASCEND_HOME_PATH}/include
         ${ASCEND_HOME_PATH}/include/aclnn
@@ -21,5 +20,5 @@ ascendc_include_directories(zbccl_kernel PRIVATE
 )
 
 ascendc_compile_definitions(zbccl_kernel PRIVATE
-        ASCENDC_DUMP=1
+        ASCENDC_DUMP=0
 )

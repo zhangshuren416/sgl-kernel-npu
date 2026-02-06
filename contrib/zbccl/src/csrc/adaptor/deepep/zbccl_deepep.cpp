@@ -12,11 +12,16 @@
 
 #include <cmath>
 #include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
+#include <pybind11/stl.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 #include <torch_npu/csrc/core/npu/NPUEvent.h>
+#include <torch_npu/csrc/framework/OpCommand.h>
 #include <torch_npu/csrc/npu/Event.h>
 #include "zbccl_common_includes.h"
 #include "zbccl_operations.h"
+#include "dl_cann_api.h"
 
 #include "zbccl_deepep.h"
 
@@ -28,9 +33,9 @@ constexpr size_t COMM_NAME_LEN = 128;
 constexpr int A3_MAX_HCCS_PEERS = 384;
 constexpr int A2_MAX_HCCS_PEERS = 8;
 
-const zbccl_tensor_info_t* transfer_tensor_info(const torch::Tensor &ori_tensor)
+const zbccl_tensor_info_t transfer_tensor_info(const torch::Tensor &ori_tensor, const int rank = 0, std::string name = "")
 {
-    thread_local zbccl_tensor_info_t result = {};
+    zbccl_tensor_info_t result{};
 
     result.data = const_cast<void*>(ori_tensor.data_ptr());
     auto at_type = ori_tensor.scalar_type();
@@ -75,7 +80,10 @@ const zbccl_tensor_info_t* transfer_tensor_info(const torch::Tensor &ori_tensor)
         result.shape[i] = static_cast<uint16_t>(sizes[i]);
     }
 
-    return &result;
+    // printf("[transfer_tensor_info] rank:%d, name:%s, ori_data:%p, data:%p, dataType:%d, dim:%hu\n", 
+    //     rank, name.c_str(), ori_tensor.data_ptr(), result.data, result.dataType, result.dim);
+
+    return result;
 }
 
 Buffer::Buffer(int rank, int num_ranks, int64_t num_nvl_bytes, int64_t num_rdma_bytes, bool low_latency_mode, std::string moe_group_name)
@@ -88,6 +96,8 @@ Buffer::Buffer(int rank, int num_ranks, int64_t num_nvl_bytes, int64_t num_rdma_
     ZBCCL_CHECK_S(!moe_group_name.empty() and moe_group_name.size() < COMM_NAME_LEN, "moe_group_name check failed:");
 
     comm_ = zbccl_comm_get_by_name(moe_group_name.c_str());
+    std::cout << "[init] rank:" << rank << ", group_name: " << moe_group_name << std::endl;
+    ZBCCL_CHECK_S(comm_ != nullptr, "get zbccl_comm failed");
 
     soc_version = op::GetCurrentPlatformInfo().GetSocVersion();
     num_rdma_ranks = 1;
@@ -133,39 +143,47 @@ std::tuple<torch::Tensor, std::optional<torch::Tensor>, torch::Tensor, torch::Te
 Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std::optional<EventHandle> &previous_event,
                             bool async, bool allocate_on_comm_stream)
 {
-    ZBCCL_CHECK_S(topk_idx.dim() == 2, "Layout: check topk_idx dim failed:");
-    ZBCCL_CHECK_S(topk_idx.is_contiguous(), "Layout: check topk_idx contiguous failed:");
-    ZBCCL_CHECK_S(num_experts > 0, "Layout: check num_experts failed:");
+    ZBCCL_CHECK_S(topk_idx.dim() == 2, "Layout: check topk_idx dim failed");
+    ZBCCL_CHECK_S(topk_idx.is_contiguous(), "Layout: check topk_idx contiguous failed");
+    ZBCCL_CHECK_S(num_experts > 0, "Layout: check num_experts failed:", num_experts);
 
-    const int num_tokens = static_cast<int>(topk_idx.size(0));
-    const int num_topk = static_cast<int>(topk_idx.size(1));
-
+    int num_tokens = static_cast<int>(topk_idx.size(0));
+    int num_topk = static_cast<int>(topk_idx.size(1));
     auto device = topk_idx.device();
-    auto num_tokens_per_expert = at::zeros({num_experts}, at::dtype(at::kInt).device(device));
-    auto num_tokens_per_rank = at::zeros({num_ranks}, at::dtype(at::kInt).device(device));
-    auto is_token_in_rank = at::zeros({num_tokens, num_ranks}, at::dtype(at::kInt).device(device));
-    auto send_token_idx = at::zeros({num_tokens, num_topk}, at::dtype(at::kInt).device(device));
+    auto num_tokens_per_expert = at::empty({num_experts}, at::dtype(at::kInt).device(device));
+    auto num_tokens_per_rank = at::empty({num_ranks}, at::dtype(at::kInt).device(device));
+    auto is_token_in_rank = at::empty({num_tokens, num_ranks}, at::dtype(at::kInt).device(device));
+    auto send_token_idx = at::empty({num_tokens, num_topk}, at::dtype(at::kInt).device(device));
     auto num_tokens_per_rdma_rank = std::optional<torch::Tensor>();
     if (is_internode_available()) {
-        num_tokens_per_rdma_rank = torch::empty({num_rdma_ranks}, dtype(at::kInt).device(device));
+        num_tokens_per_rdma_rank = at::empty({num_rdma_ranks}, dtype(at::kInt).device(device));
     }
     int blocks = 50;
-    auto notify_send_data = at::zeros({num_experts * blocks}, at::dtype(at::kInt).device(device));
-
+    auto notify_send_data = at::empty({num_experts * blocks}, at::dtype(at::kInt).device(device));
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
 
-    auto ret = zbccl_dispatch_normal_layout(transfer_tensor_info(topk_idx),
-                                num_tokens, num_experts, num_topk,
-                                transfer_tensor_info(num_tokens_per_rank),
-                                transfer_tensor_info(num_tokens_per_expert),
-                                transfer_tensor_info(is_token_in_rank),
-                                transfer_tensor_info(send_token_idx),
-                                transfer_tensor_info(notify_send_data),
-                                comm_, acl_stream, flags);
+    // tensor to zbccl_tensor_info_t
+    auto topk_idx_info = transfer_tensor_info(topk_idx);
+    auto num_tokens_per_rank_info = transfer_tensor_info(num_tokens_per_rank);
+    auto num_tokens_per_expert_info = transfer_tensor_info(num_tokens_per_expert);
+    auto is_token_in_rank_info = transfer_tensor_info(is_token_in_rank);
+    auto send_token_idx_info = transfer_tensor_info(send_token_idx);
+    auto notify_send_data_info = transfer_tensor_info(notify_send_data);
 
-    this->send_token_idx = send_token_idx;
+    std::function<int()> acl_call;
+    acl_call = [this, topk_idx_info, num_tokens, num_experts, num_topk, num_tokens_per_rank_info,
+                num_tokens_per_expert_info, is_token_in_rank_info, send_token_idx_info, notify_send_data_info,
+                acl_stream, flags]() -> int {
+        auto api_ret = zbccl_dispatch_normal_layout(
+            &topk_idx_info, num_tokens, num_experts, num_topk, &num_tokens_per_rank_info, &num_tokens_per_expert_info,
+            &is_token_in_rank_info, &send_token_idx_info, &notify_send_data_info, this->comm_, acl_stream, flags);
+        return api_ret;
+    };
+    at_npu::native::OpCommand::RunOpApiV2("zbccl_dispatch_normal_layout", acl_call);
+
     std::optional<EventHandle> event;
+    this->send_token_idx = send_token_idx;
 
     return {num_tokens_per_rank, num_tokens_per_rdma_rank, num_tokens_per_expert, is_token_in_rank, event};
 }
@@ -252,30 +270,35 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
 
+    // tensor to zbccl_tensor_info_t
+    auto num_tokens_per_expert_info = transfer_tensor_info(new_num_tokens_per_expert);
+    auto recv_data_info = transfer_tensor_info(recv_data);
+    auto recv_tokens_per_expert_info = transfer_tensor_info(recv_tokens_per_expert);
+    auto put_offset_info = transfer_tensor_info(put_offset);
+    auto balance_matrix_info = transfer_tensor_info(balance_matrix);
+
+    auto x_info = transfer_tensor_info(x);
+    auto expert_ids_info = transfer_tensor_info(expert_ids);
+    auto send_token_idx_info = transfer_tensor_info(send_token_idx);
+
     // call notify
-    auto notify_ret = zbccl_dispatch_normal_notify(transfer_tensor_info(new_num_tokens_per_expert), 
-        send_count, topk_num, 
-        transfer_tensor_info(recv_data), 
-        &total_recv_token,
-        transfer_tensor_info(recv_tokens_per_expert),
-        transfer_tensor_info(put_offset),
-        transfer_tensor_info(balance_matrix),
-        comm_, acl_stream, flags);
+    auto notify_ret = zbccl_dispatch_normal_notify(&num_tokens_per_expert_info, send_count, topk_num, &recv_data_info,
+                                                   &total_recv_token, &recv_tokens_per_expert_info, &put_offset_info,
+                                                   &balance_matrix_info, comm_, acl_stream, flags);
 
     int num_recv_tokens = (total_recv_token == 0) ? 1 : total_recv_token;  // max recv_tokens in all rank
     auto expandx_out = use_quant ? torch::empty({num_recv_tokens, hidden}, at::dtype(at::kChar).device(device))
                                  : torch::empty({num_recv_tokens, hidden}, x.options());
     auto dynamic_scales_out = use_quant ? torch::empty({num_recv_tokens}, at::dtype(at::kFloat).device(device))
                                         : torch::empty({1}, at::dtype(at::kFloat).device(device));
+    // tensor to zbccl_tensor_info_t
+    auto expandx_out_info = transfer_tensor_info(expandx_out);
+    auto dynamic_scales_out_info = transfer_tensor_info(dynamic_scales_out);
+
     // call dispatch
-    auto dispatch_ret = zbccl_dispatch_normal(transfer_tensor_info(x),
-        transfer_tensor_info(expert_ids),
-        transfer_tensor_info(send_token_idx),
-        transfer_tensor_info(put_offset),
-        num_experts, quant_mode,
-        transfer_tensor_info(expandx_out),
-        transfer_tensor_info(dynamic_scales_out),
-        comm_, acl_stream, flags);
+    auto dispatch_ret = zbccl_dispatch_normal(&x_info, &expert_ids_info, &send_token_idx_info, &put_offset_info,
+                                              num_experts, quant_mode, &expandx_out_info, &dynamic_scales_out_info,
+                                              comm_, acl_stream, flags);
 
     auto recv_token_per_exp_cpu = recv_tokens_per_expert.to(at::kCPU);
     auto recv_token_per_exp_ptr = recv_token_per_exp_cpu.data_ptr<int64_t>();
@@ -320,7 +343,6 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
         ZBCCL_CHECK_S(topk_weights->scalar_type() == at::kFloat, "topk_weights scalar type check failed");
     }
     auto expert_scales = topk_weights.value();
-    auto ep_send_counts = put_offset;
     uint16_t moe_expert_number = static_cast<uint16_t>(put_offset.size(0));
     auto send_token_idx = this->send_token_idx;
 
@@ -331,16 +353,19 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
 
+    // tensor to zbccl_tensor_info_t
+    auto recv_x_info = transfer_tensor_info(recv_x);
+    auto ep_send_counts_info = transfer_tensor_info(put_offset);
+    auto expert_scales_info = transfer_tensor_info(expert_scales);
+    auto expert_ids_info = transfer_tensor_info(expert_ids);
+    auto send_token_idx_info = transfer_tensor_info(send_token_idx);
+    auto balance_matrix_info = transfer_tensor_info(balance_matrix);
+    auto combined_x_info = transfer_tensor_info(combined_x);
+
     // call combine
-    int ret = zbccl_combine_normal(transfer_tensor_info(recv_x),
-        transfer_tensor_info(ep_send_counts),
-        transfer_tensor_info(expert_scales),
-        transfer_tensor_info(expert_ids),
-        transfer_tensor_info(send_token_idx),
-        transfer_tensor_info(balance_matrix),
-        moe_expert_number,
-        transfer_tensor_info(combined_x),
-        comm_, acl_stream, flags);
+    int ret = zbccl_combine_normal(&recv_x_info, &ep_send_counts_info, &expert_scales_info, &expert_ids_info,
+                                   &send_token_idx_info, &balance_matrix_info, moe_expert_number, &combined_x_info,
+                                   comm_, acl_stream, flags);
 
     return {combined_x, recv_topk_weights, event};
 }
@@ -348,3 +373,29 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
 }  // namespace deep_ep
 }  // namespace adaptor
 }  // namespace zbccl
+
+void pybind11_deepep_adaptor(pybind11::module_ &m)
+{
+    m.doc() = "DeepEP: an efficient expert-parallel communication library";
+
+    pybind11::class_<zbccl::adaptor::deep_ep::Config>(m, "Config")
+        .def(pybind11::init<int, int, int, int, int>(), py::arg("num_sms") = 20,
+             py::arg("num_max_nvl_chunked_send_tokens") = 6, py::arg("num_max_nvl_chunked_recv_tokens") = 256,
+             py::arg("num_max_rdma_chunked_send_tokens") = 6, py::arg("num_max_rdma_chunked_recv_tokens") = 256)
+        .def("get_nvl_buffer_size_hint", &zbccl::adaptor::deep_ep::Config::get_nvl_buffer_size_hint)
+        .def("get_rdma_buffer_size_hint", &zbccl::adaptor::deep_ep::Config::get_rdma_buffer_size_hint);
+    m.def("get_low_latency_rdma_size_hint", &zbccl::adaptor::deep_ep::get_low_latency_rdma_size_hint);
+
+    pybind11::class_<zbccl::adaptor::deep_ep::EventHandle>(m, "EventHandle")
+        .def(pybind11::init<>())
+        .def("current_stream_wait", &zbccl::adaptor::deep_ep::EventHandle::current_stream_wait);
+
+    pybind11::class_<zbccl::adaptor::deep_ep::Buffer>(m, "Buffer")
+        .def(pybind11::init<int, int, int64_t, int64_t, bool, std::string>())
+        .def("is_available", &zbccl::adaptor::deep_ep::Buffer::is_available)
+        .def("get_num_rdma_ranks", &zbccl::adaptor::deep_ep::Buffer::get_num_rdma_ranks)
+        .def("get_rdma_rank", &zbccl::adaptor::deep_ep::Buffer::get_rdma_rank)
+        .def("get_dispatch_layout", &zbccl::adaptor::deep_ep::Buffer::get_dispatch_layout)
+        .def("intranode_dispatch", &zbccl::adaptor::deep_ep::Buffer::intranode_dispatch)
+        .def("intranode_combine", &zbccl::adaptor::deep_ep::Buffer::intranode_combine);
+}

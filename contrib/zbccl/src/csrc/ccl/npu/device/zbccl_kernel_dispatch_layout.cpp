@@ -12,19 +12,22 @@
 
 #include "tiling/platform/platform_ascendc.h"
 #include "zbccl_kernel_dispatch_layout.h"
+#include <cstdio>
 
 using namespace AscendC;
 
 extern "C" __global__ __aicore__
-void dispatch_layout(GM_ADDR topkIdx, uint32_t numTokens, uint32_t numExperts, uint32_t numTopk, uint32_t numRanks,
+void dispatch_layout(uint64_t fftsAddr, GM_ADDR topkIdx, uint32_t numTokens, uint32_t numExperts, uint32_t numTopk, uint32_t numRanks,
                     uint32_t rank, GM_ADDR numTokensPerRank, GM_ADDR numTokensPerExpert, GM_ADDR isTokenInRank,
                     GM_ADDR sendTokenIdx, GM_ADDR notifySendData)
 {
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
+    AscendC::SetSyncBaseAddr(fftsAddr);
     AscendC::TPipe pipe;
     MoeDispatchLayout::DispatchLayout<int32_t> op;
     op.Init(topkIdx, numTokens, numExperts, numTopk, numRanks, rank, numTokensPerRank, numTokensPerExpert,
         isTokenInRank, sendTokenIdx, notifySendData, &pipe);
-    op.Process();
+    op.Process2();
 }
 
 int32_t ZBCCLOpDispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
@@ -36,12 +39,13 @@ int32_t ZBCCLOpDispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t toke
                                 const CommGroupInfo &groupInfo, int64_t flags)
 {
     // uint32_t blockDim = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNum();
-    uint32_t blockDim = 48; // TODO: 先写常量
+    uint32_t blockDim = 48; // TODO: 先写常量，不能大于物理实际核数
     uint32_t rank = static_cast<uint32_t>(groupInfo.myGroupRank);
     uint32_t numRanks = static_cast<uint32_t>(groupInfo.groupSize);
     uint32_t numTokens = static_cast<uint32_t>(tokens);
     uint32_t numExperts = static_cast<uint32_t>(expertNum);
     uint32_t numTopk = static_cast<uint32_t>(topkNum);
+    uint64_t fftsAddr = groupInfo.fftsConfig;
 
     GM_ADDR topkIndexAddr = reinterpret_cast<uint8_t *>(topkIndex->data);
     GM_ADDR tokensPerRankAddr = reinterpret_cast<uint8_t *>(tokensPerRank->data);
@@ -51,7 +55,8 @@ int32_t ZBCCLOpDispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t toke
     GM_ADDR notifySendDataAddr = reinterpret_cast<uint8_t *>(notifySendData->data);
 
     // launch kernel
-    dispatch_layout<<<blockDim, nullptr, stream>>>(topkIndexAddr, numTokens, numExperts, numTopk, numRanks, rank,
+    dispatch_layout<<<blockDim, nullptr, stream>>>(fftsAddr, topkIndexAddr, numTokens, numExperts, numTopk, numRanks, rank,
         tokensPerRankAddr, tokensPerExpertAddr, isTokenInRankAddr, sendTokensIndexAddr, notifySendDataAddr);
+
     return 0;
 }

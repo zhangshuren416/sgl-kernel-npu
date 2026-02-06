@@ -15,6 +15,7 @@
 
 #include "zbccl_mem_allocator.h"
 #include "zbccl_pytorch_process_group.h"
+#include "zbccl_deepep.h"
 #include "zbccl_def.h"
 #include "zbccl_bootstrap.h"
 #include "zbccl.h"
@@ -168,7 +169,9 @@ PYBIND11_MODULE(zbccl, m) {
     m.doc() = "zbccl package";
 
     auto allocator = m.def_submodule("allocator", "zbccl allocator");
+    auto deepep_adaptor = m.def_submodule("deepep_adaptor", "zbccl deepep adaptor");
 
     pybind11_allocator(allocator);
+    pybind11_deepep_adaptor(deepep_adaptor);
     pybind11_bootstrap(m);
 }

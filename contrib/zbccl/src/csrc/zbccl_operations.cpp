@@ -211,15 +211,10 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
     ZBCCL_VALIDATE_RETURN(topkNum > 0, "DispatchLayout failed as topkNum " << topkNum << " is invalid",
                           Z_INVALID_PARAM);
 
-    // 校验tensor信息
-
-    // 校验属性
-
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
     return innerComm->DispatchNormalLayout(topkIndex, tokens, expertNum, topkNum, tokensPerRank, tokensPerExpert,
                                            isTokenInRank, sendTokensIndex, notifySendData, stream, flags);
-    return Z_OK;
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
