@@ -42,6 +42,8 @@ struct CommGroupOptions {
     uint32_t groupIndex = 0;             /* group index */
     uint64_t fftsConfig = 0;             /* ffts config for operator in inner option*/
     uint64_t localDeviceMemSize = 0;     /* local device memory size */
+    uintptr_t profilingGva = 0;
+    uint64_t sizeForProfiling = 0;
 
     friend std::ostream &operator<<(std::ostream &os, const CommGroupOptions &options)
     {
@@ -49,8 +51,10 @@ struct CommGroupOptions {
            << ", groupSize: " << options.groupSize << ", myWorldRank: " << options.myWorldRank
            << ", myGroupRank: " << options.myGroupRank << ", gva: " << options.gva << ", metaSize: " << options.metaSize
            << ", myMetaGva: " << std::hex << options.myMetaGva << ", myParamDataGva: " << options.myParamDataGva
+           << ", profilingGva: " << options.profilingGva
            << ", myAddressExchangeGva: " << options.myAddressExchangeGva << std::dec
            << ", sizeForCommGroupInfo: " << options.sizeForCommGroupInfo << ", sizeForParam: " << options.sizeForParam
+           << ", sizeForProfiling: " << options.sizeForProfiling
            << ", sizeForExchangeAddress: " << options.sizeForExchangeAddress << ", deviceId: " << options.deviceId
            << ", groupIndex: " << options.groupIndex << ", fftsConfig: " << options.fftsConfig
            << ", localDeviceMemSize: " << options.localDeviceMemSize << "]";

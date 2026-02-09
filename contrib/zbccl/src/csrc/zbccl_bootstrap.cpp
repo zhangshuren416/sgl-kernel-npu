@@ -74,7 +74,7 @@ ZBCCL_API int32_t zbccl_bootstrap(zbccl_bootstrap_options_t *options, zbccl_boot
     // flag currently is just a placeholder
     ZBCCL_VALIDATE_RETURN(zbccl_sma_init(&alloc_state, 0) == Z_OK, "sma init failed", Z_INVALID_PARAM);
 
-    ZBCCL_LOG_DEBUG("zbccl bootstrap success, sma size=" << output->smaSizeOfDevice);
+    ZBCCL_LOG_DEBUG("zbccl bootstrap success, " << *output);
     return Z_OK;
 }
 

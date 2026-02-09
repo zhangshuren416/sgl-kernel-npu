@@ -66,20 +66,19 @@ void NpuCommunicatorDefault::ConstructCommGroupInfo(const CommGroupOptions &opti
     groupInfo_.sizeForExchangeAddress = options.sizeForExchangeAddress;
     groupInfo_.fftsConfig = options.fftsConfig;
     groupInfo_.localDeviceMemSize = options.localDeviceMemSize;
+    groupInfo_.profilingGva = options.profilingGva;
+    groupInfo_.sizeOfProfiling = options.sizeForProfiling;
 
-    auto vecCounterAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecCounter);
-    auto vecBarrierAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecBarrier);
-    auto coreCounterAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreCounter);
-    auto coreBarrierAddress = groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreBarrier);
-
-    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(vecCounterAddress),
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecCounter)),
                                  ZBCCL_SCALAR_CACHELINE_SIZE, 0, ZBCCL_SCALAR_CACHELINE_SIZE);
-    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(vecBarrierAddress),
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo_.myMetaGva + offsetof(CommGroupInfo, vecBarrier)),
                                  ZBCCL_SCALAR_CACHELINE_SIZE, 0, ZBCCL_SCALAR_CACHELINE_SIZE);
-    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(coreCounterAddress),
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreCounter)),
                                  ZBCCL_CORE_BARRIER_SIZE, 0, ZBCCL_CORE_BARRIER_SIZE);
-    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(coreBarrierAddress),
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo_.myMetaGva + offsetof(CommGroupInfo, coreBarrier)),
                                  ZBCCL_CORE_BARRIER_SIZE, 0, ZBCCL_CORE_BARRIER_SIZE);
+    (void)DlCannApi::AclrtMemset(reinterpret_cast<void *>(groupInfo_.profilingGva),
+                                 ZBCCL_CYCLE_PROFILING_SIZE, 0, ZBCCL_CYCLE_PROFILING_SIZE);
 }
 
 ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noexcept

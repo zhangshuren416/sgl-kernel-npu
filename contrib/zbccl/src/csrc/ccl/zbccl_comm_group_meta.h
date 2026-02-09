@@ -63,7 +63,7 @@ public:
     /**
      * @brief Get space size for exchanging addresses of tensors, of single communicator
      */
-    uint64_t GetAddressExchangeSpaceSize() const noexcept;
+    uint64_t GetExchangeSpaceSize() const noexcept;
 
     /**
      * @brief Get index and space address at current position, here we don't move to next position
@@ -90,11 +90,12 @@ public:
      * @param groupMetaGVA         [in/out]
      * @param paramGVA             [in/out]
      * @param addressExchangeGVA   [in/out]
+     * @param profilingGVA         [in/out]
      *
      * @return 0 if successful, error if no more position
      */
     ZResult GetGroupByIndex(uint32_t index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
-                            uintptr_t &addressExchangeGVA) noexcept;
+                            uintptr_t &addressExchangeGVA, uintptr_t &profilingGVA) noexcept;
 
     /**
      * @brief Check if initialized
@@ -131,9 +132,9 @@ inline uint64_t GroupMetaArranger::GetParamSpaceSize() const noexcept
     return OPERATE_PARAM_SIZE - sizeof(CommGroupInfo);
 }
 
-inline uint64_t GroupMetaArranger::GetAddressExchangeSpaceSize() const noexcept
+inline uint64_t GroupMetaArranger::GetExchangeSpaceSize() const noexcept
 {
-    return singleMetaSpaceSize_ - OPERATE_PARAM_SIZE;
+    return singleMetaSpaceSize_ - OPERATE_PARAM_SIZE - ZBCCL_CYCLE_PROFILING_SIZE;
 }
 
 inline bool GroupMetaArranger::Initialized() const noexcept

@@ -93,7 +93,7 @@ void GroupMetaArranger::Move2NextGroup() noexcept
 }
 
 ZResult GroupMetaArranger::GetGroupByIndex(uint32_t index, uintptr_t &groupMetaGVA, uintptr_t &paramGVA,
-                                           uintptr_t &addressExchangeGVA) noexcept
+                                           uintptr_t &addressExchangeGVA, uintptr_t &profilingGVA) noexcept
 {
     if (index >= cclGroupCap_) {
         ZBCCL_LOG_DEBUG("Get group failed as out of bound, index: " << index << ", cclGroupCap_: " << cclGroupCap_);
@@ -102,10 +102,11 @@ ZResult GroupMetaArranger::GetGroupByIndex(uint32_t index, uintptr_t &groupMetaG
 
     groupMetaGVA = myMetaGVA_ + singleMetaSpaceSize_ * index;
     paramGVA = groupMetaGVA + GetCommGroupInfoSpaceSize();
-    addressExchangeGVA = groupMetaGVA + OPERATE_PARAM_SIZE;
+    profilingGVA = groupMetaGVA + OPERATE_PARAM_SIZE;
+    addressExchangeGVA = profilingGVA + ZBCCL_CYCLE_PROFILING_SIZE;
 
-    ZBCCL_LOG_DEBUG("Got group: " << index << ", group meta GVA: " << groupMetaGVA << ", paramGVA: " << paramGVA
-                                  << ", addressExchangeGVA： " << addressExchangeGVA);
+    ZBCCL_LOG_DEBUG("Got group: " << index << ", group meta GVA: " << std::hex << groupMetaGVA << ", paramGVA: " << paramGVA
+                                  << ", profilingGVA: " << profilingGVA << ", addressExchangeGVA: " << addressExchangeGVA);
 
     return Z_OK;
 }

@@ -102,6 +102,10 @@ def test_zbccl_allgather():
         if enable_profiling:
             torch.npu.synchronize()
             prof.stop()
+
+        backend = dist.group.WORLD._get_backend(torch.device("npu", local_rank))
+        profiling = backend.get_profiling_result(1, 48)
+        print(f"\nprofiling result on rank {local_rank}: {profiling}")
     finally:
         dist.destroy_process_group(group)
 

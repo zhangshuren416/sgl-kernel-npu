@@ -95,10 +95,16 @@ void pybind11_comm_property(py::module_ &m)
         }, [](zbccl_comm_property_t &prop, uintptr_t myMetaGVAForOpExchange) {
             prop.myMetaGVAForOpExchange = reinterpret_cast<void*>(myMetaGVAForOpExchange);
         })
+        .def_property("profilingGVA", [](const zbccl_comm_property_t &prop) {
+            return reinterpret_cast<uintptr_t>(prop.profilingGVA);
+        }, [](zbccl_comm_property_t &prop, uintptr_t profilingGVA) {
+            prop.profilingGVA = reinterpret_cast<void*>(profilingGVA);
+        })
         .def_readwrite("sizeOfMetaArea", &zbccl_comm_property_t::sizeOfMetaArea)
         .def_readwrite("sizeOfMetaForOpParam", &zbccl_comm_property_t::sizeOfMetaForOpParam)
         .def_readwrite("sizeOfMetaForAddressExchange", &zbccl_comm_property_t::sizeOfMetaForAddressExchange)
         .def_readwrite("localDeviceMemSize", &zbccl_comm_property_t::localDeviceMemSize)
+        .def_readwrite("sizeOfProfiling", &zbccl_comm_property_t::sizeOfProfiling)
         .def_property("name", [](const zbccl_comm_property_t &prop) {
             return std::string(prop.name);
         }, [](zbccl_comm_property_t &prop, const std::string &name) {
@@ -118,7 +124,9 @@ void pybind11_process_group(py::module_ &m)
             int,
             c10::intrusive_ptr<ZOptions>>(), py::call_guard<py::gil_scoped_release>())
         .def("get_zbccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName)
-        .def("get_hccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName);   // for compatibility profiler
+        .def("get_hccl_comm_name", &ProcessGroupZBCCL::getZBCCLCommName)    // for compatibility profiler
+        .def("get_profiling_result", &ProcessGroupZBCCL::getZBCCLProfilingResult,
+            py::call_guard<py::gil_scoped_release>(), py::arg("maxAIC") = 0, py::arg("maxAIV") = 0);
 
     py::class_<ZOptions, CBackend::Options, c10::intrusive_ptr<ZOptions>>(group, "Options")
         .def(py::init<>())

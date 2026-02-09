@@ -65,6 +65,7 @@ public:
     ZBCCL_KERNEL void Process()
     {
 #ifdef __DAV_C220_VEC__
+        ZBCCL_V_PROF_START(comm, ZBCCL_PROF_ALLGATHER_KERNEL_ALL);
         const int64_t aivIndex = AscendC::GetBlockIdx();
         AscendC::LocalTensor<uint64_t> flagClearBuff(AscendC::TPosition::VECIN, 2*UB_BUFF_INTERVAL + UB_ALIGN_SIZE, UB_PAD_COUNT);
         if (aivIndex < groupSize) {
@@ -73,9 +74,9 @@ public:
             SetMetaValue((__gm__ uint64_t *)ptr + inputAddrSize, myGroupRank, 0, groupSize, flagClearBuff);
         }
 
-        // zbccl_barrier_all(myGroupRank, groupSize, localDeviceMemSize, counterAddress,
-                        //  barrierAddress, coreCounterAddress, coreBarrierAddress, peerGroupRank2WorldRank);
+        ZBCCL_V_PROF_START(comm, ZBCCL_PROF_BARRIER);
         Barrier((__gm__ uint64_t *)paramAddr, myGroupRank, groupSize, localDeviceMemSize, peerGroupRank2WorldRank);
+        ZBCCL_V_PROF_STOP(comm, ZBCCL_PROF_BARRIER);
 
         uint64_t flagMagic = 1024;
         ExchangeInputAddr(input, comm, flagMagic, aivIndex);
@@ -106,6 +107,7 @@ public:
 
         AscendC::PipeBarrier<PIPE_ALL>();
         CpGM2GM(outputGT[outputOffset], inputGT[inputOffset], numPerCore);
+        ZBCCL_V_PROF_STOP(comm, ZBCCL_PROF_ALLGATHER_KERNEL_ALL);
 #endif
     }
 

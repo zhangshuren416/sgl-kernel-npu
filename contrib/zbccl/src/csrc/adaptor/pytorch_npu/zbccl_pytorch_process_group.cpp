@@ -13,6 +13,8 @@
 #include "zbccl_pytorch_util.h"
 #include "zbccl_operations.h"
 #include "zbccl_common_includes.h"
+#include "zbccl_comm_host_device_struct.h"
+#include "dl_cann_api.h"
 
 namespace zbccl {
 namespace adaptor {
@@ -469,6 +471,75 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::barrier(const c10d::BarrierOpt
 std::string ProcessGroupZBCCL::getZBCCLCommName() noexcept
 {
     return groupName_;
+}
+
+std::string ProcessGroupZBCCL::getZBCCLProfilingResult(int32_t maxAIC, int32_t maxAIV) noexcept
+{
+    if (maxAIC < 0 && maxAIV < 0) {
+        ZBCCL_LOG_INFO("input aic/aiv num invalid.");
+        return "";
+    }
+
+    zbccl_comm_property_t property;
+    auto result = zbccl_comm_get_property(groupComm_, &property);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("print profiling failed, can not found group meta");
+        return "";
+    }
+
+    zbccl_profiling_block_t block;
+    result = underapi::DlCannApi::AclrtMemcpy(&block, sizeof(block),
+                                             property.profilingGVA, sizeof(block), ACL_MEMCPY_DEVICE_TO_HOST);
+    if (result != Z_OK) {
+        ZBCCL_LOG_ERROR("cpy profiling to host failed, ret=" << result);
+        return "";
+    }
+
+    auto itemWidth = ZBCCL_PROFILING_PRINT_WIDTH;
+    auto cntWidth = itemWidth >> 1;
+    auto avgWidth = itemWidth - cntWidth;
+    auto totalWidth = (g_profName.size() + 2) * itemWidth;
+    auto cycleToUsUnit = 50;
+    std::ostringstream oss;
+
+    // title
+    oss << std::endl << "|" << std::setw(itemWidth - 1) << "TYPE|" << std::setw(itemWidth) << "BLOCK_INDEX|";
+    for (size_t i = 0; i < g_profName.size(); i++) {
+        oss << std::setw(itemWidth - 1) << g_profName[i] << "|";
+    }
+    oss << std::endl;
+
+    // aic statistics
+    if (maxAIC >= 0) {
+        oss << std::string(totalWidth, '-') << std::endl;
+        size_t displaySize = maxAIC == 0 ? ZBCCL_MAX_AIC_SIZE_PER_NPU : std::min(maxAIC, ZBCCL_MAX_AIC_SIZE_PER_NPU);
+        for (size_t i = 0; i < displaySize; i++) {
+            oss << "|" << std::setw(itemWidth - 1) << "AIC|" << std::setw(itemWidth - 1) << i << "|";
+            size_t frameSize = std::min(static_cast<uint64_t>(ZBCCL_PROF_BUTT), ZBCCL_PROFILING_FRAMES_MAX);
+            for (size_t j = 0; j < frameSize; j++) {
+                oss << std::setw(cntWidth) << block.ccount[i][j]
+                    << std::setw(avgWidth - 1) << (block.ccycle[i][j] / block.ccount[i][j] / cycleToUsUnit) << "|";
+            }
+            oss << std::endl;
+        }
+    }
+
+    // aiv statistics
+    if (maxAIV >= 0) {
+        oss << std::string(totalWidth, '-') << std::endl;
+        size_t displaySize = maxAIV == 0 ? ZBCCL_MAX_AIV_SIZE_PER_NPU : std::min(maxAIV, ZBCCL_MAX_AIV_SIZE_PER_NPU);
+        for (size_t i = 0; i < displaySize; i++) {
+            oss << "|" << std::setw(itemWidth - 1) << "AIV|" << std::setw(itemWidth - 1) << i << "|";
+            size_t frameSize = std::min(static_cast<uint64_t>(ZBCCL_PROF_BUTT), ZBCCL_PROFILING_FRAMES_MAX);
+            for (size_t j = 0; j < frameSize; j++) {
+                oss << std::setw(cntWidth) << block.vcount[i][j]
+                    << std::setw(avgWidth - 1) << (block.vcycle[i][j] / block.vcount[i][j] / cycleToUsUnit) << "|";
+            }
+            oss << std::endl;
+        }
+    }
+
+    return oss.str();
 }
 
 ProcessGroupZBCCL::Options::Options(bool isHighPriorityStream)

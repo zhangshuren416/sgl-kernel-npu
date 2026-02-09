@@ -13,12 +13,73 @@
 #define ZBCCL_COMM_STRUCT_H
 
 #include <string>
+#include <vector>
 
-#define ZBCCL_MAX_AIV_SIZE_PER_NPU          48
-#define ZBCCL_SCALAR_CACHELINE_SIZE         64
-#define ZBCCL_AIV_MAX_EXP_NUM               6                 // ceil(log2(48))
-#define ZBCCL_CORE_BARRIER_SIZE 1 // (ZBCCL_MAX_AIV_SIZE_PER_NPU * ZBCCL_AIV_MAX_EXP_NUM * ZBCCL_SCALAR_CACHELINE_SIZE)
+#define ZBCCL_CYCLE_PROFILING_SIZE  (64 * 1024L)
+#define ZBCCL_MAX_AIV_SIZE_PER_NPU  48
+#define ZBCCL_MAX_AIC_SIZE_PER_NPU  24
+#define ZBCCL_PROFILING_FRAMES_MAX  (ZBCCL_CYCLE_PROFILING_SIZE / 2 / sizeof(int64_t) / \
+                                    (ZBCCL_MAX_AIV_SIZE_PER_NPU + ZBCCL_MAX_AIC_SIZE_PER_NPU))
+#define ZBCCL_SCALAR_CACHELINE_SIZE 64
+#define ZBCCL_AIV_MAX_EXP_NUM       6                 // ceil(log2(48))
+#define ZBCCL_CORE_BARRIER_SIZE     (ZBCCL_MAX_AIV_SIZE_PER_NPU * ZBCCL_AIV_MAX_EXP_NUM * ZBCCL_SCALAR_CACHELINE_SIZE)
 #define ZBCCL_U64_CACHELINE_SIZE (ZBCCL_SCALAR_CACHELINE_SIZE / sizeof(uint64_t))
+#define ZBCCL_PROFILING_PRINT_WIDTH 20
+
+struct zbccl_profiling_block_t {
+    int64_t ccount[ZBCCL_MAX_AIC_SIZE_PER_NPU][ZBCCL_PROFILING_FRAMES_MAX];
+    int64_t ccycle[ZBCCL_MAX_AIC_SIZE_PER_NPU][ZBCCL_PROFILING_FRAMES_MAX];
+    int64_t vcount[ZBCCL_MAX_AIV_SIZE_PER_NPU][ZBCCL_PROFILING_FRAMES_MAX];
+    int64_t vcycle[ZBCCL_MAX_AIV_SIZE_PER_NPU][ZBCCL_PROFILING_FRAMES_MAX];
+};
+
+enum zbccl_profiling_name_t : uint16_t {
+    ZBCCL_PROF_BARRIER = 0,
+    ZBCCL_PROF_ALLGATHER_KERNEL_ALL = 1,
+    ZBCCL_PROF_BUTT = 2,                // should less than or equal ZBCCL_PROFILING_FRAMES_MAX
+};
+
+// keep name len <= ZBCCL_PROFILING_PRINT_WIDTH
+const std::vector<std::string> g_profName = {
+    "BARRIER",
+    "AG_KERNEL_ALL",
+};
+
+#define ZBCCL_C_PROF_START(block, frameId)                                          \
+    auto coreId = AscendC::GetBlockIdx();                                           \
+    if ((coreId) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
+        PipeBarrier<PIPE_ALL>();                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                    \
+        (block)->ccycle[(coreId)][(frameId)] -= cycles;                             \
+    }
+
+#define ZBCCL_C_PROF_STOP(block, frameId)                                           \
+    auto coreId = AscendC::GetBlockIdx();                                           \
+    if ((coreId) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT)  {    \
+        PipeBarrier<PIPE_ALL>();                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                    \
+        (block)->ccycle[(coreId)][(frameId)] += cycles;                             \
+        (block)->ccount[(coreId)][(frameId)] += 1;                                  \
+    }
+
+#define ZBCCL_V_PROF_START(comm, frameId)                                                           \
+    if ((AscendC::GetBlockIdx()) < ZBCCL_MAX_AIV_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
+        auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
+        PipeBarrier<PIPE_ALL>();                                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                                    \
+        __gm__ int64_t *data = reinterpret_cast<__gm__ int64_t *>(block->vcycle[AscendC::GetBlockIdx()]);   \
+        data[frameId] -= cycles;                                                                            \
+    }
+
+
+#define ZBCCL_V_PROF_STOP(comm, frameId)                                                            \
+    if ((AscendC::GetBlockIdx()) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
+        auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
+        PipeBarrier<PIPE_ALL>();                                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                                    \
+        (block)->vcycle[(AscendC::GetBlockIdx())][(frameId)] += cycles;                             \
+        (block)->vcount[(AscendC::GetBlockIdx())][(frameId)] += 1;                                  \
+    }
 
 /**
  * @brief group info of this communicator, this struct will be copy to device, keep it simple
@@ -35,6 +96,8 @@ struct CommGroupInfo {
     uint64_t fftsConfig;                                    /* copy from CommGroupOptions.fftsConfig */
     uint16_t peerGroupRank2WorldRank[ZBCCL_MAX_RANKS] = {}; /* rank id in group to world rank id relationship */
     uint64_t localDeviceMemSize;                            /* copy from CommGroupOptions.localDeviceMemSize */
+    uintptr_t profilingGva;                                 /* gva of profiling data */
+    uint64_t sizeOfProfiling;                               /* max memory size of profiling data */
     uint64_t vecCounter[ZBCCL_U64_CACHELINE_SIZE];          /* vector counter space */
     uint64_t vecBarrier[ZBCCL_U64_CACHELINE_SIZE];          /* vector barrier space */
     uint8_t coreCounter[ZBCCL_CORE_BARRIER_SIZE];           /* core counter space */

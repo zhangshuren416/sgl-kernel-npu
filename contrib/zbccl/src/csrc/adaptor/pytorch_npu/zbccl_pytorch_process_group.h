@@ -190,6 +190,8 @@ public:
 
     std::string getZBCCLCommName() noexcept;
 
+    std::string getZBCCLProfilingResult(int32_t maxAIC = 0, int32_t maxAIV = 0) noexcept;
+
 protected:
     bool blockingWait_ = false;
     std::chrono::milliseconds opTimeout_;
