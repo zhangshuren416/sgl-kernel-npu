@@ -112,7 +112,8 @@ csrc_dir = repo_root / "contrib" / "zbccl" / "src" / "csrc"
 sources = ([f"{csrc_dir}/zbccl_pybind.cpp"] + \
            glob.glob(str(csrc_dir / "dma" / "*.cpp")) + \
            glob.glob(str(csrc_dir / "sma" / "*.cpp")) + \
-           glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")))
+           glob.glob(str(csrc_dir / "adaptor" / "pytorch_npu" / "*.cpp")) + \
+           glob.glob(str(csrc_dir / "adaptor" / "deepep" / "*.cpp")))
 
 libraries = ["torch", "torch_npu", "c10", "torch_python", "tiling_api", "platform", "opapi", "zbccl_core", "zbccl_kernel"]
 
