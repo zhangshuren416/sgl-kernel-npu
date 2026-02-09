@@ -51,12 +51,13 @@ public:
         blockIdx_ = GetBlockIdx();
         uint32_t maxAivNum = GetBlockNum();
         blockNum_ = numTokens_ <= maxAivNum ? numTokens_ : maxAivNum;
-        if (blockIdx_ >= blockNum_) {
+        uint32_t initBlockNum = blockNum_ == 0 ? 1 : blockNum_;
+        if (blockIdx_ >= initBlockNum) {
             SyncAll<true>();
             return;
         }
-        uint32_t temp = numTokens_ / blockNum_;
-        uint32_t restNum = numTokens_ % blockNum_;
+        uint32_t temp = numTokens_ / initBlockNum;
+        uint32_t restNum = numTokens_ % initBlockNum;
         tempTokens_ = temp;  // 1
         if (blockIdx_ < restNum) {
             tempTokens_++;
@@ -114,7 +115,7 @@ public:
         pipe_->InitBuffer(isTokenInRankBuf_, isTokenInRank32AlignIntLen_);
         pipe_->InitBuffer(seenRankBuf_, numTokensPerRank32AlignIntLen_);
         pipe_->InitBuffer(sendTokenIdxBuf_, topkIdx32AlignIntLen_);
-        
+
         LocalTensor<int64_t> topkIdxTensor = topkIdxBuf_.Get<int64_t>();
         LocalTensor<T> numTokensPerRankTensor = numTokensPerRankBuf_.Get<T>();
         LocalTensor<T> numTokensPerExpertTensor = numTokensPerExpertBuf_.Get<T>();

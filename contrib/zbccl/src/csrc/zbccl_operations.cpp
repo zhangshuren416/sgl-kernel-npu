@@ -219,7 +219,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(notifySendData != nullptr, "DispatchLayout failed as notifySendData is null",
                           Z_INVALID_PARAM);
-    ZBCCL_VALIDATE_RETURN(tokens > 0, "DispatchLayout failed as tokens " << tokens << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(tokens >= 0, "DispatchLayout failed as tokens " << tokens << " is invalid", Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(expertNum > 0, "DispatchLayout failed as expertNum " << expertNum << " is invalid",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(topkNum > 0, "DispatchLayout failed as topkNum " << topkNum << " is invalid",

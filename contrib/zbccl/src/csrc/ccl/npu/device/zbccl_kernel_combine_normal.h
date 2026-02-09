@@ -507,10 +507,8 @@ ZBCCL_KERNEL void CombineNormal<TypeFunc>::ReadTokenFromRemote()
 }
 
 template <TypeClass>
-ZBCCL_KERNEL void CombineNormal<TypeFunc>::ReadAndWriteForTargetRank(uint32_t startId,
-                                                                                             uint32_t endId,
-                                                                                             uint32_t tokenCnt,
-                                                                                             uint32_t tarRankId)
+ZBCCL_KERNEL void CombineNormal<TypeFunc>::ReadAndWriteForTargetRank(uint32_t startId, uint32_t endId,
+                                                                     uint32_t tokenCnt, uint32_t tarRankId)
 {
     if (tokenCnt == 0U) {
         return;
