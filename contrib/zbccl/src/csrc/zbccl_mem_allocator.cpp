@@ -249,4 +249,16 @@ void pybind11_allocator(pybind11::module_ &m)
             return sma_dump_snapshot();
         }
     }, "dump snapshot, return pkl dict");
+
+    m.def("simulate_init", [](int64_t addr, int64_t size) {
+        ZBCCL_LOG_ERROR("simulate init is only applied for allocator replay, any action on write/read memory will cause unexpected error!");
+        ZBCCL_ASSERT_S(!zbccl::sma::SMAConfig::use_vmm_for_static_memory(), "mix allocator do not support simulate", zbccl::Z_ERROR);
+        if(!zbccl::sma::SMAConfig::use_sma_allocator()) {
+            dma_init_heap(reinterpret_cast<void*>(addr), size);
+        } else {
+            sma_init_heap(reinterpret_cast<void*>(addr), size);
+        }
+        gva_space_inited = true;
+        return;
+    }, "simulate_init on sma/dma heap, no actual memory allocate");
 }

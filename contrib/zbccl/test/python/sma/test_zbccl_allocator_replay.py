@@ -6,10 +6,10 @@ import torch_npu
 import pickle
 import os
 import zbccl
-from zbccl import record_memory_history, dump_snapshot
+from zbccl import record_memory_history, dump_snapshot, simulate_init
 
 
-def init():
+def init(use_sim=False):
     # This will allocate memory in the device using the new allocator
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
@@ -17,11 +17,18 @@ def init():
 
     zbccl.zbccl_set_logger_level(2)
     mem = 1024 * 1024 * 1024
-    if not zbccl.zbccl_init(world_size, device_id, local_rank, mem):
-        print(f"zbccl_init failed on rank {local_rank}.")
-        exit(-1)
+    if use_sim:
+        from zbccl import simulate_init
+        zbccl.switch_to_allocator()
+        torch.npu.set_device(device_id)
+
+        simulate_init(0x80000, mem)
     else:
-        print(f"zbccl_init success on rank {local_rank}")
+        if not zbccl.zbccl_init(world_size, device_id, local_rank, mem):
+            print(f"zbccl_init failed on rank {local_rank}.")
+            exit(-1)
+        else:
+            print(f"zbccl_init success on rank {local_rank}")
 
 
 def malloc(size, stream):
@@ -50,7 +57,7 @@ if __name__ == '__main__':
     device_traces = next((l for l in ori_snapshot['device_traces'] if len(l) > 2000), None)
     #device_traces = ori_snapshot['device_traces'][8]
 
-    init()  # init zbccl(including switch to dma/sma)
+    init(use_sim=True)  # init zbccl(including switch to dma/sma)
 
     record_memory_history("all", sys.maxsize)
 

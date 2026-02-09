@@ -4,7 +4,7 @@ from .zbccl_module import switch_to_allocator, zbccl_get_shmem_base_addr
 from .zbccl_module import mem_get_info
 from .zbccl_module import __version__
 
-from zbccl.zbccl.allocator import record_memory_history, dump_snapshot
+from zbccl.zbccl.allocator import record_memory_history, dump_snapshot, simulate_init
 from zbccl.zbccl import ProcessGroupZBCCL
 from zbccl.zbccl import ZBCCLBootstrapType, zbccl_set_logger_level
 import torch, torch_npu
@@ -22,7 +22,8 @@ __all__ = [
     "zbccl_init",
     "zbccl_uninit",
     "ZBCCLBootstrapType",
-    "zbccl_set_logger_level"
+    "zbccl_set_logger_level",
+    "simulate_init",
     "__version__"
 ]
 
