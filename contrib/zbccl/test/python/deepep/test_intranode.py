@@ -41,6 +41,7 @@ def test_main(
     expert_token_nums_type = int(os.getenv("MOE_EXPERT_TOKEN_NUMS_TYPE", 1))
     use_quant = os.getenv("DEEP_NORMAL_MODE_USE_INT8_QUANT") == "1"
 
+    # multi_list = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1]
     multi_list = [1] * num_ranks
     num_tokens = int(num_tokens * multi_list[rank])
     if num_tokens == 0:
@@ -76,7 +77,9 @@ def test_main(
     for i in range(num_experts):
         num_tokens_per_expert[i] = (topk_idx == i).sum()
     gbl_num_tokens_per_expert = num_tokens_per_expert.clone()
+    print(f"[before] {rank=} {gbl_num_tokens_per_expert=}") # [bug] for all_reduce data sync
     dist.all_reduce(gbl_num_tokens_per_expert, group=group)
+    print(f"[after] {rank=} {gbl_num_tokens_per_expert=}")
 
     # Rank layout meta
     num_tokens_per_rank = torch.empty((num_ranks,), dtype=torch.int, device="npu")
@@ -124,10 +127,71 @@ def test_main(
         ), f"Assertion is_token_in_rank failed on rank {rank}: Expected {is_token_in_rank}, Actual {ref_is_token_in_rank}"
     except AssertionError as e:
         print(e)
-        # raise
-    # print(f"{rank=} {send_token_idx=}", flush=True)
-    return
+        raise
+    print(f"[test] {rank=} {ref_num_tokens_per_expert=}", flush=True)
+    # print(f"[test] {rank=} {ref_num_tokens_per_rank=}", flush=True)
+    # print(f"[test] {rank=} {ref_is_token_in_rank=}", flush=True)
+    # return
 
+    # Config
+    buffer_size = 256
+    config = Config(24, 8, buffer_size)
+
+    # Random data
+    x = torch.ones((num_tokens, hidden), dtype=torch.bfloat16, device="npu") * rank
+    x_pure_rand = torch.randn((num_tokens, hidden), dtype=torch.bfloat16, device="npu")
+    topk_weights = (
+        torch.ones((num_tokens, num_topk), dtype=torch.float32, device="npu") * rank
+    )
+    topk_weights_pure_rand = torch.randn(
+        (num_tokens, num_topk), dtype=torch.float32, device="npu"
+    )
+
+    for current_x in filter(lambda elem: elem is not None, (x,)):
+        if local_rank == 0:
+            print(
+                f'[testing] Running with {"FP8" if isinstance(current_x, tuple) else "BF16"}, with top-k {num_topk} ...',
+                flush=True,
+            )
+        dispatch_args = {
+            "x": current_x,
+            "num_tokens_per_rank": ref_num_tokens_per_rank,
+            "is_token_in_rank": ref_is_token_in_rank,
+            "num_tokens_per_expert": ref_num_tokens_per_expert,
+            "config": config,
+            "topk_idx": topk_idx,
+            "topk_weights": (
+                topk_weights_pure_rand if current_x is x_pure_rand else topk_weights
+            ),
+        }
+
+        (
+            recv_x,
+            recv_topk_idx,
+            recv_topk_weights,
+            recv_num_tokens_per_expert_list,
+            handle,
+            event,
+        ) = buffer.dispatch(**dispatch_args)
+        recv_x = per_token_cast_back(*recv_x) if isinstance(recv_x, tuple) else recv_x
+
+        balance_matrix = handle[4]
+        # if rank == 0:
+        # torch.set_printoptions(threshold=float('inf'))
+        # print(f"[test] {rank=} {balance_matrix=}")
+        # print(f"[test] {rank=} {recv_num_tokens_per_expert_list=}")
+        # print(f"[test] {rank=} {recv_x=}")
+
+        # Checks
+        local_expert_token = gbl_num_tokens_per_expert.view(num_ranks, -1)[rank]
+        if expert_token_nums_type == 0:
+            local_expert_token_list = local_expert_token.cumsum(
+                dim=0
+            ).tolist()  # 计算前缀和并转为 list
+        else:
+            local_expert_token_list = local_expert_token.tolist()
+        print(f"[test] {rank=} {local_expert_token_list=}")
+        assert local_expert_token_list == recv_num_tokens_per_expert_list
 
 # noinspection PyUnboundLocalVariable,PyShadowingNames
 def test_loop(local_rank: int, num_local_ranks: int, args: argparse.Namespace):

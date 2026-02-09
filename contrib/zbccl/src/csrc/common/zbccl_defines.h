@@ -83,6 +83,13 @@ constexpr uint64_t OPERATE_PARAM_SIZE = 64 * 1024L; /* 64KB */
         }                                                                                                \
     } while (0)
 
+#define ZBCCL_OP_LOGE(opname, ...)           \
+    do {                                  \
+        printf("[ERROR][%s] ", (opname)); \
+        printf(__VA_ARGS__);              \
+        printf("\n");                     \
+    } while (0)
+
 }  // namespace zbccl
 
 #endif

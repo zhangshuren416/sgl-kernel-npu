@@ -143,13 +143,18 @@ int32_t NpuCommunicatorDefault::All2All(const void *sendBuff, void *recvBuff, ui
 
 int32_t NpuCommunicatorDefault::DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount,
                                                      int64_t topKNum, const zbccl_tensor_info_t *recvBuff,
-                                                     int64_t *totalRecvTokens,
+                                                     const zbccl_tensor_info_t *totalRecvTokens,
                                                      const zbccl_tensor_info_t *recvTokensPerExpert,
                                                      const zbccl_tensor_info_t *pushTargetOffset,
-                                                     const zbccl_tensor_info_t *balanceMatrix, int64_t flags) noexcept
+                                                     const zbccl_tensor_info_t *balanceMatrix, aclrtStream stream, int64_t flags) noexcept
 {
-    // TODO
-    return Z_OK;
+    // get from env for balanceMatrix
+    float factorHigh = Func::GetEnv("DEEPEP_BALANCE_FACTOR_HIGH", 1.2);
+    float factorLow = Func::GetEnv("DEEPEP_BALANCE_FACTOR_LOW", 1.0);
+    ZBCCL_CHECK_S(factorHigh > 1.1, "balance factor high need be large than 1.1");
+    ZBCCL_CHECK_S(factorLow > 0.9, "balance factor low need be large than 0.9");
+    return ZBCCLOpNotifyDispatch(sendTokensPerExpert, sendCount, topKNum, recvBuff, totalRecvTokens, recvTokensPerExpert, pushTargetOffset,
+                                 balanceMatrix, factorHigh, factorLow, stream, GetMetaInfo(), flags);
 }
 
 int32_t NpuCommunicatorDefault::DispatchNormalLayout(
@@ -165,13 +170,16 @@ int32_t NpuCommunicatorDefault::DispatchNormalLayout(
 int32_t NpuCommunicatorDefault::DispatchNormal(const zbccl_tensor_info_t *srcTokens,
                                                const zbccl_tensor_info_t *topkIndex,
                                                const zbccl_tensor_info_t *sendTokensIndex,
-                                               const zbccl_tensor_info_t *pushTargetOffset, int64_t expertNum,
+                                               const zbccl_tensor_info_t *pushTargetOffset, 
+                                               const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum,
                                                zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
-                                               const zbccl_tensor_info_t *destScale, zbccl_comm_t comm,
-                                               aclrtStream stream, int64_t flags) noexcept
+                                               const zbccl_tensor_info_t *destScale, aclrtStream stream,
+                                               int64_t flags) noexcept
 {
-    // TODO
-    return Z_OK;
+    // get env for balance dispatch
+    bool enableBalance = Func::GetEnv("DEEPEP_ENABLE_REBALANCE", 0) > 0;
+    return ZBCCLOpDispatchNormal(srcTokens, topkIndex, sendTokensIndex, pushTargetOffset, balanceMatrix, expertNum, quantMode,
+                                 destTokens, destScale, enableBalance, stream, GetMetaInfo(), flags);
 }
 
 int32_t NpuCommunicatorDefault::CombineNormal(

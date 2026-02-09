@@ -139,6 +139,11 @@ int Buffer::get_rdma_rank() const
     return rdma_rank;
 }
 
+void Buffer::clean_low_latency_buffer(int num_max_dispatch_tokens_per_rank, int hidden, int num_experts)
+{
+    return;
+}
+
 std::tuple<torch::Tensor, std::optional<torch::Tensor>, torch::Tensor, torch::Tensor, std::optional<EventHandle>>
 Buffer::get_dispatch_layout(const torch::Tensor &topk_idx, int num_experts, std::optional<EventHandle> &previous_event,
                             bool async, bool allocate_on_comm_stream)
@@ -238,20 +243,6 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     auto expert_ids = topk_idx.value().to(at::kInt);
     int topk_num = static_cast<int>(expert_ids.size(1));
 
-    // FP8 scales checks
-    float *x_scales_ptr = nullptr;
-    int num_scales = 0, scale_token_stride = 0, scale_hidden_stride = 0;
-    if (x_scales.has_value()) {
-        ZBCCL_CHECK_S(x.element_size() == 1, "x element size is not 1");
-        ZBCCL_CHECK_S(x_scales->scalar_type() == at::kFloat or x_scales->scalar_type() == at::kInt, "x_scales scalar type check failed");
-        ZBCCL_CHECK_S(x_scales->dim() == 2, "x_scales shape check failed");
-        ZBCCL_CHECK_S(x_scales->size(0) == num_tokens, "x_scales shape check failed");
-        num_scales = x_scales->dim() == 1 ? 1 : static_cast<int>(x_scales->size(1));
-        x_scales_ptr = static_cast<float *>(x_scales->data_ptr());
-        scale_token_stride = static_cast<int>(x_scales->stride(0));
-        scale_hidden_stride = static_cast<int>(x_scales->stride(1));
-    }
-
     std::vector<int> num_recv_tokens_per_expert_list;
     // indicates the value type of the output num_recv_tokens_per_expert_list, with a range of [0, 1]
     // 0 means the prefix sum of the number of tokens received by each expert;
@@ -265,8 +256,7 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     auto recv_tokens_per_expert = torch::empty({num_local_experts}, at::dtype(at::kLong).device(device));
     auto put_offset = torch::empty({num_experts, num_ranks}, at::dtype(at::kInt).device(device));
     auto balance_matrix = torch::empty({num_ranks, num_ranks * 2}, at::dtype(at::kInt).device(device));
-    int64_t total_recv_token = 0;
-
+    auto total_recv_token = torch::empty({1}, at::dtype(at::kInt).device(device));
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
 
@@ -276,17 +266,27 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     auto recv_tokens_per_expert_info = transfer_tensor_info(recv_tokens_per_expert);
     auto put_offset_info = transfer_tensor_info(put_offset);
     auto balance_matrix_info = transfer_tensor_info(balance_matrix);
+    auto total_recv_token_info = transfer_tensor_info(total_recv_token);
 
     auto x_info = transfer_tensor_info(x);
     auto expert_ids_info = transfer_tensor_info(expert_ids);
     auto send_token_idx_info = transfer_tensor_info(send_token_idx);
 
     // call notify
-    auto notify_ret = zbccl_dispatch_normal_notify(&num_tokens_per_expert_info, send_count, topk_num, &recv_data_info,
-                                                   &total_recv_token, &recv_tokens_per_expert_info, &put_offset_info,
-                                                   &balance_matrix_info, comm_, acl_stream, flags);
+    std::function<int()> acl_call_notify;
+    acl_call_notify = [this, num_tokens_per_expert_info, send_count, topk_num, recv_data_info,
+                        total_recv_token_info, recv_tokens_per_expert_info, put_offset_info,
+                        balance_matrix_info, acl_stream, flags]() -> int {
+        auto api_ret = zbccl_dispatch_normal_notify(&num_tokens_per_expert_info, send_count, topk_num, 
+                            &recv_data_info, &total_recv_token_info, &recv_tokens_per_expert_info, &put_offset_info,
+                            &balance_matrix_info, this->comm_, acl_stream, flags);
+        return api_ret;
+    };
+    at_npu::native::OpCommand::RunOpApiV2("zbccl_dispatch_normal_notify", acl_call_notify);
 
-    int num_recv_tokens = (total_recv_token == 0) ? 1 : total_recv_token;  // max recv_tokens in all rank
+    int total_recv_cnt = total_recv_token.item<int>();
+    int num_recv_tokens = (total_recv_cnt == 0) ? 1 : total_recv_cnt;
+    // printf("[deepep-1] rank:%d, total_recv_cnt:%d, num_recv_tokens:%d\n", rank, total_recv_cnt, num_recv_tokens);
     auto expandx_out = use_quant ? torch::empty({num_recv_tokens, hidden}, at::dtype(at::kChar).device(device))
                                  : torch::empty({num_recv_tokens, hidden}, x.options());
     auto dynamic_scales_out = use_quant ? torch::empty({num_recv_tokens}, at::dtype(at::kFloat).device(device))
@@ -296,9 +296,16 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
     auto dynamic_scales_out_info = transfer_tensor_info(dynamic_scales_out);
 
     // call dispatch
-    auto dispatch_ret = zbccl_dispatch_normal(&x_info, &expert_ids_info, &send_token_idx_info, &put_offset_info,
-                                              num_experts, quant_mode, &expandx_out_info, &dynamic_scales_out_info,
-                                              comm_, acl_stream, flags);
+    std::function<int()> acl_call_dispatch;
+    acl_call_dispatch = [this, x_info, expert_ids_info, send_token_idx_info, put_offset_info, balance_matrix_info,
+                        num_experts, quant_mode, expandx_out_info, dynamic_scales_out_info,
+                        acl_stream, flags]() -> int {
+        auto api_ret = zbccl_dispatch_normal(&x_info, &expert_ids_info, &send_token_idx_info, &put_offset_info,
+                                            &balance_matrix_info, num_experts, quant_mode, &expandx_out_info,
+                                            &dynamic_scales_out_info, this->comm_, acl_stream, flags);
+        return api_ret;
+    };
+    at_npu::native::OpCommand::RunOpApiV2("zbccl_dispatch_normal", acl_call_dispatch);
 
     auto recv_token_per_exp_cpu = recv_tokens_per_expert.to(at::kCPU);
     auto recv_token_per_exp_ptr = recv_token_per_exp_cpu.data_ptr<int64_t>();

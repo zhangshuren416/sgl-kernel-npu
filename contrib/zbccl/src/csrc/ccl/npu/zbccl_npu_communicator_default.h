@@ -47,10 +47,10 @@ public:
                     uint64_t stride_count, uint8_t repeat, aclrtStream stream) noexcept;
 
     int32_t DispatchNormalNotify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount, int64_t topKNum,
-                                 const zbccl_tensor_info_t *recvBuff, int64_t *totalRecvTokens,
+                                 const zbccl_tensor_info_t *recvBuff, const zbccl_tensor_info_t *totalRecvTokens,
                                  const zbccl_tensor_info_t *recvTokensPerExpert,
                                  const zbccl_tensor_info_t *pushTargetOffset, const zbccl_tensor_info_t *balanceMatrix,
-                                 int64_t flags) noexcept;
+                                 aclrtStream stream, int64_t flags) noexcept;
 
     int32_t DispatchNormalLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
                                  int64_t topkNum, const zbccl_tensor_info_t *tokensPerRank,
@@ -60,9 +60,9 @@ public:
 
     int32_t DispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset,
-                           int64_t expertNum, zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
-                           const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
-                           int64_t flags) noexcept;
+                           const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum, zbccl_quant_mode_t quantMode,
+                           const zbccl_tensor_info_t *destTokens, const zbccl_tensor_info_t *destScale,
+                           aclrtStream stream, int64_t flags) noexcept;
 
     int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                           const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,

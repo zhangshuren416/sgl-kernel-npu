@@ -27,7 +27,7 @@ void dispatch_layout(uint64_t fftsAddr, GM_ADDR topkIdx, uint32_t numTokens, uin
     MoeDispatchLayout::DispatchLayout<int32_t> op;
     op.Init(topkIdx, numTokens, numExperts, numTopk, numRanks, rank, numTokensPerRank, numTokensPerExpert,
         isTokenInRank, sendTokenIdx, notifySendData, &pipe);
-    op.Process2();
+    op.Process();
 }
 
 int32_t ZBCCLOpDispatchLayout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,

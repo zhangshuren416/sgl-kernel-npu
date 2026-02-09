@@ -180,12 +180,26 @@ ZBCCL_API int32_t zbccl_all_to_all(const void *sendBuff, void *recvBuff, uint64_
 
 ZBCCL_API int32_t zbccl_dispatch_normal_notify(const zbccl_tensor_info_t *sendTokensPerExpert, int64_t sendCount,
                                                int64_t topKNum, const zbccl_tensor_info_t *recvBuff,
-                                               int64_t *totalRecvTokens, const zbccl_tensor_info_t *recvTokensPerExpert,
+                                               const zbccl_tensor_info_t *totalRecvTokens,
+                                               const zbccl_tensor_info_t *recvTokensPerExpert,
                                                const zbccl_tensor_info_t *pushTargetOffset,
                                                const zbccl_tensor_info_t *balanceMatrix, zbccl_comm_t comm,
                                                aclrtStream stream, int64_t flags)
 {
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(sendTokensPerExpert != nullptr, "NotifyDispatch failed as sendTokensPerExpert is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(sendCount > 0, "NotifyDispatch failed as sendCount " << sendCount << " is invalid",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(topKNum > 0, "NotifyDispatch failed as topKNum " << topKNum << " is invalid", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recvBuff != nullptr, "NotifyDispatch failed as recvBuff is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(totalRecvTokens != nullptr, "NotifyDispatch failed as totalRecvTokens is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(recvTokensPerExpert != nullptr, "NotifyDispatch failed as recvTokensPerExpert is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(pushTargetOffset != nullptr, "NotifyDispatch failed as pushTargetOffset is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(balanceMatrix != nullptr, "NotifyDispatch failed as balanceMatrix is null", Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
+    return innerComm->DispatchNormalNotify(sendTokensPerExpert, sendCount, topKNum, recvBuff, totalRecvTokens, recvTokensPerExpert,
+                                           pushTargetOffset, balanceMatrix, stream, flags);
 }
 
 ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIndex, int64_t tokens, int64_t expertNum,
@@ -219,12 +233,28 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
 
 ZBCCL_API int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                                         const zbccl_tensor_info_t *sendTokensIndex,
-                                        const zbccl_tensor_info_t *pushTargetOffset, int64_t expertNum,
+                                        const zbccl_tensor_info_t *pushTargetOffset, 
+                                        const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum,
                                         zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
                                         const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,
                                         int64_t flags)
 {
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(srcTokens != nullptr, "DispatchNormal failed as srcTokens is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(topkIndex != nullptr, "DispatchNormal failed as topkIndex is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "DispatchNormal failed as sendTokensIndex is null",
+                          Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(pushTargetOffset != nullptr, "DispatchNormal failed as pushTargetOffset is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(balanceMatrix != nullptr, "DispatchNormal failed as balanceMatrix is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "DispatchNormal failed as sendTokensIndex is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(destTokens != nullptr, "DispatchNormal failed as destTokens is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(destScale != nullptr, "DispatchNormal failed as destScale is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(expertNum > 0, "DispatchNormal failed as expertNum " << expertNum << " is invalid",
+                          Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
+    return innerComm->DispatchNormal(srcTokens, topkIndex, sendTokensIndex, pushTargetOffset, balanceMatrix, expertNum,
+                                    quantMode, destTokens, destScale, stream, flags);
 }
 
 ZBCCL_API int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,

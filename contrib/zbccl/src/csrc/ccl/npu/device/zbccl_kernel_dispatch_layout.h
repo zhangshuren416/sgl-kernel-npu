@@ -25,7 +25,7 @@ using namespace AscendC;
 using namespace Moe;
 
 template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
+ZBCCL_KERNEL void SyncFunc()
 {
     int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
     AscendC::SetFlag<event>(eventID);
@@ -35,9 +35,9 @@ __aicore__ inline void SyncFunc()
 template <typename T>
 class DispatchLayout {
 public:
-    __aicore__ inline DispatchLayout(){};
+    ZBCCL_KERNEL DispatchLayout(){};
 
-    __aicore__ inline void Init(GM_ADDR topkIdx, uint32_t numTokens, uint32_t numExperts, uint32_t numTopk,
+    ZBCCL_KERNEL void Init(GM_ADDR topkIdx, uint32_t numTokens, uint32_t numExperts, uint32_t numTopk,
                                 uint32_t numRanks, uint32_t rank, GM_ADDR numTokensPerRank, GM_ADDR numTokensPerExpert,
                                 GM_ADDR isTokenInRank, GM_ADDR sendTokenIdx, GM_ADDR notifySendData, TPipe* pipe)
     {
@@ -101,7 +101,7 @@ public:
         SyncAll<true>();
     }
 
-    __aicore__ inline void Process2()
+    ZBCCL_KERNEL void Process()
     {
         if (blockIdx_ >= blockNum_) {
             SyncAll<true>();
