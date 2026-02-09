@@ -44,4 +44,10 @@ int32_t ZBCCLOpDispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_
                             const zbccl_tensor_info_t *destTokens, const zbccl_tensor_info_t *destScale,
                             bool enableBalance, aclrtStream stream, const CommGroupInfo &groupInfo, int64_t flags);
 
+int32_t ZBCCLOpCombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
+                             const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
+                             const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *balanceMatrix,
+                             uint16_t expertNum, const zbccl_tensor_info_t *destTokens, bool enableBalance,
+                             aclrtStream stream, const CommGroupInfo &groupInfo, int64_t flags);
+
 #endif  // ZBCCL_NPU_OPERATORS_H

@@ -286,7 +286,6 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
 
     int total_recv_cnt = total_recv_token.item<int>();
     int num_recv_tokens = (total_recv_cnt == 0) ? 1 : total_recv_cnt;
-    // printf("[deepep-1] rank:%d, total_recv_cnt:%d, num_recv_tokens:%d\n", rank, total_recv_cnt, num_recv_tokens);
     auto expandx_out = use_quant ? torch::empty({num_recv_tokens, hidden}, at::dtype(at::kChar).device(device))
                                  : torch::empty({num_recv_tokens, hidden}, x.options());
     auto dynamic_scales_out = use_quant ? torch::empty({num_recv_tokens}, at::dtype(at::kFloat).device(device))
@@ -330,7 +329,8 @@ Buffer::intranode_dispatch(const at::Tensor &x, const std::optional<at::Tensor> 
 std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> 
 Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx, 
     const std::optional<torch::Tensor> &topk_weights, const torch::Tensor &put_offset,
-    const torch::Tensor &balance_matrix)
+    const torch::Tensor &balance_matrix, std::optional<EventHandle> &previous_event,
+    bool async, bool allocate_on_comm_stream)
 {
     ZBCCL_CHECK_S(x.dim() == 2 and x.is_contiguous(), "x dim not 2 or not comtiguous");
     ZBCCL_CHECK_S(topk_idx.dim() == 2 and topk_idx.is_contiguous(), "topk_idx dim not 2 or not comtiguous");
@@ -356,7 +356,6 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
     auto combined_x = torch::empty({expert_scales.size(0), hidden}, x.options());
     std::optional<torch::Tensor> recv_topk_weights;
     std::optional<EventHandle> event;
-
     auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);
     int64_t flags = 0;
 
@@ -370,9 +369,16 @@ Buffer::intranode_combine(const torch::Tensor &x, const torch::Tensor &topk_idx,
     auto combined_x_info = transfer_tensor_info(combined_x);
 
     // call combine
-    int ret = zbccl_combine_normal(&recv_x_info, &ep_send_counts_info, &expert_scales_info, &expert_ids_info,
+    std::function<int()> acl_call;
+    acl_call = [this, recv_x_info, ep_send_counts_info, expert_scales_info, expert_ids_info,
+                send_token_idx_info, balance_matrix_info, moe_expert_number, combined_x_info,
+                acl_stream, flags]() -> int {
+        auto api_ret = zbccl_combine_normal(&recv_x_info, &ep_send_counts_info, &expert_scales_info, &expert_ids_info,
                                    &send_token_idx_info, &balance_matrix_info, moe_expert_number, &combined_x_info,
-                                   comm_, acl_stream, flags);
+                                   this->comm_, acl_stream, flags);
+        return api_ret;
+    };
+    at_npu::native::OpCommand::RunOpApiV2("zbccl_combine_normal", acl_call);
 
     return {combined_x, recv_topk_weights, event};
 }

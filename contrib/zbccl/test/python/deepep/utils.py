@@ -16,7 +16,7 @@ import torch_npu
 def register_zbccl(local_rank, rank, world_size):
     from zbccl import zbccl_init, zbccl_set_logger_level
 
-    local_mem_size = 1 * 1024 * 1024 * 1024
+    local_mem_size = 20 * 1024 * 1024 * 1024
     local_meta_size = 1024
     G_IP_PORT = "tcp://127.0.0.1:23350"
     # zbccl_set_logger_level(0)

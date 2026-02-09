@@ -192,7 +192,7 @@ ZBCCL_KERNEL void DispatchNormal<TypeFunc>::Init(GM_ADDR metaAddr, GM_ADDR x, GM
     metaSize_ = addrOffset_ + comm->sizeForExchangeAddress;
     flagOffset_ = metaSize_ - META_FLAG_R_OFFSET;
     epRankSize = comm->groupSize;
-    assert(comm->sizeForExchangeAddress > META_FLAG_R_OFFSET * 2,
+    assert(comm->sizeForExchangeAddress >= META_FLAG_R_OFFSET * 2,
         "The group meta size for exchange is %lluKB, the min value should be %lluKB. \
         epRankId:%d, epWorldSize:%d, moeExpertNum:%d, shareAddrNum:%d\n",
         comm->sizeForExchangeAddress / KB_SIZE, META_FLAG_R_OFFSET * 2 / KB_SIZE, epRankId, epRankSize,
@@ -473,9 +473,7 @@ ZBCCL_KERNEL void DispatchNormal<TypeFunc>::QuantProcess()
 
     Cast(halfLocalTemp, int32LocalTemp, RoundMode::CAST_ROUND, h);
     PipeBarrier<PIPE_V>();
-
     Cast(xOutTensor, halfLocalTemp, RoundMode::CAST_TRUNC, h);
-    PipeBarrier<PIPE_V>();
 
     floatLocalTemp = xOutTensor.template ReinterpretCast<float>();
     floatLocalTemp.SetValue(hUBAlignSize / sizeof(float), float(1.0) / dynamicScale);  // int8->float32
@@ -520,9 +518,8 @@ ZBCCL_KERNEL void DispatchNormal<TypeFunc>::InputToDstOutput()
 
     DataCopyExtParams xCopyParams = {1U, static_cast<uint32_t>(h * sizeof(XType)), 0U, 0U, 0U};
     DataCopyPadExtParams<XType> tokenCopyPadExtParams{false, 0U, 0U, 0U};
-    DataCopyExtParams xOutCopyParams = {1U, static_cast<uint32_t>(h * sizeof(ExpandXOutType)), 0U, 0U,
-                                        0U};                              // 只拷贝hidden_size
-    DataCopyExtParams scaleCopyParams = {1U, sizeof(float), 0U, 0U, 0U};  // 拷贝dynamicScales
+    DataCopyExtParams xOutCopyParams = {1U, static_cast<uint32_t>(h * sizeof(ExpandXOutType)), 0U, 0U, 0U};
+    DataCopyExtParams scaleCopyParams = {1U, sizeof(float), 0U, 0U, 0U};
 
     for (int32_t tokenIndex = startTokenId; tokenIndex < endTokenId; ++tokenIndex) {
         uint32_t dstExpertId = expertIdsTensor(tokenIndex - startTokenId);

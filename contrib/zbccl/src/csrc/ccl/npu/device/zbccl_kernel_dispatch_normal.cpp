@@ -26,13 +26,13 @@ void dispatch_normal(uint64_t fftsAddr, GM_ADDR metaAddr, GM_ADDR srcTokens, GM_
     AscendC::SetSyncBaseAddr(fftsAddr);
     AscendC::TPipe pipe;
     if (dstDataType == ZBCCL_DATA_TYPE_BFP16 || dstDataType == ZBCCL_DATA_TYPE_FP16) {
-        if (dstDataType == ZBCCL_DATA_TYPE_BFP16 && quantMode == NO_QUANT) {
+        if (srcDataType == ZBCCL_DATA_TYPE_BFP16 && quantMode == NO_QUANT) {
             MoeDispatchNormal::DispatchNormal<bfloat16_t, bfloat16_t, false> op;
             op.Init(metaAddr, srcTokens, topkIndex, sendTokensIndex, putOffset, balanceMatrix, rank,
                 numExperts, bs, hidden, topK, enableBalance, destTokens, destScale, &pipe);
             op.Process();
             return;
-        } else if (dstDataType == ZBCCL_DATA_TYPE_FP16 && quantMode == NO_QUANT) {
+        } else if (srcDataType == ZBCCL_DATA_TYPE_FP16 && quantMode == NO_QUANT) {
             MoeDispatchNormal::DispatchNormal<float16_t, float16_t, false> op;
             op.Init(metaAddr, srcTokens, topkIndex, sendTokensIndex, putOffset, balanceMatrix, rank,
                 numExperts, bs, hidden, topK, enableBalance, destTokens, destScale, &pipe);
@@ -40,13 +40,13 @@ void dispatch_normal(uint64_t fftsAddr, GM_ADDR metaAddr, GM_ADDR srcTokens, GM_
             return;
         }
     } else if (dstDataType == ZBCCL_DATA_TYPE_INT8) { // QUANT_BF16_2_INT8
-        if (dstDataType == ZBCCL_DATA_TYPE_BFP16 && quantMode == QUANT_BF16_2_INT8) {
+        if (srcDataType == ZBCCL_DATA_TYPE_BFP16 && quantMode == QUANT_BF16_2_INT8) {
             MoeDispatchNormal::DispatchNormal<bfloat16_t, int8_t, true> op;
             op.Init(metaAddr, srcTokens, topkIndex, sendTokensIndex, putOffset, balanceMatrix, rank,
                 numExperts, bs, hidden, topK, enableBalance, destTokens, destScale, &pipe);
             op.Process();
             return;
-        } else if (dstDataType == ZBCCL_DATA_TYPE_FP16 && quantMode == QUANT_BF16_2_INT8) {
+        } else if (srcDataType == ZBCCL_DATA_TYPE_FP16 && quantMode == QUANT_BF16_2_INT8) {
             MoeDispatchNormal::DispatchNormal<float16_t, int8_t, true> op;
             op.Init(metaAddr, srcTokens, topkIndex, sendTokensIndex, putOffset, balanceMatrix, rank,
                 numExperts, bs, hidden, topK, enableBalance, destTokens, destScale, &pipe);
@@ -56,14 +56,11 @@ void dispatch_normal(uint64_t fftsAddr, GM_ADDR metaAddr, GM_ADDR srcTokens, GM_
     }
 }
 
-int32_t ZBCCLOpDispatchNormal(const zbccl_tensor_info_t *srcTokens,
-                            const zbccl_tensor_info_t *topkIndex,
-                            const zbccl_tensor_info_t *sendTokensIndex,
-                            const zbccl_tensor_info_t *pushTargetOffset, 
-                            const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum,
-                            zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
-                            const zbccl_tensor_info_t *destScale, bool enableBalance, aclrtStream stream,
-                            const CommGroupInfo &groupInfo, int64_t flags)
+int32_t ZBCCLOpDispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
+                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset, 
+                            const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum, zbccl_quant_mode_t quantMode,
+                            const zbccl_tensor_info_t *destTokens, const zbccl_tensor_info_t *destScale,
+                            bool enableBalance, aclrtStream stream, const CommGroupInfo &groupInfo, int64_t flags)
 {
     // uint32_t blockDim = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNum();
     uint32_t blockDim = 48; // TODO: 先写常量，不能大于物理实际核数

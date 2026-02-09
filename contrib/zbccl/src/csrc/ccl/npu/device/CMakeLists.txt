@@ -7,6 +7,7 @@ ascendc_library(zbccl_kernel STATIC
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_dispatch_layout.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_notify_dispatch.cpp
         ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_dispatch_normal.cpp
+        ${ZBCCL_SRC_DIR}/csrc/ccl/npu/device/zbccl_kernel_combine_normal.cpp
 )
 
 ascendc_include_directories(zbccl_kernel PRIVATE

@@ -80,9 +80,11 @@ public:
                        int num_worst_tokens, const Config &config, std::optional<EventHandle> &previous_event,
                        bool async, bool allocate_on_comm_stream, bool use_quant);
 
-    std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>> intranode_combine(
-        const torch::Tensor &x, const torch::Tensor &topk_idx, const std::optional<torch::Tensor> &topk_weights,
-        const torch::Tensor &put_offset, const torch::Tensor &balance_matrix);
+    std::tuple<torch::Tensor, std::optional<torch::Tensor>, std::optional<EventHandle>>
+    intranode_combine( const torch::Tensor &x, const torch::Tensor &topk_idx,
+        const std::optional<torch::Tensor> &topk_weights, const torch::Tensor &put_offset,
+        const torch::Tensor &balance_matrix, std::optional<EventHandle> &previous_event, bool async,
+        bool allocate_on_comm_stream);
 };
 }  // namespace deep_ep
 }  // namespace adaptor

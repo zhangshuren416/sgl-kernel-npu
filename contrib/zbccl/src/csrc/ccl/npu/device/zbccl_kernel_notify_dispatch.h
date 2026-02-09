@@ -65,7 +65,7 @@ public:
         flagOffset_ = metaSize_ - META_FLAG_R_OFFSET;
         epWorldSize_ = comm->groupSize;
         peerRanks = (__gm__ uint16_t *)comm->peerGroupRank2WorldRank;
-        assert(comm->sizeForExchangeAddress > META_FLAG_R_OFFSET * 2,
+        assert(comm->sizeForExchangeAddress >= META_FLAG_R_OFFSET * 2,
             "The group meta size for exchange is %lluKB, the min value should be %lluKB. \
             epRankId:%d, epWorldSize:%d, moeExpertNum:%d, shareAddrNum:%d\n",
             comm->sizeForExchangeAddress / KB_SIZE, META_FLAG_R_OFFSET * 2 / KB_SIZE, epRankId_, epWorldSize_,

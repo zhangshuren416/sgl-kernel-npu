@@ -332,6 +332,67 @@ class Buffer:
                 EventOverlap(event),
             )
 
+    def combine(
+        self,
+        x: torch.Tensor,
+        handle: Tuple,
+        topk_weights: Optional[torch.Tensor] = None,
+        bias: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]] = None,
+        config: Optional[Config] = None,
+        previous_event: Optional[EventOverlap] = None,
+        async_finish: bool = False,
+        allocate_on_comm_stream: bool = False,
+        combine_send_cost_stats: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], EventOverlap]:
+        """
+        Combine (reduce) tokens (addition **without** weights) from different ranks, both intranode and internode
+            settings are supported.
+        Intranode kernels require all the ranks should be visible via HCCS.
+        Internode kernels require the ranks in a node should be visible via HCCS, while the ranks with the same NPU
+            index should be visible via RDMA.
+
+        Arguments:
+            x: `[num_tokens, hidden]` with `torch.bfloat16`, the tokens to send for reducing to its original ranks.
+            handle: a must-set communication handle, you can obtain this from the dispatch function.
+            topk_weights: `[num_tokens, num_topk]` with `torch.float`, the tokens' top-k weights for reducing to its original ranks.
+            config: the performance tuning config.
+            previous_event: the event to wait before actually executing the kernel.
+            async_finish: the current stream will not wait for the communication kernels to be finished if set.
+            allocate_on_comm_stream: control whether all the allocated tensors' ownership to be on the communication stream.
+            combine_send_cost_stats: `[num_ranks]`: record the time when the current rank sends all tokens to other ranks
+                in the combine phase.
+
+        Returns:
+            recv_x: the reduced token from its dispatched ranks.
+            recv_topk_weights: the reduced top-k weights from its dispatch ranks.
+            event: the event after executing the kernel (valid only if `async_finish` is set).
+        """
+        # Internode
+        if self.runtime.get_num_rdma_ranks() > 1:
+            raise NotImplementedError("Not support internode")
+
+        # NOTES: the second `_` is for the sending side, so we should use the third one
+        (
+            is_token_in_rank,
+            topk_idx,
+            topk_weights_ori,
+            put_offset,
+            balance_matrix,
+        ) = handle
+
+        # Launch the kernel
+        recv_x, recv_topk_weights, event = self.runtime.intranode_combine(
+            x,
+            topk_idx,
+            topk_weights_ori,
+            put_offset,
+            balance_matrix,
+            getattr(previous_event, 'event', None),
+            async_finish,
+            allocate_on_comm_stream,
+        )
+        return recv_x, recv_topk_weights, EventOverlap(event)
+
 
     def clean_low_latency_buffer(
         self, num_max_dispatch_tokens_per_rank: int, hidden: int, num_experts: int

@@ -67,7 +67,7 @@ public:
     int32_t CombineNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *srcTokensPerEp,
                           const zbccl_tensor_info_t *topKWeight, const zbccl_tensor_info_t *topkIndex,
                           const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *balanceMatrix,
-                          uint16_t expertNum, const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm,
+                          uint16_t expertNum, const zbccl_tensor_info_t *destTokens,
                           aclrtStream stream, int64_t flags) noexcept;
 
 private:

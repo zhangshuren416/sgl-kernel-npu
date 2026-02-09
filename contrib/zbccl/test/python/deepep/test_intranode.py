@@ -23,6 +23,7 @@ from utils import (
     per_token_cast_back,
 )
 
+# torch.set_printoptions(threshold=float('inf'))
 
 # noinspection PyShadowingNames
 def test_main(
@@ -77,9 +78,10 @@ def test_main(
     for i in range(num_experts):
         num_tokens_per_expert[i] = (topk_idx == i).sum()
     gbl_num_tokens_per_expert = num_tokens_per_expert.clone()
-    print(f"[before] {rank=} {gbl_num_tokens_per_expert=}") # [bug] for all_reduce data sync
+    torch.npu.synchronize()
+    print(f"[before] {rank=} {gbl_num_tokens_per_expert[0]=}") # [bug] for all_reduce data sync
     dist.all_reduce(gbl_num_tokens_per_expert, group=group)
-    print(f"[after] {rank=} {gbl_num_tokens_per_expert=}")
+    print(f"[after] {rank=} {gbl_num_tokens_per_expert[0]=}")
 
     # Rank layout meta
     num_tokens_per_rank = torch.empty((num_ranks,), dtype=torch.int, device="npu")
@@ -103,7 +105,7 @@ def test_main(
     t = bench(lambda: buffer.get_dispatch_layout(topk_idx, num_experts))[0]
     print(f"[layout] Kernel performance: {t * 1000:.3f} ms", flush=True)
     print("", flush=True)
-    # dist.barrier()
+    dist.barrier()
     time.sleep(1)
 
 
@@ -128,10 +130,6 @@ def test_main(
     except AssertionError as e:
         print(e)
         raise
-    print(f"[test] {rank=} {ref_num_tokens_per_expert=}", flush=True)
-    # print(f"[test] {rank=} {ref_num_tokens_per_rank=}", flush=True)
-    # print(f"[test] {rank=} {ref_is_token_in_rank=}", flush=True)
-    # return
 
     # Config
     buffer_size = 256
@@ -147,42 +145,7 @@ def test_main(
         (num_tokens, num_topk), dtype=torch.float32, device="npu"
     )
 
-    for current_x in filter(lambda elem: elem is not None, (x,)):
-        if local_rank == 0:
-            print(
-                f'[testing] Running with {"FP8" if isinstance(current_x, tuple) else "BF16"}, with top-k {num_topk} ...',
-                flush=True,
-            )
-        dispatch_args = {
-            "x": current_x,
-            "num_tokens_per_rank": ref_num_tokens_per_rank,
-            "is_token_in_rank": ref_is_token_in_rank,
-            "num_tokens_per_expert": ref_num_tokens_per_expert,
-            "config": config,
-            "topk_idx": topk_idx,
-            "topk_weights": (
-                topk_weights_pure_rand if current_x is x_pure_rand else topk_weights
-            ),
-        }
-
-        (
-            recv_x,
-            recv_topk_idx,
-            recv_topk_weights,
-            recv_num_tokens_per_expert_list,
-            handle,
-            event,
-        ) = buffer.dispatch(**dispatch_args)
-        recv_x = per_token_cast_back(*recv_x) if isinstance(recv_x, tuple) else recv_x
-
-        balance_matrix = handle[4]
-        # if rank == 0:
-        # torch.set_printoptions(threshold=float('inf'))
-        # print(f"[test] {rank=} {balance_matrix=}")
-        # print(f"[test] {rank=} {recv_num_tokens_per_expert_list=}")
-        # print(f"[test] {rank=} {recv_x=}")
-
-        # Checks
+    def get_num_tokens_per_expert_list(rank: int):
         local_expert_token = gbl_num_tokens_per_expert.view(num_ranks, -1)[rank]
         if expert_token_nums_type == 0:
             local_expert_token_list = local_expert_token.cumsum(
@@ -190,8 +153,131 @@ def test_main(
             ).tolist()  # 计算前缀和并转为 list
         else:
             local_expert_token_list = local_expert_token.tolist()
-        print(f"[test] {rank=} {local_expert_token_list=}")
-        assert local_expert_token_list == recv_num_tokens_per_expert_list
+        return local_expert_token_list
+
+    def test_correctness():
+        for current_x in filter(lambda elem: elem is not None, (x, x_pure_rand)):
+            if local_rank == 0:
+                print(
+                    f'[testing] Running with {"FP8" if isinstance(current_x, tuple) else "BF16"}, with top-k {num_topk} ...',
+                    flush=True,
+                )
+            # Test dispatch
+            dispatch_args = {
+                "x": current_x,
+                "num_tokens_per_rank": ref_num_tokens_per_rank,
+                "is_token_in_rank": ref_is_token_in_rank,
+                "num_tokens_per_expert": ref_num_tokens_per_expert,
+                "config": config,
+                "topk_idx": topk_idx,
+                "topk_weights": (
+                    topk_weights_pure_rand if current_x is x_pure_rand else topk_weights
+                ),
+            }
+
+            (
+                recv_x,
+                recv_topk_idx,
+                recv_topk_weights,
+                recv_num_tokens_per_expert_list,
+                handle,
+                event,
+            ) = buffer.dispatch(**dispatch_args)
+            recv_x = per_token_cast_back(*recv_x) if isinstance(recv_x, tuple) else recv_x
+
+            # Checks notify output
+            local_expert_token_list = get_num_tokens_per_expert_list(rank)
+            assert local_expert_token_list == recv_num_tokens_per_expert_list
+
+            # Test combine
+            combine_args = {
+                "x": recv_x,
+                "handle": handle,
+                "config": config,
+                "async_finish": False,
+                "topk_weights": handle[2],
+            }
+            combined_x, combined_topk_weights, event = buffer.combine(**combine_args)
+
+            check_x = combined_x.float()
+            ref_x = x_pure_rand if current_x is x_pure_rand else x
+            ref_x_compute = ref_x * handle[2].masked_fill(topk_idx == -1, 0).sum(dim=1).view(-1, 1)
+            diff = calc_diff(check_x, ref_x_compute)
+            if diff > 5e-5 or math.isnan(diff):
+                print(f"[error] {rank=} {diff=} {check_x[:,:10]=} {ref_x_compute[:, :10]=}")
+            assert (diff < 5e-5 or math.isnan(diff))
+
+            if local_rank == 0:
+                print(" passed", flush=True)
+
+    def test_tuning():
+        config = Config(24, 8, buffer_size)
+
+        current_x = x
+        local_expert_token_list = get_num_tokens_per_expert_list(rank)
+        real_recv_tokens = sum(local_expert_token_list)
+        dispatch_bf16_recv_bytes = real_recv_tokens * hidden * 2
+        combine_bf16_send_bytes = dispatch_bf16_recv_bytes
+
+        # tuning dispatch
+        recv_bytes = (
+            (dispatch_bf16_recv_bytes / 2) if use_quant else dispatch_bf16_recv_bytes
+        )
+        tune_dispatch_args = {
+            "x": current_x,
+            "config": config,
+            "num_tokens_per_rank": ref_num_tokens_per_rank,
+            "is_token_in_rank": ref_is_token_in_rank,
+            "num_tokens_per_expert": ref_num_tokens_per_expert,
+            "topk_idx": topk_idx,
+            "topk_weights": topk_weights,
+        }
+        dispatch_t = bench(lambda: buffer.dispatch(**tune_dispatch_args))[0]
+        print(
+            f'[tuning] Dispatch ({"FP8" if isinstance(current_x, tuple) else "BF16"}) {recv_bytes / 1e9 / dispatch_t:.2f} GB/s (HCCS), avg_t: {dispatch_t * 1e6:.2f} us',
+            flush=True,
+        )
+        print("", flush=True)
+
+        dispatch_args = {
+            "x": x,
+            "config": config,
+            "num_tokens_per_rank": ref_num_tokens_per_rank,
+            "is_token_in_rank": ref_is_token_in_rank,
+            "num_tokens_per_expert": ref_num_tokens_per_expert,
+            "topk_idx": topk_idx,
+            "topk_weights": topk_weights,
+        }
+        recv_x, _, _, _, handle, _ = buffer.dispatch(**dispatch_args)
+        recv_x = per_token_cast_back(*recv_x) if isinstance(recv_x, tuple) else recv_x
+        # Tune combine performance
+        tune_combine_args = {
+            "x": recv_x,
+            "handle": handle,
+            "config": config,
+            "async_finish": False,
+            "topk_weights": handle[2],
+        }
+        combine_t = bench(lambda: buffer.combine(**tune_combine_args))[0]
+        print(
+            f"[tuning] Combine {combine_bf16_send_bytes / 1e9 / combine_t:.2f} GB/s (HCCS), avg_t: {combine_t * 1e6:.2f} us",
+            flush=True,
+        )
+        print("", flush=True)
+
+        calculate_avg_stats(
+            dispatch_t=dispatch_t,
+            num_dispatch_comm_bytes=recv_bytes,
+            combine_t=combine_t,
+            num_combine_comm_bytes=combine_bf16_send_bytes,
+            rank=rank,
+            num_ranks=num_ranks,
+            root_rank=0,
+        )
+
+    test_correctness()
+    test_tuning()
+
 
 # noinspection PyUnboundLocalVariable,PyShadowingNames
 def test_loop(local_rank: int, num_local_ranks: int, args: argparse.Namespace):
@@ -208,10 +294,7 @@ def test_loop(local_rank: int, num_local_ranks: int, args: argparse.Namespace):
     print(f"[Rank {rank}] Buffer created OK.", flush=True)
     torch.manual_seed(rank)
 
-    for i in range(1):
-        test_main(args, num_local_ranks, local_rank, num_ranks, rank, buffer, group)
-        if local_rank == 0:
-            print(f"=============[loop {i}] finish", flush=True)
+    test_main(args, num_local_ranks, local_rank, num_ranks, rank, buffer, group)
 
     dist.barrier()
     dist.destroy_process_group()

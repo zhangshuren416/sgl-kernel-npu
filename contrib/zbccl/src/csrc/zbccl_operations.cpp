@@ -264,7 +264,20 @@ ZBCCL_API int32_t zbccl_combine_normal(const zbccl_tensor_info_t *srcTokens, con
                                        const zbccl_tensor_info_t *destTokens, zbccl_comm_t comm, aclrtStream stream,
                                        int64_t flags)
 {
-    return Z_OK;
+    ZBCCL_VALIDATE_RETURN(srcTokens != nullptr, "CombineNormal failed as srcTokens is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(srcTokensPerEp != nullptr, "CombineNormal failed as srcTokensPerEp is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(topKWeight != nullptr, "CombineNormal failed as topKWeight is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(topkIndex != nullptr, "CombineNormal failed as topkIndex is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(sendTokensIndex != nullptr, "CombineNormal failed as sendTokensIndex is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(balanceMatrix != nullptr, "CombineNormal failed as balanceMatrix is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(destTokens != nullptr, "CombineNormal failed as destTokens is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(expertNum > 0, "CombineNormal failed as expertNum " << expertNum << " is invalid",
+                          Z_INVALID_PARAM);
+
+    /* covert inner object ptr and execute op */
+    auto innerComm = reinterpret_cast<Communicator *>(comm);
+    return innerComm->CombineNormal(srcTokens, srcTokensPerEp, topKWeight, topkIndex, sendTokensIndex, balanceMatrix, expertNum,
+                                    destTokens, stream, flags);
 }
 
 #ifdef __cplusplus
