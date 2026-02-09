@@ -23,7 +23,7 @@
 #define ZBCCL_SCALAR_CACHELINE_SIZE 64
 #define ZBCCL_AIV_MAX_EXP_NUM       6                 // ceil(log2(48))
 #define ZBCCL_CORE_BARRIER_SIZE     (ZBCCL_MAX_AIV_SIZE_PER_NPU * ZBCCL_AIV_MAX_EXP_NUM * ZBCCL_SCALAR_CACHELINE_SIZE)
-#define ZBCCL_U64_CACHELINE_SIZE (ZBCCL_SCALAR_CACHELINE_SIZE / sizeof(uint64_t))
+#define ZBCCL_U64_CACHELINE_SIZE    (ZBCCL_SCALAR_CACHELINE_SIZE / sizeof(uint64_t))
 #define ZBCCL_PROFILING_PRINT_WIDTH 20
 
 struct zbccl_profiling_block_t {
@@ -45,40 +45,39 @@ const std::vector<std::string> g_profName = {
     "AG_KERNEL_ALL",
 };
 
-#define ZBCCL_C_PROF_START(block, frameId)                                          \
-    auto coreId = AscendC::GetBlockIdx();                                           \
-    if ((coreId) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
-        PipeBarrier<PIPE_ALL>();                                                    \
-        auto cycles = AscendC::GetSystemCycle();                                    \
-        (block)->ccycle[(coreId)][(frameId)] -= cycles;                             \
-    }
-
-#define ZBCCL_C_PROF_STOP(block, frameId)                                           \
-    auto coreId = AscendC::GetBlockIdx();                                           \
-    if ((coreId) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT)  {    \
-        PipeBarrier<PIPE_ALL>();                                                    \
-        auto cycles = AscendC::GetSystemCycle();                                    \
-        (block)->ccycle[(coreId)][(frameId)] += cycles;                             \
-        (block)->ccount[(coreId)][(frameId)] += 1;                                  \
-    }
-
-#define ZBCCL_V_PROF_START(comm, frameId)                                                           \
-    if ((AscendC::GetBlockIdx()) < ZBCCL_MAX_AIV_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
+#define ZBCCL_C_PROF_START(comm, frameId)                                                           \
+    if (AscendC::GetBlockIdx() < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {       \
         auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
         PipeBarrier<PIPE_ALL>();                                                                    \
         auto cycles = AscendC::GetSystemCycle();                                                    \
-        __gm__ int64_t *data = reinterpret_cast<__gm__ int64_t *>(block->vcycle[AscendC::GetBlockIdx()]);   \
-        data[frameId] -= cycles;                                                                            \
+        block->ccycle[AscendC::GetBlockIdx()][(frameId)] -= cycles;                                 \
+    }
+
+#define ZBCCL_C_PROF_STOP(comm, frameId)                                                            \
+    if (AscendC::GetBlockIdx() < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT)  {      \
+        auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
+        PipeBarrier<PIPE_ALL>();                                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                                    \
+        block->ccycle[AscendC::GetBlockIdx()][(frameId)] += cycles;                                 \
+        block->ccount[AscendC::GetBlockIdx()][(frameId)] += 1;                                      \
+    }
+
+#define ZBCCL_V_PROF_START(comm, frameId)                                                           \
+    if (AscendC::GetBlockIdx() < ZBCCL_MAX_AIV_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {       \
+        auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
+        PipeBarrier<PIPE_ALL>();                                                                    \
+        auto cycles = AscendC::GetSystemCycle();                                                    \
+        block->vcycle[AscendC::GetBlockIdx()][frameId] -= cycles;                                   \
     }
 
 
 #define ZBCCL_V_PROF_STOP(comm, frameId)                                                            \
-    if ((AscendC::GetBlockIdx()) < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {     \
+    if (AscendC::GetBlockIdx() < ZBCCL_MAX_AIC_SIZE_PER_NPU && (frameId) < ZBCCL_PROF_BUTT) {       \
         auto block = reinterpret_cast<__gm__ zbccl_profiling_block_t *>(comm->profilingGva);        \
         PipeBarrier<PIPE_ALL>();                                                                    \
         auto cycles = AscendC::GetSystemCycle();                                                    \
-        (block)->vcycle[(AscendC::GetBlockIdx())][(frameId)] += cycles;                             \
-        (block)->vcount[(AscendC::GetBlockIdx())][(frameId)] += 1;                                  \
+        block->vcycle[AscendC::GetBlockIdx()][(frameId)] += cycles;                                 \
+        block->vcount[AscendC::GetBlockIdx()][(frameId)] += 1;                                      \
     }
 
 /**
