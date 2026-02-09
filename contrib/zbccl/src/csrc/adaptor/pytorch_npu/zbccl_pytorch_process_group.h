@@ -95,6 +95,9 @@ public:
         // The end npu events of zbccl operator tracking this work item on multiple npu devices.
         std::shared_ptr<std::vector<c10_npu::NPUEvent>> zbcclEndEvents_;
 
+        // Tensors used for barrier op
+        std::vector<at::Tensor> barrierTensors_;
+
         // Clone of blockingWait_ from ProcessGroupZBCCL.
         bool blockingWait_ = false;
 
@@ -182,6 +185,8 @@ public:
 
     c10::intrusive_ptr<c10d::Work> _reduce_scatter_base(at::Tensor &output, at::Tensor &input,
                                                         const RSOptions &opts = RSOptions()) override;
+
+    c10::intrusive_ptr<c10d::Work> barrier(const c10d::BarrierOptions& opts = c10d::BarrierOptions()) override;
 
     std::string getZBCCLCommName() noexcept;
 

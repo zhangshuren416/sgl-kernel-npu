@@ -51,6 +51,11 @@ void ProcessGroupZBCCL::WorkZBCCL::synchronizeInternal(std::chrono::milliseconds
         // Block the current stream on the zbccl stream
         (*zbcclEndEvents_)[i].block(currentStream);
         ZBCCL_LOG_INFO("Event: block zbccl work is successfully executed, event=" << (*zbcclEndEvents_)[i].event());
+        // if use the work to do barrier, should block here
+        if (!barrierTensors_.empty()) {
+            c10_npu::NPUGuard npuGuard(devices_[i]);
+            c10_npu::npuSynchronizeDevice();
+        }
     }
 
     // In case of blocking, wait for the operation to complete.
@@ -433,6 +438,20 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::reduce_scatter(std::vector<at:
                                                                  const c10d::ReduceScatterOptions &opts)
 {
     return nullptr;
+}
+
+c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::barrier(const c10d::BarrierOptions& opts)
+{
+    (void)opts;
+    std::vector<at::Tensor> tensors;
+    at::Tensor tensor = at::ones({1}, at::TensorOptions().device(c10::DeviceType::PrivateUse1).dtype(at::kFloat));
+    tensors.push_back(tensor);
+
+    auto work = allreduce(tensors);
+    auto zbcclWork = dynamic_cast<ProcessGroupZBCCL::WorkZBCCL *>(work.get());
+    ZBCCL_CHECK_S(zbcclWork != nullptr, "barrier return work is null.");
+    zbcclWork->barrierTensors_ = std::move(tensors);
+    return work;
 }
 
 std::string ProcessGroupZBCCL::getZBCCLCommName() noexcept

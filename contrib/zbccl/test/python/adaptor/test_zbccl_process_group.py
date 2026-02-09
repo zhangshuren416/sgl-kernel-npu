@@ -1,4 +1,6 @@
 import os
+import time
+import random
 import torch
 import torch.distributed as dist
 import torch_npu
@@ -41,6 +43,11 @@ def test_init_zbccl_pg():
         del sub_group
     print(f"init zbccl group success on rank {local_rank=} {world_size=} \
         {global_group_name=} {global_group_name2=} {sub_group_name=}")
+
+    sleep_time = random.uniform(0, 4)
+    time.sleep(sleep_time)
+    dist.barrier()
+    print(f"after barrier rank={local_rank} sleep={sleep_time}s finish at time={time.time()}")
 
     dist.destroy_process_group(global_group)
     del global_group
