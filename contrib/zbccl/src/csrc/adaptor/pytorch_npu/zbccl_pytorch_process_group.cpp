@@ -333,8 +333,12 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tens
             auto zbcclType = GetZBcclDataType(input.scalar_type());
             auto zbcclReduceOp = GetZBcclReduceOp(opts.reduceOp);
 
-            auto ret = zbccl_all_reduce(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
-            return ret;
+            std::function<int()> call_all_reduce = [inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream]() -> int {
+                auto result = zbccl_all_reduce(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
+                return result;
+            };
+            at_npu::native::OpCommand::RunOpApiV2("zbccl_all_reduce", call_all_reduce);
+            return Z_OK;
         },
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
@@ -372,8 +376,12 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_allgather_base(at::Tensor &ou
             auto numel = GetNumelForZBCCL(input);
             auto zbcclType = GetZBcclDataType(input.scalar_type());
 
-            auto ret = zbccl_all_gather(inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream.stream(false));
-            return ret;
+            std::function<int()> call_all_gather = [inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream]() -> int {
+                auto result = zbccl_all_gather(inputDataPtr, outputDataPtr, numel, zbcclType, comm, stream.stream(false));
+                return result;
+            };
+            at_npu::native::OpCommand::RunOpApiV2("zbccl_all_gather", call_all_gather);
+            return Z_OK;
         },
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
@@ -412,8 +420,12 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::_reduce_scatter_base(at::Tenso
             auto zbcclType = GetZBcclDataType(input.scalar_type());
             auto zbcclReduceOp = GetZBcclReduceOp(opts.reduceOp);
 
-            auto ret = zbccl_reduce_scatter(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
-            return ret;
+            std::function<int()> call_reduce_scatter = [inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream]() -> int {
+                auto result = zbccl_reduce_scatter(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
+                return result;
+            };
+            at_npu::native::OpCommand::RunOpApiV2("zbccl_reduce_scatter", call_reduce_scatter);
+            return Z_OK;
         },
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
         [&](std::vector<c10_npu::NPUStream> &, c10::intrusive_ptr<ProcessGroupZBCCL::WorkZBCCL> &) {},
