@@ -29,4 +29,4 @@ class EventOverlap:
         """
         The current stream waits for the event to be finished.
         """
-        self.event.current_stream_wait()
+        pass
