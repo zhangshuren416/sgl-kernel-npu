@@ -3985,6 +3985,11 @@ EXPORT_API void dma_init_heap(void *base_ptr, uint64_t local_mem_size, bool is_s
     int device = 0;
     c10_npu::GetDevice(&device);
 
+    if (device >= c10_npu::dma::caching_allocator.device_allocator.size()) {
+        ZBCCL_LOG_ERROR("try to init mem heap but allocator is not inited, switch allocator first!");
+        return;
+    }
+
     if (!c10_npu::dma::caching_allocator.device_allocator[device]->mem_heap_inited) {
         void *shmem_base_ptr = base_ptr;
         TORCH_INTERNAL_ASSERT(!is_simulation, "[E]dma currently do not support simulation on this init.");
@@ -4006,7 +4011,8 @@ EXPORT_API void dma_get_heap_stats(size_t &in_used_size, size_t &total_size, int
     else
         device_i = device;
 
-    if (c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_inited) {
+    if (device_i < c10_npu::dma::caching_allocator.device_allocator.size() && \
+        c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_inited) {
         in_used_size = c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_pool_->getInUsedSize();
         total_size = c10_npu::dma::caching_allocator.device_allocator[device_i]->mem_heap_pool_->getTotalSize();
     } else {

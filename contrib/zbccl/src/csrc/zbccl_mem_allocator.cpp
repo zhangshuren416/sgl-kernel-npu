@@ -240,7 +240,7 @@ void pybind11_allocator(pybind11::module_ &m)
 
         return std::make_tuple(in_used_size, total_size);
     }, pybind11::arg("device") = -1,
-    "get heap stats，return (used_size, total_size)");
+    "get heap stats，return (used_size, total_size), return zero if heap is not inited");
 
     m.def("dump_snapshot", []() {
         if(!zbccl::sma::SMAConfig::use_sma_allocator()) {

@@ -332,6 +332,11 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
     int device = 0;
     c10_npu::GetDevice(&device);
 
+    if (device >= zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_.size()) {
+        ZBCCL_LOG_ERROR("try to init mem heap but allocator is not inited, switch allocator first!");
+        return;
+    }
+
     if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
         void *shmem_base_addr_ = base_ptr;
         //ZBCCL_CHECK_S(!is_simulation, "[E]sma currently do not support simulation on this init.");
@@ -342,7 +347,8 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
 }
 
 ZBCCL_API void sma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device) {
-    if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
+    if (device < zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_.size() && \
+        !zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->GetHeapState(in_used_size, total_size, device);
     } else {
         ZBCCL_LOG_ERROR("heap on target device is not inited, no stats now");
