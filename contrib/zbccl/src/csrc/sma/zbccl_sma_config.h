@@ -100,7 +100,7 @@ private:
         garbage_collection_threshold_(0),
         // base_addr_aligned_size_(kAlignRoundLarge),
         segment_size_mb_(0),
-        use_sma_allocator_(false),
+        use_sma_allocator_(true),
         use_vmm_for_static_memory_(false),
         small_heap_size_(kSmallHeapSize),
         small_heap_threshold_(kSmallThreshold)

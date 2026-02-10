@@ -245,28 +245,19 @@ ZResult SecondaryMemoryAllocator::ReleasePool(int device, c10_npu::MempoolId_t m
 }
 
 ZResult SecondaryMemoryAllocator::GetHeapState(size_t &in_used_size, size_t &total_size, int device) {
-    int device_i = 0;
-    if (device < 0)
-        c10_npu::GetDevice(&device_i);
-    else
-        device_i = device;
-
-    in_used_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapInUsedSize();
-    total_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->getHeapTotalSize();
+    assertValidDevice(device);
+    in_used_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->getHeapInUsedSize();
+    total_size = zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->getHeapTotalSize();
     return Z_OK;
 }
 
 ZResult SecondaryMemoryAllocator::SnapShot(zbccl::sma::device::SnapshotDeviceInfo &device_info, int device) {
-    int device_i = 0;
-    if (device < 0)
-        c10_npu::GetDevice(&device_i);
-    else
-        device_i = device;
+    assertValidDevice(device);
 
     // take snapshot
-    device_allocator_[device_i]->snapshot(device_i);
+    device_allocator_[device]->snapshot(device);
     // export snapshot + history
-    auto record_info = zbccl::sma::device::DeviceInfoObserver::getInstance().dumpSnapshot(device_i);
+    auto record_info = zbccl::sma::device::DeviceInfoObserver::getInstance().dumpSnapshot(device);
 
     device_info.seg_infos_.insert(device_info.seg_infos_.end(), record_info.seg_infos_.begin(), record_info.seg_infos_.end());
     device_info.trace_infos_.insert(device_info.trace_infos_.end(), record_info.trace_infos_.begin(), record_info.trace_infos_.end());
@@ -339,7 +330,6 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
 
     if (!zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
         void *shmem_base_addr_ = base_ptr;
-        //ZBCCL_CHECK_S(!is_simulation, "[E]sma currently do not support simulation on this init.");
         zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->setMemHeapPool(shmem_base_addr_, local_mem_size);
     } else {
         ZBCCL_LOG_WARN("re-entrance into sma init, skip this time init");
@@ -347,9 +337,15 @@ ZBCCL_API void sma_init_heap(void *base_ptr, uint64_t local_mem_size) {
 }
 
 ZBCCL_API void sma_get_heap_stats(size_t &in_used_size, size_t &total_size, int device) {
-    if (device < zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_.size() && \
-        !zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device]->isHeapInited()) {
-        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->GetHeapState(in_used_size, total_size, device);
+    int device_i = 0;
+    if (device < 0)
+        c10_npu::GetDevice(&device_i);
+    else
+        device_i = device;
+
+    if (device_i < zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_.size() && \
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->device_allocator_[device_i]->isHeapInited()) {
+        zbccl::sma::SecondaryMemoryAllocator::GetInstance()->GetHeapState(in_used_size, total_size, device_i);
     } else {
         ZBCCL_LOG_ERROR("heap on target device is not inited, no stats now");
     }
