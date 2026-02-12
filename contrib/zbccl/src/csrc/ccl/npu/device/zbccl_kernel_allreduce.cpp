@@ -105,26 +105,26 @@ class ZeroBuffAllReduceKernel
 public:
     ZBCCL_KERNEL ZeroBuffAllReduceKernel() {}
 
-    ZBCCL_KERNEL void Init(GM_ADDR x, GM_ADDR y, GM_ADDR metaAddr, AscendC::TPipe *pipe,
-                                uint32_t rank, uint32_t groupSize, uint32_t totalLength, uint32_t magic,
+    ZBCCL_KERNEL void Init(GM_ADDR x, GM_ADDR y, GM_ADDR metaAddr, GM_ADDR buf, AscendC::TPipe *pipe,
+                                uint32_t rank, uint32_t groupSize, uint32_t totalLength, uint32_t bufLength, uint32_t magic,
                                 uint32_t atomicOp)
     {
         this->atomicOp = atomicOp;
         this->magic = magic;
         this->rank = rank;
         this->groupSize = groupSize;
+        this->bufLen = bufLength / sizeof(T);
+        this->totalLen = totalLength;
         auto groupInfo = reinterpret_cast<__gm__ CommGroupInfo *>(metaAddr);
         this->groupInfo = groupInfo;
+        this->pipe = pipe;
         __gm__ void *exchangeAddr = (__gm__ void *)(groupInfo->myAddressExchangeGva);
         __gm__ void *paramAddr = (__gm__ void *)(groupInfo->myParamDataGva);
 
         const uint32_t aivNum = AscendC::GetBlockNum();
         const uint32_t aivIndex = AscendC::GetBlockIdx();
 
-        uint32_t coreGroupNum = aivNum;
-        uint32_t lenPerRank = totalLength;
-
-        corePerRank = coreGroupNum / groupSize;
+        corePerRank = aivNum / groupSize;
         coreRankIdx = aivIndex % corePerRank;
         coreTargetRank = aivIndex / corePerRank;
 
@@ -140,72 +140,118 @@ public:
 
         uint64_t inputAddr = GetDataAddr((__gm__ void*)exchangeAddr, coreTargetRank, groupSize);
         GM_ADDR inputPtr = (GM_ADDR)inputAddr;
+        xGm.SetGlobalBuffer((__gm__ T *)inputPtr, totalLength);
+        yGm.SetGlobalBuffer((__gm__ T *)y, totalLength);
+        buffGm.SetGlobalBuffer((__gm__ T *)buf, bufLen);
+    }
 
-        uint32_t lenPerRankAlignToCore = CeilDiv(lenPerRank, corePerRank) * corePerRank;
-        uint32_t formerLength = lenPerRankAlignToCore / corePerRank;
-        uint32_t tailLength = lenPerRank / corePerRank;
-        uint32_t formerNum = lenPerRank % corePerRank;
-        uint32_t tailNum = corePerRank - formerNum;
-        uint32_t xOffset;
-        uint32_t yOffset;
-
-        if (coreRankIdx < formerNum) {
-            lenPerCore = formerLength;
-            xOffset = coreRankIdx * formerLength;
-            yOffset = coreRankIdx * formerLength;
-        } else {
-            lenPerCore = tailLength;
-            xOffset = formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
-            yOffset = formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
-        }
-
-        xGm.SetGlobalBuffer((__gm__ T *)inputPtr + xOffset, lenPerCore);
-        yGm.SetGlobalBuffer((__gm__ T *)y + yOffset, lenPerCore);
-        if (lenPerCore * sizeof(T) > UB_DMA_MAX_SIZE) {
-            pipe->InitBuffer(bindQueue, 1, UB_DMA_MAX_SIZE);
-        } else {
-            pipe->InitBuffer(bindQueue, 1, lenPerCore * sizeof(T));
-        }
+    ZBCCL_KERNEL void DataCopyGM2GM(AscendC::GlobalTensor<T> inputTensor,
+                                    AscendC::GlobalTensor<T> outputTensor,
+                                    uint32_t len, uint32_t inputOffset, uint32_t outputOffset)
+    {
+        AscendC::DataCopyPadExtParams<T> padParams;
+        uint32_t leftCopySize = len * sizeof(T);
+        uint32_t times = 0;
+        uint32_t preCopyNum = UB_DMA_MAX_SIZE / sizeof(T);
+        do {
+            uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
+            AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
+            AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
+            AscendC::DataCopyPad(xLocal, inputTensor[inputOffset + times * preCopyNum], dataCopyParams, padParams);
+            bindQueue.EnQue(xLocal);
+            xLocal = bindQueue.DeQue<T>();
+            AscendC::DataCopyPad(outputTensor[outputOffset + times * preCopyNum], xLocal, dataCopyParams);
+            bindQueue.FreeTensor(xLocal);
+            leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
+            times++;
+        } while (leftCopySize > 0);
     }
 
     ZBCCL_KERNEL void Process()
     {
 #ifdef __DAV_C220_VEC__
-        uint32_t leftCopySize = lenPerCore * sizeof(T);
-        AscendC::DataCopyPadExtParams<T> padParams;
-        SetAtomicOp<T>(atomicOp);
-        uint32_t times = 0;
-        uint32_t preCopyNum = UB_DMA_MAX_SIZE / sizeof(T);
+        uint32_t bufLoopTimes = CeilDiv(totalLen, bufLen);
+        uint32_t tailLen = (bufLoopTimes == 1) ? totalLen : totalLen % bufLen;
+        for (uint32_t i = 0; i < bufLoopTimes; ++i) {
+            // 计算输入数据在每个核的偏移
+            uint32_t lenPerRank = (i == bufLoopTimes - 1) ? tailLen : bufLen;
+            uint32_t lenPerRankAlignToCore = CeilDiv(lenPerRank, corePerRank) * corePerRank;
+            uint32_t formerLength = lenPerRankAlignToCore / corePerRank;
+            uint32_t tailLength = lenPerRank / corePerRank;
+            uint32_t formerNum = lenPerRank % corePerRank;
+            uint32_t tailNum = corePerRank - formerNum;
+            uint32_t loopOffset = i * bufLen;
+            uint32_t coreOffset;
 
-        do {
-            uint32_t curCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? UB_DMA_MAX_SIZE : leftCopySize;
-            AscendC::LocalTensor<T> xLocal = bindQueue.AllocTensor<T>();
-            AscendC::DataCopyExtParams dataCopyParams(1, curCopySize, 0, 0, 0);
-            if (rank != coreTargetRank) {
-                AscendC::DataCopyPad(xLocal, xGm[times * preCopyNum], dataCopyParams, padParams);
-                bindQueue.EnQue(xLocal);
+            if (coreRankIdx < formerNum) {
+                lenPerCore = formerLength;
+                coreOffset = coreRankIdx * formerLength;
+            } else {
+                lenPerCore = tailLength;
+                coreOffset = formerNum * formerLength + (coreRankIdx - formerNum) * tailLength;
             }
-            zbccl_barrier_all_for_ar(rank, groupSize, groupInfo->localDeviceMemSize, reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecCounter),
-                                    reinterpret_cast<__gm__ uint64_t *>(groupInfo->vecBarrier), reinterpret_cast<__gm__ uint16_t *>(groupInfo->peerGroupRank2WorldRank));
-            if (rank != coreTargetRank) {
-                xLocal = bindQueue.DeQue<T>();
-                AscendC::DataCopyPad(yGm[times * preCopyNum], xLocal, dataCopyParams);
+            
+            if (lenPerCore * sizeof(T) > UB_DMA_MAX_SIZE) {
+                pipe->InitBuffer(bindQueue, 1, UB_DMA_MAX_SIZE);
+            } else {
+                pipe->InitBuffer(bindQueue, 1, lenPerCore * sizeof(T));
             }
-            bindQueue.FreeTensor(xLocal);
-            leftCopySize = (leftCopySize > UB_DMA_MAX_SIZE) ? leftCopySize - UB_DMA_MAX_SIZE : 0;
-            times++;
-        } while (leftCopySize > 0);
 
-        AscendC::SetAtomicNone();
-        Barrier((__gm__ void *)(groupInfo->myParamDataGva), rank, groupSize, groupInfo->localDeviceMemSize,
-                (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank);
+            // 搬运数据input -> buffer
+            uint32_t inOffset = loopOffset + coreOffset;
+            uint32_t outOffset = coreOffset;
+
+            if (rank == coreTargetRank) {
+                AscendC::SetAtomicNone();
+                DataCopyGM2GM(xGm, buffGm, lenPerCore, inOffset, outOffset);
+                AscendC::SyncAll<true>();
+            } else {
+                AscendC::SyncAll<true>();
+                SetAtomicOp<T>(atomicOp);
+                DataCopyGM2GM(xGm, buffGm, lenPerCore, inOffset, outOffset);
+                AscendC::SetAtomicNone();
+            }
+
+            Barrier((__gm__ void *)(groupInfo->myParamDataGva), rank, groupSize, groupInfo->localDeviceMemSize,
+                    (__gm__ uint16_t *)groupInfo->peerGroupRank2WorldRank);
+
+            // 搬运数据buffer -> output
+            const uint32_t aivNum = AscendC::GetBlockNum();
+            const uint32_t aivIndex = AscendC::GetBlockIdx();
+            lenPerRankAlignToCore = CeilDiv(lenPerRank, aivNum) * aivNum;
+            formerLength = lenPerRankAlignToCore / aivNum;
+            tailLength = lenPerRank / aivNum;
+            formerNum = lenPerRank % aivNum;
+            tailNum = aivNum - formerNum;
+            if (aivIndex < formerNum) {
+                lenPerCore = formerLength;
+                coreOffset = aivIndex * formerLength;
+            } else {
+                lenPerCore = tailLength;
+                coreOffset = formerNum * formerLength + (aivIndex - formerNum) * tailLength;
+            }
+
+            pipe->Reset();
+            if (lenPerCore * sizeof(T) > UB_DMA_MAX_SIZE) {
+                pipe->InitBuffer(bindQueue, 1, UB_DMA_MAX_SIZE);
+            } else {
+                pipe->InitBuffer(bindQueue, 1, lenPerCore * sizeof(T));
+            }
+
+            inOffset = coreOffset;
+            outOffset = loopOffset + coreOffset;
+            DataCopyGM2GM(buffGm, yGm, lenPerCore, inOffset, outOffset);
+            pipe->Reset();
+        }
 #endif
     }
 
 private:
+    AscendC::TPipe *pipe;
     AscendC::TQueBind<AscendC::TPosition::VECIN, AscendC::TPosition::VECOUT, 1> bindQueue;
     AscendC::GlobalTensor<T> xGm;
     AscendC::GlobalTensor<T> yGm;
+    AscendC::GlobalTensor<T> buffGm;
     uint32_t rank;
     uint32_t atomicOp;
     uint32_t lenPerCore;
@@ -213,8 +259,10 @@ private:
     uint32_t coreRankIdx;
     uint32_t corePerRank;
     uint32_t magic;
-    __gm__ CommGroupInfo *groupInfo;
     uint32_t groupSize;
+    uint32_t bufLen;
+    uint32_t totalLen;
+    __gm__ CommGroupInfo *groupInfo;
 };
 
 extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
@@ -230,37 +278,37 @@ extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
     switch (zbcclDataType) {
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT8: {
             ZeroBuffAllReduceKernel<int8_t> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT16: {
             ZeroBuffAllReduceKernel<int16_t> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_INT32: {
             ZeroBuffAllReduceKernel<int32_t> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_FP32: {
             ZeroBuffAllReduceKernel<float> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_FP16: {
             ZeroBuffAllReduceKernel<float16_t> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
         case zbccl_datatype_t::ZBCCL_DATA_TYPE_BFP16: {
             ZeroBuffAllReduceKernel<bfloat16_t> op;
-            op.Init(input, output, gva, &pipe, rank, groupSize, totalLength, magic, reduceOp);
+            op.Init(input, output, gva, buffer, &pipe, rank, groupSize, totalLength, bufLen, magic, reduceOp);
             op.Process();
             break;
         }
