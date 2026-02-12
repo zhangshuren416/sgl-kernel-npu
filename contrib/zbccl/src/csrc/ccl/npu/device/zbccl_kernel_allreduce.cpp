@@ -218,8 +218,8 @@ private:
 };
 
 extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
-    GM_ADDR input, GM_ADDR output, GM_ADDR gva,
-    uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength,
+    GM_ADDR input, GM_ADDR output, GM_ADDR buffer, GM_ADDR gva,
+    uint64_t fftsAddr, uint32_t dataType, uint32_t totalLength, uint32_t bufLen,
     uint32_t rank, uint32_t groupSize, uint32_t reduceOp)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
@@ -269,7 +269,7 @@ extern "C" __global__ __aicore__ void ZeroBuffAllReduce(
     }
 }
 
-int32_t ZBCCLOpAllReduce(const void *inp, void *out, size_t numel, zbccl_datatype_t dataType,
+int32_t ZBCCLOpAllReduce(const void *inp, void *out, void *buf, size_t numel, size_t buf_cnt, zbccl_datatype_t dataType,
                            aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo)
 {
     /* define the block dim */
@@ -284,8 +284,9 @@ int32_t ZBCCLOpAllReduce(const void *inp, void *out, size_t numel, zbccl_datatyp
     uint8_t* metaAddr = reinterpret_cast<uint8_t *>(groupInfo.myMetaGva);
     uint8_t* input = reinterpret_cast<uint8_t *>(const_cast<void *>(inp));
     uint8_t* output = reinterpret_cast<uint8_t *>(out);
+    uint8_t *buffer = reinterpret_cast<uint8_t *>(buf);
 
-    ZeroBuffAllReduce<<<blockDim, nullptr, stream>>>(input, output, metaAddr, fftsAddr, dataTypeNum, numel, rank, groupSize, reduceOpNum);
+    ZeroBuffAllReduce<<<blockDim, nullptr, stream>>>(input, output, buffer, metaAddr, fftsAddr, dataTypeNum, numel, buf_cnt, rank, groupSize, reduceOpNum);
 
     return 0;
 }

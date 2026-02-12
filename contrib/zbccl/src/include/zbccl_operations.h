@@ -79,7 +79,7 @@ void zbccl_comm_destroy_all(uint32_t flags);
  * @param stream               [in] stream
  * @return 0 if successful
  */
-int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
+int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, void *buffer, size_t count, size_t buf_cnt, zbccl_datatype_t data_type,
                          zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream);
 
 /**

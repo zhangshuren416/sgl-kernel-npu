@@ -335,8 +335,13 @@ c10::intrusive_ptr<c10d::Work> ProcessGroupZBCCL::allreduce(std::vector<at::Tens
             auto zbcclType = GetZBcclDataType(input.scalar_type());
             auto zbcclReduceOp = GetZBcclReduceOp(opts.reduceOp);
 
-            std::function<int()> call_all_reduce = [inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream]() -> int {
-                auto result = zbccl_all_reduce(inputDataPtr, outputDataPtr, numel, zbcclType, zbcclReduceOp, comm, stream.stream(false));
+            size_t bufferElemCnt = 32 * 1024 * 1024;
+            at::Tensor bufferTensor = at::zeros({bufferElemCnt}, at::TensorOptions().device(input.device()).dtype(at::kInt));
+            void *bufferDataPtr = bufferTensor.data_ptr();
+            size_t bufferLen = bufferElemCnt * sizeof(int);
+
+            std::function<int()> call_all_reduce = [inputDataPtr, outputDataPtr, bufferDataPtr, numel, bufferLen, zbcclType, zbcclReduceOp, comm, stream]() -> int {
+                auto result = zbccl_all_reduce(inputDataPtr, outputDataPtr, bufferDataPtr, numel, bufferLen, zbcclType, zbcclReduceOp, comm, stream.stream(false));
                 return result;
             };
             at_npu::native::OpCommand::RunOpApiV2("zbccl_all_reduce", call_all_reduce);

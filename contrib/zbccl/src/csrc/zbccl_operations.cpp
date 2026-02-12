@@ -114,7 +114,7 @@ ZBCCL_API void zbccl_comm_destroy_all(uint32_t flags)
     Communicator::DestroyAll();
 }
 
-ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
+ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, void *buffer, size_t count, size_t buf_cnt, zbccl_datatype_t data_type,
                                    zbccl_reduce_op_t op, zbccl_comm_t comm, aclrtStream stream)
 {
     if (send_buff == nullptr) {
@@ -127,10 +127,12 @@ ZBCCL_API int32_t zbccl_all_reduce(const void *send_buff, void *recv_buff, size_
     ZBCCL_VALIDATE_RETURN(op >= 0 && op < ZBCCL_REDUCE_BUTT, "AllReduce failed as op " << op << " is invalid",
                           Z_INVALID_PARAM);
     ZBCCL_VALIDATE_RETURN(comm != nullptr, "AllReduce failed as comm is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(buffer != nullptr, "Allreduce tmp buffer is null", Z_INVALID_PARAM);
+    ZBCCL_VALIDATE_RETURN(buf_cnt > 0, "AllReduce buf cnt is invalid", Z_INVALID_PARAM);
 
     /* covert inner object ptr and execute op */
     auto innerComm = reinterpret_cast<Communicator *>(comm);
-    return innerComm->AllReduce(send_buff, recv_buff, count, data_type, op, stream);
+    return innerComm->AllReduce(send_buff, recv_buff, buffer, count, buf_cnt, data_type, op, stream);
 }
 
 ZBCCL_API int32_t zbccl_reduce_scatter(const void *send_buff, void *recv_buff, size_t recv_count,
@@ -233,7 +235,7 @@ ZBCCL_API int32_t zbccl_dispatch_normal_layout(const zbccl_tensor_info_t *topkIn
 
 ZBCCL_API int32_t zbccl_dispatch_normal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                                         const zbccl_tensor_info_t *sendTokensIndex,
-                                        const zbccl_tensor_info_t *pushTargetOffset, 
+                                        const zbccl_tensor_info_t *pushTargetOffset,
                                         const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum,
                                         zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
                                         const zbccl_tensor_info_t *destScale, zbccl_comm_t comm, aclrtStream stream,

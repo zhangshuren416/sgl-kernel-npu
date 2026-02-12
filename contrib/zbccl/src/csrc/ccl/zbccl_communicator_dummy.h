@@ -43,7 +43,7 @@ public:
         return Z_OK;
     }
 
-    int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
+    int32_t AllReduce(const void *send_buff, void *recv_buff, void *buffer, size_t count, size_t buf_cnt, zbccl_datatype_t data_type,
                       zbccl_reduce_op_t op, aclrtStream stream) noexcept override
     {
         return Z_OK;

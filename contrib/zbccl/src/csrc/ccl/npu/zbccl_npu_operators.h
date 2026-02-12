@@ -22,8 +22,8 @@ int32_t ZBCCLOpAllGather(const void *sendBuff, void *recvBuff, size_t sendCount,
 int32_t ZBCCLOpReduceScatter(const void *inp, void *out, size_t recvNumel, zbccl_datatype_t dataType,
                              aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
 
-int32_t ZBCCLOpAllReduce(const void *inp, void *out, size_t numel, zbccl_datatype_t dataType,
-                             aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
+int32_t ZBCCLOpAllReduce(const void *inp, void *out, void *buf, size_t numel, size_t bufCnt, zbccl_datatype_t dataType,
+                         aclrtStream stream, zbccl_reduce_op_t reduceOp, const CommGroupInfo &groupInfo);
 
 int32_t ZBCCLOpDispatchLayout(const zbccl_tensor_info_t* topkIndex, int64_t tokens, int64_t expertNum, int64_t topkNum,
                               const zbccl_tensor_info_t* tokensPerRank, const zbccl_tensor_info_t* tokensPerExpert,
@@ -39,7 +39,7 @@ int32_t ZBCCLOpNotifyDispatch(const zbccl_tensor_info_t *sendTokensPerExpert, in
                             int64_t flags);
 
 int32_t ZBCCLOpDispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
-                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset, 
+                            const zbccl_tensor_info_t *sendTokensIndex, const zbccl_tensor_info_t *pushTargetOffset,
                             const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum, zbccl_quant_mode_t quantMode,
                             const zbccl_tensor_info_t *destTokens, const zbccl_tensor_info_t *destScale,
                             bool enableBalance, aclrtStream stream, const CommGroupInfo &groupInfo, int64_t flags);

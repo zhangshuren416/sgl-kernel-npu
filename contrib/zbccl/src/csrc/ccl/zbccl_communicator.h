@@ -109,7 +109,7 @@ public:
      *
      * @return 0 if successful
      */
-    virtual int32_t AllReduce(const void *send_buff, void *recv_buff, size_t count, zbccl_datatype_t data_type,
+    virtual int32_t AllReduce(const void *send_buff, void *recv_buff, void *buffer, size_t count, size_t buf_cnt, zbccl_datatype_t data_type,
                               zbccl_reduce_op_t op, aclrtStream stream) noexcept = 0;
 
     /**
@@ -169,7 +169,7 @@ public:
      */
     virtual int32_t DispatchNormal(const zbccl_tensor_info_t *srcTokens, const zbccl_tensor_info_t *topkIndex,
                                    const zbccl_tensor_info_t *sendTokensIndex,
-                                   const zbccl_tensor_info_t *pushTargetOffset, 
+                                   const zbccl_tensor_info_t *pushTargetOffset,
                                    const zbccl_tensor_info_t *balanceMatrix, int64_t expertNum,
                                    zbccl_quant_mode_t quantMode, const zbccl_tensor_info_t *destTokens,
                                    const zbccl_tensor_info_t *destScale, aclrtStream stream,

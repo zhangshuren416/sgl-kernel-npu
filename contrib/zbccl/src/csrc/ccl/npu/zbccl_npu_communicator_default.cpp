@@ -113,10 +113,10 @@ ZResult NpuCommunicatorDefault::AssignGatherGroupId(AutoReleaseGroupId &id) noex
     return Z_OK;
 }
 
-int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, size_t count,
+int32_t NpuCommunicatorDefault::AllReduce(const void *send_buff, void *recv_buff, void *buffer, size_t count, size_t buf_cnt,
                                           zbccl_datatype_t data_type, zbccl_reduce_op_t op, aclrtStream stream) noexcept
 {
-    return ZBCCLOpAllReduce(send_buff, recv_buff, count, data_type, stream, op, GetMetaInfo());
+    return ZBCCLOpAllReduce(send_buff, recv_buff, buffer, count, buf_cnt, data_type, stream, op, GetMetaInfo());
 }
 
 int32_t NpuCommunicatorDefault::ReduceScatter(const void *send_buff, void *recv_buff, size_t recv_count,
